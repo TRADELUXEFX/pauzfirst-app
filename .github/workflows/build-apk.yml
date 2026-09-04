@@ -39,7 +39,7 @@ jobs:
         run: npx cap sync android
 
       - name: Restore keystore from secret
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/android/app/release.keystore
 
       - name: Build signed release APK
         env:
@@ -48,7 +48,7 @@ jobs:
         run: |
           cd android
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=release.keystore \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/android/app/release.keystore \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias=pauzfirst \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
