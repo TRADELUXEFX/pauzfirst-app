@@ -1,0 +1,9 @@
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+<service
+    android:name="com.pauzfirst.app.TtsForegroundService"
+    android:foregroundServiceType="mediaPlayback"
+    android:exported="false" />
