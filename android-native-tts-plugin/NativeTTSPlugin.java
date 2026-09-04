@@ -10,7 +10,6 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-import java.util.HashMap;
 import java.util.Locale;
 
 @CapacitorPlugin(name = "NativeTTS")
@@ -37,8 +36,10 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
     @PluginMethod
     public void speak(PluginCall call) {
         String text = call.getString("text", "");
-        float rate = (float) call.getDouble("rate", 1.0);
-        float pitch = (float) call.getDouble("pitch", 1.0);
+        Double rateD = call.getDouble("rate", 1.0);
+        Double pitchD = call.getDouble("pitch", 1.0);
+        float rate = rateD.floatValue();
+        float pitch = pitchD.floatValue();
 
         if (!isReady || text.isEmpty()) {
             call.reject("TTS not ready or empty text");
@@ -73,8 +74,7 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
             }
         });
 
-        HashMap<String, String> params = new HashMap<>();
-        params.put(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId);
+        Bundle params = new Bundle();
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
 
         JSObject result = new JSObject();
