@@ -1,0 +1,60 @@
+name: Build PauzFirst APK (Capacitor + Native TTS)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Add Android platform
+        run: npx cap add android || true
+
+      - name: Copy native TTS plugin files into Android project
+        run: |
+          mkdir -p android/app/src/main/java/com/pauzfirst/app
+          cp android-native-tts-plugin/NativeTTSPlugin.java android/app/src/main/java/com/pauzfirst/app/
+          cp android-native-tts-plugin/TtsForegroundService.java android/app/src/main/java/com/pauzfirst/app/
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Restore keystore from secret
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=release.keystore \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias=pauzfirst \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pauzfirst-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
