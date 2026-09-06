@@ -22,8 +22,17 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
     @Override
     public void load() {
         tts = new TextToSpeech(getContext(), this);
-        Intent serviceIntent = new Intent(getContext(), TtsForegroundService.class);
-        getContext().startForegroundService(serviceIntent);
+        try {
+            Intent serviceIntent = new Intent(getContext(), TtsForegroundService.class);
+            getContext().startForegroundService(serviceIntent);
+        } catch (Exception e) {
+            // The foreground service is only there to keep playback alive with the
+            // screen locked — it must never be allowed to take TTS down with it.
+            // Common failure here: POST_NOTIFICATIONS not granted at runtime on
+            // Android 13+, or the OS refusing a foreground-service start outright.
+            // Speech still works fine without it, so just log and move on.
+            android.util.Log.w("NativeTTSPlugin", "TTS foreground service failed to start; speech will still work in foreground", e);
+        }
     }
 
     @Override
