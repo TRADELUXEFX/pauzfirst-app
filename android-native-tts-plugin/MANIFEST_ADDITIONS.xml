@@ -3,6 +3,17 @@
 <uses-permission android:name="android.permission.WAKE_LOCK" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+<!--
+  Required for Mirror mode (getUserMedia camera access inside the WebView).
+  Without this, the fullscreen camera view renders as a broken/garbled
+  frame instead of the live camera feed — it does NOT show a permission
+  prompt or error, it just paints garbage. This is the #1 missing piece
+  for anyone seeing that on a native build after "cap add android".
+-->
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
 <service
     android:name="com.pauzfirst.app.TtsForegroundService"
     android:foregroundServiceType="mediaPlayback"
