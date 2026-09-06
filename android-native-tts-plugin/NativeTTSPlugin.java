@@ -17,6 +17,7 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
 
     private TextToSpeech tts;
     private boolean isReady = false;
+    private final java.util.List<PluginCall> pendingSpeakCalls = new java.util.ArrayList<>();
 
     @Override
     public void load() {
@@ -28,23 +29,57 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
-            tts.setLanguage(Locale.US);
+            int langResult = tts.setLanguage(Locale.US);
+            if (langResult == TextToSpeech.LANG_MISSING_DATA || langResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                // US English voice data isn't installed/available on this device.
+                // Fall back to whatever the engine's default voice is rather than
+                // leaving TTS silently broken.
+                tts.setLanguage(Locale.getDefault());
+            }
             isReady = true;
+            // Flush anything that tried to speak before init finished.
+            synchronized (pendingSpeakCalls) {
+                for (PluginCall pending : pendingSpeakCalls) {
+                    doSpeak(pending);
+                }
+                pendingSpeakCalls.clear();
+            }
+        } else {
+            // Init failed outright — reject anything queued so callers aren't left hanging.
+            synchronized (pendingSpeakCalls) {
+                for (PluginCall pending : pendingSpeakCalls) {
+                    pending.reject("TTS engine failed to initialize");
+                }
+                pendingSpeakCalls.clear();
+            }
         }
     }
 
     @PluginMethod
     public void speak(PluginCall call) {
         String text = call.getString("text", "");
+        if (text.isEmpty()) {
+            call.reject("Empty text");
+            return;
+        }
+        if (!isReady) {
+            // Engine hasn't finished initializing yet (common right after app launch) —
+            // queue this call instead of dropping it, and resolve it once onInit fires.
+            call.setKeepAlive(true);
+            synchronized (pendingSpeakCalls) {
+                pendingSpeakCalls.add(call);
+            }
+            return;
+        }
+        doSpeak(call);
+    }
+
+    private void doSpeak(PluginCall call) {
+        String text = call.getString("text", "");
         Double rateD = call.getDouble("rate", 1.0);
         Double pitchD = call.getDouble("pitch", 1.0);
         float rate = rateD.floatValue();
         float pitch = pitchD.floatValue();
-
-        if (!isReady || text.isEmpty()) {
-            call.reject("TTS not ready or empty text");
-            return;
-        }
 
         tts.setSpeechRate(rate);
         tts.setPitch(pitch);
