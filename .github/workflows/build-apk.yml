@@ -29,6 +29,20 @@ jobs:
       - name: Add Android platform
         run: npx cap add android || true
 
+      - name: Add camera permission to AndroidManifest.xml
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
+            sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />\n</manifest>#' "$MANIFEST"
+          fi
+          if ! grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' "$MANIFEST"; then
+            sed -i 's#</manifest>#    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>#' "$MANIFEST"
+          fi
+          if ! grep -q 'TtsForegroundService' "$MANIFEST"; then
+            sed -i 's#</application>#    <service android:name="com.pauzfirst.app.TtsForegroundService" android:foregroundServiceType="mediaPlayback" android:exported="false" />\n</application>#' "$MANIFEST"
+          fi
+          cat "$MANIFEST"
+
       - name: Copy native TTS plugin files into Android project
         run: |
           mkdir -p android/app/src/main/java/com/pauzfirst/app
