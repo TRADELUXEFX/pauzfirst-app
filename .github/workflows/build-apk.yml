@@ -50,6 +50,16 @@ jobs:
             convert "$ICON" -resize ${size}x${size} "$dir/ic_launcher_round.png"
             convert "$ICON" -resize ${size}x${size} "$dir/ic_launcher_foreground.png"
           done
+          # On Android 8.0+ (API 26+), the launcher reads mipmap-anydpi-v26/ic_launcher.xml
+          # first, which points at vector/webp placeholder drawables from the Capacitor
+          # template — it ignores the density PNGs above entirely on any modern phone.
+          # Delete that adaptive-icon override so the OS falls back to the PNGs we just
+          # generated (our real logo) instead of showing the default placeholder icon.
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          # Also remove any leftover default webp icons so they can't shadow our PNGs.
+          find android/app/src/main/res -maxdepth 1 -name 'mipmap-*' -type d -exec sh -c '
+            rm -f "$1"/ic_launcher.webp "$1"/ic_launcher_round.webp "$1"/ic_launcher_foreground.webp
+          ' _ {} \;
 
       - name: Sync Capacitor
         run: npx cap sync android
