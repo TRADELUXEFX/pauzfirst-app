@@ -21,6 +21,9 @@ import org.json.JSONArray
 /** Generates a list of questions with AI, lets you edit it, then saves it as a list. */
 class AiActivity : AppCompatActivity() {
     private var count = 50
+    private var useQ = true
+    private var useA = true
+    private var useS = true
     private var existing: Map<String, JSONArray> = emptyMap()
     private lateinit var scroll: ScrollView
     private lateinit var themeInput: EditText
@@ -69,6 +72,34 @@ class AiActivity : AppCompatActivity() {
         themeInput.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         themeInput.filters = arrayOf(InputFilter.LengthFilter(100))
         setup.addTo(themeInput, 10)
+        setup.addTo(Ui.sectionTitle(c, "What to generate"), 16)
+        val typeRow = LinearLayout(c)
+        typeRow.orientation = LinearLayout.HORIZONTAL
+        fun styleChip(t: TextView, on: Boolean) {
+            t.setTextColor(if (on) Ui.WHITE else Ui.MUTED)
+            t.background = if (on) Ui.rounded(c, Ui.BLUE, 20) else Ui.rounded(c, Ui.FIELD, 20, Ui.LINE, 1)
+        }
+        fun typeChip(label: String, get: () -> Boolean, set: (Boolean) -> Unit, first: Boolean) {
+            val t = Ui.chip(c, label, Ui.WHITE, Ui.BLUE)
+            t.setPadding(Ui.dp(c, 6), Ui.dp(c, 10), Ui.dp(c, 6), Ui.dp(c, 10))
+            styleChip(t, get())
+            t.setOnClickListener {
+                val now = !get()
+                if (!now && (if (useQ) 1 else 0) + (if (useA) 1 else 0) + (if (useS) 1 else 0) == 1) {
+                    Toast.makeText(c, "Select at least one type.", Toast.LENGTH_SHORT).show()
+                } else {
+                    set(now)
+                    styleChip(t, now)
+                }
+            }
+            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            if (!first) lp.leftMargin = Ui.dp(c, 8)
+            typeRow.addView(t, lp)
+        }
+        typeChip("Questions", { useQ }, { useQ = it }, true)
+        typeChip("Assumptions", { useA }, { useA = it }, false)
+        typeChip("Statements", { useS }, { useS = it }, false)
+        setup.addTo(typeRow, 10)
         setup.addTo(Ui.stepper(c, "How many", { count }, { count = it }, 10, 100, 10) { it.toString() }, 16)
         genBtn = Ui.pill(c, "Generate questions")
         setup.addTo(genBtn, 18)
@@ -148,7 +179,11 @@ class AiActivity : AppCompatActivity() {
         status.visibility = View.GONE
         setBusy(true)
         Thread {
-            val r = Api.generateQuestions(theme, count)
+            val types = HashSet<String>()
+            if (useQ) types.add("QUESTION")
+            if (useA) types.add("ASSUMPTION")
+            if (useS) types.add("STATEMENT")
+            val r = Api.generateQuestions(theme, count, ListCache.texts(existing).values.flatten(), types)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 val qs = r.questions
@@ -168,15 +203,20 @@ class AiActivity : AppCompatActivity() {
         }.start()
     }
 
+    /** Same naming as the website: "AI Questions 1", "AI Assumptions/Statements 2", "AI Batch 1" when all three. */
     private fun suggestName(): String {
-        val re = Regex("^AI Batch (\\d+)$", RegexOption.IGNORE_CASE)
-        var max = 0
-        for (k in existing.keys) {
-            val m = re.find(k.trim()) ?: continue
-            val n = m.groupValues[1].toIntOrNull() ?: continue
-            if (n > max) max = n
+        val base = when {
+            useQ && !useA && !useS -> "AI Questions"
+            !useQ && useA && !useS -> "AI Assumptions"
+            !useQ && !useA && useS -> "AI Statements"
+            useQ && useA && !useS -> "AI Questions/Assumptions"
+            useQ && !useA && useS -> "AI Questions/Statements"
+            !useQ && useA && useS -> "AI Assumptions/Statements"
+            else -> "AI Batch"
         }
-        return "AI Batch " + (max + 1)
+        var i = 1
+        while (existing.keys.any { it.trim().equals("$base $i", true) }) i++
+        return "$base $i"
     }
 
     private fun save() {

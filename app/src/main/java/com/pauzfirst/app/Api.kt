@@ -350,21 +350,57 @@ object Api {
 
     class GenResult(val questions: List<String>?, val error: String?)
 
-    fun generateQuestions(theme: String, count: Int): GenResult {
-        val themeLine = if (theme.isBlank()) "" else " Lean the prompts toward this theme: " + theme.trim() + "."
-        val prompt = "Write " + count + " short prompts for a mindfulness exercise where the listener pauses before answering. " +
-            "Make them silly, absurd or playful, never offensive or personal. " +
-            "Mix yes/no questions (like \"Can a squirrel ride a bicycle?\") with playful claims about the listener " +
-            "(like \"You secretly knit sweaters for squirrels.\"). " +
-            "Keep each under 8 words, with no numbering, and make every one different." + themeLine
+    private class GenType(val label: String, val desc: String, val examples: String, val rule: String)
+
+    private val genTypes = listOf(
+        GenType(
+            "QUESTION",
+            "a question \u2014 can be directed at the user OR about the world, animals, objects, or facts",
+            "Can a train fly to the moon?\nDo eagles carry school buses?\nCan a plane swim underwater?\nDo sharks drive to school?\nCan a spoon cook its own food?",
+            "Mix questions directed at the user with questions about the world."
+        ),
+        GenType(
+            "ASSUMPTION",
+            "an assumption ALWAYS directed personally at the user \u2014 about the user only, never about external things",
+            "I heard you eat ketchup.\nYou were raised by penguins.\nYou have never seen bananas.\nYou once punched a cloud.\nI know you fear spoons.",
+            "EVERY assumption must be about the user personally. Never about animals, objects, or the world."
+        ),
+        GenType(
+            "STATEMENT",
+            "a bold statement ALWAYS about the external world \u2014 never about the user",
+            "Penguins invented the microwave.\nThe sun sets when tired.\nDogs control all traffic lights.\nSocks disappear when migrating.\nBananas are a type of furniture.",
+            "EVERY statement must be about the world, animals, objects, or nature \u2014 never about the user."
+        )
+    )
+
+    /** The website's prompt, one call per item type. */
+    private fun typePrompt(t: GenType, n: Int, theme: String): String {
+        val themeLine = if (theme.isBlank()) "" else "\n\nTHEME: Lean the items toward this theme: " + theme.trim() + "."
+        return "You are a content creator for PAUZFIRST, a public speaking training app.\n\n" +
+            "Generate exactly " + n + " unique items for a pause-training exercise.\n\n" +
+            "TYPE: " + t.desc + "\n\n" +
+            "CRITICAL RULE FOR THIS TYPE: " + t.rule + "\n\n" +
+            "EXAMPLES of correct items for this type:\n" + t.examples + "\n\n" +
+            "RULES:\n" +
+            "- Obviously absurd, untrue, or ridiculous \u2014 triggers instant urge to react or correct\n" +
+            "- So simple a 10-year-old gets it immediately\n" +
+            "- Maximum 6 words. Short, punchy, direct.\n" +
+            "- No complex vocabulary. Every item completely unique.\n" +
+            "- RANDOMIZE topics \u2014 animals, food, space, body, everyday objects, sports, weather, school. Do not repeat the same subject.\n" +
+            "- STRICT: Every single item must use a completely different subject AND a completely different action verb. No verb may appear more than once across the entire batch. No subject word may repeat either. Treat this as a hard rule \u2014 violations mean the batch fails.\n" +
+            "- BANNED VERBS \u2014 never use these under any circumstances: whisper, knit, weave, mend, sew, hum, sing, bake, brew, sculpt, juggle, paint, sketch, wander, stitch. Pick completely different verbs for every item.\n" +
+            "- Every question must be grammatically complete and specific \u2014 clear subject, clear action, makes full sense on its own\n" +
+            "- Every question must place the subject in a specific absurd situation or comparison \u2014 NEVER ask if something simply does what it normally does (e.g. \"Do birds fly?\" or \"Do fish swim?\" are banned \u2014 birds fly and fish swim, that is normal)" +
+            themeLine + "\n\n" +
+            "CRITICAL: Generate exactly " + n + " items. Count as you write. Do not stop until you reach " + n + ".\n\n" +
+            "OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: [\"Item one\", \"Item two\", \"Item three\"]. No code fences, no markdown, no backticks, no explanation. Just the raw JSON array starting with [ and ending with ]."
+    }
+
+    private fun callGemini(prompt: String): GenResult {
         val parts = JSONArray().put(JSONObject().put("text", prompt))
-        val schema = JSONObject().put("type", "ARRAY").put("items", JSONObject().put("type", "STRING"))
         val body = JSONObject()
             .put("contents", JSONArray().put(JSONObject().put("parts", parts)))
-            .put("generationConfig", JSONObject()
-                .put("responseMimeType", "application/json")
-                .put("responseSchema", schema)
-                .put("temperature", 1.0))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 4096).put("temperature", 1.4))
             .toString()
         val r = authed("POST", "/functions/v1/gemini-proxy", body, null)
         if (!r.ok) return GenResult(null, "Couldn't reach the AI service. Try again.")
@@ -381,6 +417,48 @@ object Api {
         } catch (e: Exception) {
             GenResult(null, "The AI sent something unreadable. Try again.")
         }
+    }
+
+    /**
+     * Same flow as the website: an even split of the chosen types (questions, assumptions, statements), one request per type,
+     * up to 3 tries per type to fill it without repeating anything you already have, then mixed together.
+     */
+    fun generateQuestions(theme: String, count: Int, avoid: Collection<String> = emptyList(), types: Set<String> = setOf("QUESTION", "ASSUMPTION", "STATEMENT")): GenResult {
+        val active = genTypes.filter { types.contains(it.label) }.ifEmpty { genTypes }
+        val seen = HashSet<String>()
+        for (a in avoid) seen.add(a.trim().lowercase())
+        val perType = count / active.size
+        val remainder = count % active.size
+        val byType = ArrayList<List<String>>()
+        var lastError: String? = null
+        for ((i, t) in active.withIndex()) {
+            if (i > 0) Thread.sleep(4000L) // same pause the website uses to avoid rate limits
+            val needed = perType + (if (i < remainder) 1 else 0)
+            val got = ArrayList<String>()
+            var attempts = 0
+            while (got.size < needed && attempts < (if (active.size == 1) 1 else 3)) {
+                val extra = needed - got.size
+                val ask = Math.min(extra + Math.ceil(extra * 0.3).toInt(), 100)
+                val r = callGemini(typePrompt(t, ask, theme))
+                val lines = r.questions
+                if (lines == null) { lastError = r.error; break }
+                for (line in lines) {
+                    val clean = line.trim()
+                    if (clean.isNotEmpty() && seen.add(clean.lowercase())) {
+                        got.add(clean)
+                        if (got.size >= needed) break
+                    }
+                }
+                attempts++
+            }
+            byType.add(got)
+        }
+        // question, assumption, statement, question, ... so the types stay mixed
+        val out = ArrayList<String>()
+        val longest = byType.maxOf { it.size }
+        for (i in 0 until longest) for (g in byType) if (i < g.size) out.add(g[i])
+        if (out.isEmpty()) return GenResult(null, lastError ?: "The AI returned nothing. Try again.")
+        return GenResult(out, null)
     }
 
     private fun parseQuestions(text: String): List<String> {
