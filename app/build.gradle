@@ -1,0 +1,61 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+def releaseKsPath = System.getenv('KEYSTORE_FILE')
+def hasReleaseKs = releaseKsPath && new File(releaseKsPath).exists()
+def runNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger()
+
+android {
+    namespace 'com.pauzfirst.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.pauzfirst.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1000 + runNumber
+        versionName "2.0.${runNumber}"
+    }
+
+    signingConfigs {
+        release {
+            if (hasReleaseKs) {
+                storeFile new File(releaseKsPath)
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KEY_ALIAS')
+                keyPassword System.getenv('KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Same release key as the old Capacitor build so this installs over it.
+            // Falls back to the debug key only if the secrets are missing.
+            signingConfig hasReleaseKs ? signingConfigs.release : signingConfigs.debug
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}

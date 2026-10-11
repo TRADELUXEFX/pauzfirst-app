@@ -1,9 +1,0 @@
-{
-  "appId": "com.pauzfirst.app",
-  "appName": "PAUZFIRST",
-  "webDir": "www",
-  "bundledWebRuntime": false,
-  "android": {
-    "allowMixedContent": true
-  }
-}
