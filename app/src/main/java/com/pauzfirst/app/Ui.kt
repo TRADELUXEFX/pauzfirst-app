@@ -234,8 +234,9 @@ object Ui {
     /** "Label            (-)  value  (+)" */
     fun stepper(
         c: Context, label: String, get: () -> Int, set: (Int) -> Unit,
-        min: Int, max: Int, step: Int, show: (Int) -> String,
-        fastFrom: Int = Int.MAX_VALUE, fastStep: Int = step
+        min: Int, max: Int, step: Int,
+        fastFrom: Int = Int.MAX_VALUE, fastStep: Int = step,
+        show: (Int) -> String
     ): LinearLayout {
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
