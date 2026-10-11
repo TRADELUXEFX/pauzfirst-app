@@ -30,6 +30,7 @@ object PickerDialog {
         names: List<String>,
         pinned: List<Boolean>,
         selected: Int,
+        subtitle: String = "Tap a list to use it",
         onPick: (Int) -> Unit
     ) {
         val c: Context = activity
@@ -48,7 +49,7 @@ object PickerDialog {
         val heading = Ui.text(c, title, 18f, Ui.TEXT, Ui.BOLD)
         heading.setPadding(Ui.dp(c, 10), 0, Ui.dp(c, 10), 0)
         card.addView(heading, Ui.lp(c))
-        val sub = Ui.text(c, "Tap a list to use it", 12f, Ui.MUTED, Ui.REG)
+        val sub = Ui.text(c, subtitle, 12f, Ui.MUTED, Ui.REG)
         sub.setPadding(Ui.dp(c, 10), 0, Ui.dp(c, 10), 0)
         card.addView(sub, Ui.lp(c, 4))
 

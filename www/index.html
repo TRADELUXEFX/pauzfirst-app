@@ -1809,6 +1809,39 @@
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
+        .first-box { background:white; border:1.5px solid rgba(30,144,255,0.15); border-radius:10px; padding:14px; box-shadow:0 2px 6px rgba(30,144,255,0.07); text-align:center; }
+        .first-box b { display:block; font-size:13px; color:#1a1a2e; }
+        .first-box span { display:block; margin-top:4px; font-size:10px; color:#64748b; line-height:1.45; font-weight:500; }
+        .week-card { background:white; border:1.5px solid rgba(30,144,255,0.15); border-radius:10px; padding:11px 13px 9px; box-shadow:0 2px 6px rgba(30,144,255,0.07); margin-bottom:15px; }
+        .week-head { display:flex; justify-content:space-between; align-items:center; font-size:9px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; }
+        .week-head span:last-child { text-transform:none; letter-spacing:0; font-weight:600; }
+        .week-bars { display:flex; margin-top:6px; }
+        .week-col { flex:1; height:112px; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; }
+        .week-val { font-size:8px; font-weight:600; color:#94a3b8; height:12px; }
+        .week-bar { width:16px; border-radius:5px; margin-top:3px; background:rgba(30,144,255,0.45); }
+        .week-bar.zero { background:#e8eef6; }
+        .week-bar.today { background:#1E90FF; }
+        .week-day { font-size:9px; font-weight:600; color:#94a3b8; margin-top:5px; }
+        .week-day.today { color:#1a1a2e; font-weight:800; }
+        .hist-chips { display:flex; justify-content:center; justify-content:safe center; gap:6px; overflow-x:auto; margin-bottom:10px; padding-bottom:2px; }
+        .hist-chip { flex:none; border:none; border-radius:99px; padding:7px 12px; font-size:10px; font-weight:700; font-family:'Inter',sans-serif; background:#e8eef6; color:#64748b; cursor:pointer; }
+        .hist-chip.on { background:linear-gradient(135deg,#1E90FF,#0066cc); color:white; box-shadow:0 2px 8px rgba(30,144,255,0.3); }
+        .hist-sum { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+        .history-note { text-align:center; font-size:10px; color:#64748b; font-weight:500; margin-bottom:8px; }
+        .goal-card { display:flex; align-items:center; gap:12px; margin:10px 12px 0; background:white; border:1.5px solid rgba(30,144,255,0.15); border-radius:12px; padding:10px 13px; box-shadow:0 2px 6px rgba(30,144,255,0.07); cursor:pointer; }
+        .goal-ring { width:46px; height:46px; flex:none; }
+        .goal-card b { display:block; font-size:12px; color:#1a1a2e; font-weight:700; }
+        .goal-card small { display:block; margin-top:2px; font-size:10px; color:#64748b; font-weight:500; }
+        .goal-card i { margin-left:auto; font-style:normal; color:#94a3b8; font-weight:700; font-size:18px; }
+        .training-active .goal-card { display:none !important; }
+        .goal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.45); z-index:3000; display:none; align-items:center; justify-content:center; padding:20px; }
+        .goal-dlg { width:100%; max-width:320px; max-height:80vh; overflow-y:auto; background:white; border-radius:18px; padding:16px 12px 12px; }
+        .goal-dlg h3 { margin:0 8px; font-size:15px; color:#1a1a2e; }
+        .goal-dlg p { margin:3px 8px 12px; font-size:10px; color:#64748b; }
+        .goal-opt { display:flex; align-items:center; gap:10px; width:100%; text-align:left; margin-top:7px; padding:11px 12px; border-radius:10px; border:1.5px solid rgba(30,144,255,0.15); background:#f8fafc; color:#1a1a2e; font-size:12px; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; }
+        .goal-opt.on { background:#e6f1ff; border-color:#1E90FF; color:#1E90FF; font-weight:700; }
+        .goal-opt .mk { width:18px; height:18px; border-radius:50%; border:2px solid #cbd5e1; background:white; color:white; font-size:10px; display:flex; align-items:center; justify-content:center; flex:none; }
+        .goal-opt.on .mk { background:#1E90FF; border-color:#1E90FF; }
         .history-empty {
             text-align: center;
             font-size: 11px;
@@ -2513,6 +2546,12 @@
             <div class="tip-strip">Close your eyes during training for deeper focus</div>
         </div>
 
+        <div class="goal-card" id="goalCard" role="button" tabindex="0" onclick="openGoalPicker()">
+            <svg class="goal-ring" viewBox="0 0 46 46"><circle cx="23" cy="23" r="20" fill="none" stroke="#e8eef6" stroke-width="5"/><circle id="goalArc" cx="23" cy="23" r="20" fill="none" stroke="#1E90FF" stroke-width="5" stroke-linecap="round" transform="rotate(-90 23 23)" stroke-dasharray="125.66" stroke-dashoffset="125.66"/><text id="goalPct" x="23" y="27" text-anchor="middle" font-size="11" font-weight="700" font-family="Inter,sans-serif" fill="#1a1a2e"></text></svg>
+            <div><b>Daily goal</b><small id="goalSub">Tap to set how many minutes to train each day</small></div>
+            <i>&rsaquo;</i>
+        </div>
+
         <div class="config-panel" id="configPanel">
             <div class="config-group">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -2740,7 +2779,7 @@
             
             <div class="config-group" id="mirrorModeGroup">
                 <div class="tts-option">
-                    <span class="tts-label">Show camera during session</span>
+                    <span class="tts-label">Show camera during training</span>
                     <div class="toggle" id="mirrorModeToggle" onclick="toggleMirrorMode()">
                         <div class="toggle-slider"></div>
                     </div>
@@ -2927,6 +2966,10 @@
         </div>
     </div>
 
+    <div class="goal-overlay" id="goalOverlay" onclick="if(event.target===this)closeGoalPicker()">
+        <div class="goal-dlg"><h3>Daily goal</h3><p>Tap to choose how long to train each day</p><div id="goalOpts"></div></div>
+    </div>
+
     <div class="progress-modal" id="progressModal">
         <div class="progress-modal-content">
             <div class="progress-modal-header">
@@ -2950,12 +2993,13 @@
                     Training Stats
                 </button>
                 <button id="tabHistoryBtn" onclick="switchProgressTab('history')" style="flex:1;padding:9px;font-size:11px;font-weight:700;border:none;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;background:transparent;color:#64748b;box-shadow:none;transition:all 0.2s;">
-                    Session History
+                    Training History
                 </button>
             </div>
 
             <!-- TAB: TRAINING STATS -->
             <div id="tabStatsContent">
+                <div class="first-box" id="firstTrainingBox" style="display:none;"><b>Start your first training</b><span>Pick a mode and press Start. Your numbers, streak and history will show up here after your first one.</span></div>
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-icon-sm"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg></div>
@@ -2997,6 +3041,7 @@
                         <div class="stat-label">Total Training Time</div>
                     </div>
                 </div>
+                <div class="week-card" id="weekCard"></div>
                 <div class="streak-info">
                     <div class="streak-text" id="streakMessage">Practice today to maintain your streak!</div>
                 </div>
@@ -3004,9 +3049,8 @@
 
             <!-- TAB: SESSION HISTORY -->
             <div id="tabHistoryContent" style="display:none;">
-                <div class="history-list" id="sessionHistoryList">
-                    <div class="history-empty">No sessions recorded yet.</div>
-                </div>
+                <div id="historyTools"></div>
+                <div class="history-list" id="sessionHistoryList"></div>
             </div>
 
         </div>
@@ -5099,7 +5143,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
         function updateProgressDisplay() {
             lifetimeSessionsEl.textContent = stats.lifetimeSessions;
             lifetimeQuestionsEl.textContent = stats.lifetimeQuestions;
-            lifetimeTimeEl.textContent = formatTime(stats.lifetimeTime);
+            lifetimeTimeEl.textContent = formatDuration(stats.lifetimeTime);
             lifetimeStreakEl.textContent = stats.lifetimeStreak;
             dailyStreakEl.textContent = stats.dailyStreak;
             const ms = stats.modeSessions || {};
@@ -5107,6 +5151,25 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
             document.getElementById('modeEyesOpenCount').textContent = ms['eyes-open'] || 0;
             document.getElementById('modeMirrorCount').textContent = ms['mirror'] || 0;
             updateStreakMessage();
+            // brand-new account: friendly box instead of a page of zeros
+            const zero = !stats.lifetimeSessions;
+            document.getElementById('firstTrainingBox').style.display = zero ? '' : 'none';
+            document.querySelector('#tabStatsContent .stats-grid').style.display = zero ? 'none' : '';
+            document.querySelector('#tabStatsContent .streak-info').style.display = zero ? 'none' : '';
+            document.getElementById('weekCard').style.display = zero ? 'none' : '';
+            refreshWeekChart();
+            refreshGoal();
+        }
+
+        // 3h 59m 20s  /  4m 12s  /  24s
+        function formatDuration(seconds) {
+            seconds = Math.max(0, Math.round(seconds || 0));
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            if (h > 0) return h + 'h ' + m + 'm ' + s + 's';
+            if (m > 0) return m + 'm ' + s + 's';
+            return s + 's';
         }
 
         function formatTime(seconds) {
@@ -5158,49 +5221,98 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
         const MODE_LABELS = {
             'eyes-closed': 'Eyes Closed',
             'eyes-open':   'Eyes Open',
-            'mirror':      'Mirror'
+            'mirror':      'Mirror',
+            'animated-eyes': 'Animated Eyes'
         };
         const MODE_ICONS = {
             'eyes-closed': '😌',
             'eyes-open':   '👁️',
-            'mirror':      '🪞'
+            'mirror':      '🪞',
+            'animated-eyes': '👀'
         };
 
-        async function saveSessionHistory(entry) {
+        const HISTORY_MAX = 200;   // same limit as the Android app, so the two never trim each other's history
+
+        async function getUidQuick() {
+            // reads the saved login on the phone: no internet needed
             try {
-                const { data: { user } } = await sb.auth.getUser();
-                if (!user) return;
-                // Load existing history, prepend new entry, keep last 60
-                const { data } = await sb.from('user_stats').select('session_history').eq('id', user.id).single();
+                const { data: { session } } = await sb.auth.getSession();
+                return (session && session.user) ? session.user.id : null;
+            } catch (e) { return null; }
+        }
+
+        function readLocalHistory(uid) {
+            try {
+                const l = localStorage.getItem('pf_session_history_' + uid);
+                return l ? JSON.parse(l) : [];
+            } catch (e) { return []; }
+        }
+
+        function readPendingHistory(uid) {
+            try { return JSON.parse(localStorage.getItem('pf_hist_pending_' + uid) || '[]'); } catch (e) { return []; }
+        }
+
+        function mergeHistory(a, b) {
+            const seen = new Set();
+            const out = [];
+            (b || []).concat(a || []).forEach(e => {
+                if (!e || !e.date || seen.has(e.date)) return;
+                seen.add(e.date);
+                out.push(e);
+            });
+            out.sort((x, y) => (x.date < y.date ? 1 : -1));
+            return out.slice(0, HISTORY_MAX);
+        }
+
+        let historyOffline = false;
+        let historyCache = [];
+        let historyFilter = '';
+
+        async function saveSessionHistory(entry) {
+            const uid = await getUidQuick();
+            if (!uid) return;
+            try {
+                // Load existing history, add the new entry on top
+                const { data, error } = await sb.from('user_stats').select('session_history').eq('id', uid).single();
+                if (error && error.code !== 'PGRST116') throw error;   // no row yet is fine; anything else = not reachable
                 const existing = (data && data.session_history) ? data.session_history : [];
-                const updated = [entry, ...existing].slice(0, 60);
-                await sb.from('user_stats').upsert({
-                    id: user.id,
+                const updated = mergeHistory(existing, [entry]);
+                const up = await sb.from('user_stats').upsert({
+                    id: uid,
                     session_history: updated,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'id' });
-                // Cache locally
-                localStorage.setItem('pf_session_history_' + user.id, JSON.stringify(updated));
+                if (up.error) throw up.error;
+                localStorage.setItem('pf_session_history_' + uid, JSON.stringify(updated));
             } catch(e) {
-                console.warn('saveSessionHistory failed:', e);
+                // offline: keep it on the phone and send it next time History loads online
+                console.warn('saveSessionHistory failed, saved on this phone:', e);
+                const p = readPendingHistory(uid);
+                p.unshift(entry);
+                localStorage.setItem('pf_hist_pending_' + uid, JSON.stringify(p));
+                localStorage.setItem('pf_session_history_' + uid, JSON.stringify(mergeHistory(readLocalHistory(uid), [entry])));
             }
         }
 
         async function loadSessionHistory() {
+            const uid = await getUidQuick();
+            if (!uid) return [];
             try {
-                const { data: { user } } = await sb.auth.getUser();
-                if (!user) return [];
-                // Try DB first
-                const { data } = await sb.from('user_stats').select('session_history').eq('id', user.id).single();
-                if (data && data.session_history) {
-                    localStorage.setItem('pf_session_history_' + user.id, JSON.stringify(data.session_history));
-                    return data.session_history;
+                const { data, error } = await sb.from('user_stats').select('session_history').eq('id', uid).single();
+                if (error && error.code !== 'PGRST116') throw error;
+                let remote = (data && data.session_history) ? data.session_history : [];
+                const pend = readPendingHistory(uid);
+                if (pend.length > 0) {
+                    remote = mergeHistory(remote, pend);
+                    const up = await sb.from('user_stats').upsert({ id: uid, session_history: remote, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+                    if (!up.error) localStorage.removeItem('pf_hist_pending_' + uid);
                 }
-                // Fall back to local
-                const local = localStorage.getItem('pf_session_history_' + user.id);
-                return local ? JSON.parse(local) : [];
-            } catch(e) {
-                return [];
+                localStorage.setItem('pf_session_history_' + uid, JSON.stringify(remote));
+                historyOffline = false;
+                return remote;
+            } catch (e) {
+                historyOffline = true;
+                return mergeHistory(readLocalHistory(uid), readPendingHistory(uid));
             }
         }
 
@@ -5215,20 +5327,155 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
             const d = new Date(iso);
             const today = new Date();
             const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-            if (d.toDateString() === today.toDateString()) return 'Today';
-            if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-            return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            const t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            if (d.toDateString() === today.toDateString()) return 'Today at ' + t;
+            if (d.toDateString() === yesterday.toDateString()) return 'Yesterday at ' + t;
+            return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + t;
         }
 
-        async function displaySessionHistory() {
-            const list = document.getElementById('sessionHistoryList');
-            const history = await loadSessionHistory();
-            if (!history || history.length === 0) {
-                list.innerHTML = '<div class="history-empty">No sessions recorded yet.</div>';
+        const FIRST_BOX_HTML = '<div class="first-box"><b>Start your first training</b><span>Pick a mode and press Start. Your numbers, streak and history will show up here after your first one.</span></div>';
+
+        // seconds trained on each of the last N days (phone's own calendar days); last item = today
+        function dailySecondsFrom(history, days) {
+            const out = new Array(days).fill(0);
+            const starts = [];
+            for (let i = 0; i < days; i++) {
+                const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (days - 1 - i));
+                starts.push(d.getTime());
+            }
+            (history || []).forEach(e => {
+                const t = new Date(e.date).getTime();
+                if (!(t >= starts[0])) return;
+                let idx = days - 1;
+                while (idx > 0 && starts[idx] > t) idx--;
+                out[idx] += (e.time || 0);
+            });
+            return out;
+        }
+
+        function shortTime(sec) {
+            if (sec < 60) return '<1m';
+            if (sec < 3600) return Math.floor(sec / 60) + 'm';
+            return Math.floor(sec / 3600) + 'h' + Math.floor((sec % 3600) / 60) + 'm';
+        }
+
+        function renderWeekChart(history) {
+            const el = document.getElementById('weekCard');
+            if (!el) return;
+            const secs = dailySecondsFrom(history, 7);
+            const max = Math.max(1, ...secs);
+            const total = secs.reduce((a, b) => a + b, 0);
+            let cols = '';
+            for (let i = 0; i < 7; i++) {
+                const v = secs[i];
+                const d = new Date(); d.setDate(d.getDate() - (6 - i));
+                const h = v === 0 ? 4 : Math.max(8, Math.round(84 * v / max));
+                const cls = i === 6 ? 'today' : (v === 0 ? 'zero' : '');
+                cols += '<div class="week-col"><div class="week-val">' + (v ? shortTime(v) : '') + '</div><div class="week-bar ' + cls + '" style="height:' + h + 'px"></div><div class="week-day ' + (i === 6 ? 'today' : '') + '">' + d.toLocaleDateString('en-US', { weekday: 'narrow' }) + '</div></div>';
+            }
+            el.innerHTML = '<div class="week-head"><span>Last 7 days</span><span>' + formatDuration(total) + ' total</span></div><div class="week-bars">' + cols + '</div>';
+        }
+
+        async function refreshWeekChart() {
+            const uid = await getUidQuick();
+            renderWeekChart(uid ? mergeHistory(readLocalHistory(uid), readPendingHistory(uid)) : []);
+        }
+
+        // ── Daily goal ──
+        const GOAL_OPTIONS = [0, 5, 10, 15, 30];
+
+        async function getGoalMinutes() {
+            const uid = await getUidQuick();
+            return uid ? (parseInt(localStorage.getItem('pf_goal_min_' + uid) || '0', 10) || 0) : 0;
+        }
+
+        async function refreshGoal() {
+            const arc = document.getElementById('goalArc');
+            if (!arc) return;
+            const uid = await getUidQuick();
+            const goal = await getGoalMinutes();
+            const pct = document.getElementById('goalPct');
+            const sub = document.getElementById('goalSub');
+            if (!goal) {
+                arc.setAttribute('stroke-dashoffset', '125.66');
+                pct.textContent = '';
+                sub.textContent = 'Tap to set how many minutes to train each day';
                 return;
             }
+            const hist = uid ? mergeHistory(readLocalHistory(uid), readPendingHistory(uid)) : [];
+            const secs = dailySecondsFrom(hist, 1)[0];
+            const p = Math.min(1, secs / (goal * 60));
+            const done = p >= 1;
+            arc.setAttribute('stroke-dashoffset', String(125.66 * (1 - p)));
+            arc.setAttribute('stroke', done ? '#16A34A' : '#1E90FF');
+            pct.setAttribute('fill', done ? '#16A34A' : '#1a1a2e');
+            pct.textContent = done ? '✓' : Math.floor(p * 100) + '%';
+            sub.textContent = done ? ('Goal reached  •  ' + formatDuration(secs) + ' today') : (formatDuration(secs) + ' of ' + goal + ' min today');
+        }
+
+        async function openGoalPicker() {
+            const goal = await getGoalMinutes();
+            document.getElementById('goalOpts').innerHTML = GOAL_OPTIONS.map(v =>
+                '<button class="goal-opt' + (v === goal ? ' on' : '') + '" onclick="chooseGoal(' + v + ')"><span class="mk">' + (v === goal ? '✓' : '') + '</span>' +
+                (v === 0 ? 'No daily goal' : v === 1 ? '1 minute a day' : v + ' minutes a day') + '</button>').join('');
+            document.getElementById('goalOverlay').style.display = 'flex';
+        }
+
+        function closeGoalPicker() { document.getElementById('goalOverlay').style.display = 'none'; }
+
+        async function chooseGoal(v) {
+            const uid = await getUidQuick();
+            if (uid) localStorage.setItem('pf_goal_min_' + uid, String(v));
+            closeGoalPicker();
+            refreshGoal();
+        }
+
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) { refreshGoal(); refreshWeekChart(); } });
+
+        function renderHistoryList() {
+            const list = document.getElementById('sessionHistoryList');
+            const tools = document.getElementById('historyTools');
+            const history = historyCache || [];
+            tools.innerHTML = '';
             list.innerHTML = '';
-            history.forEach(entry => {
+            if (history.length === 0) {
+                list.innerHTML = FIRST_BOX_HTML;
+                return;
+            }
+            if (historyOffline) {
+                tools.insertAdjacentHTML('beforeend', '<div class="history-note">You\'re offline. Showing your last saved history.</div>');
+            }
+            // filter chips: only the modes that appear in the history
+            const order = ['eyes-closed', 'eyes-open', 'mirror', 'animated-eyes'];
+            const present = order.filter(m => history.some(e => e.mode === m));
+            if (historyFilter && !present.includes(historyFilter)) historyFilter = '';
+            if (present.length > 1) {
+                const row = document.createElement('div');
+                row.className = 'hist-chips';
+                [''].concat(present).forEach(m => {
+                    const b = document.createElement('button');
+                    b.className = 'hist-chip' + (historyFilter === m ? ' on' : '');
+                    b.textContent = m ? (MODE_LABELS[m] || m) : 'All';
+                    b.onclick = () => { historyFilter = m; renderHistoryList(); };
+                    row.appendChild(b);
+                });
+                tools.appendChild(row);
+            }
+            const items = history.filter(e => !historyFilter || e.mode === historyFilter);
+            if (items.length === 0) {
+                list.innerHTML = '<div class="history-empty">No trainings in this mode yet.</div>';
+                return;
+            }
+            const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+            const week = items.filter(e => new Date(e.date).getTime() >= weekAgo).length;
+            const avg = items.reduce((a, e) => a + (e.time || 0), 0) / items.length;
+            tools.insertAdjacentHTML('beforeend',
+                '<div class="hist-sum">' +
+                '<div class="stat-card"><div class="stat-value">' + items.length + '</div><div class="stat-label">Trainings</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + week + '</div><div class="stat-label">Last 7 days</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + formatDuration(avg) + '</div><div class="stat-label">Avg. length</div></div>' +
+                '</div>');
+            items.forEach(entry => {
                 const card = document.createElement('div');
                 card.className = 'history-card';
                 const deepTag = entry.deepPause ? ' · Deep Pause' : '';
@@ -5252,6 +5499,16 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
             });
         }
 
+        async function displaySessionHistory() {
+            const uid = await getUidQuick();
+            // show what is saved on the phone straight away, then update with the latest
+            if (uid) { historyCache = mergeHistory(readLocalHistory(uid), readPendingHistory(uid)); renderHistoryList(); }
+            historyCache = await loadSessionHistory();
+            renderHistoryList();
+            renderWeekChart(historyCache);
+            refreshGoal();
+        }
+
         // ── END SESSION HISTORY ──────────────────────────────────────────
 
         async function saveSessionStats() {
@@ -5272,6 +5529,8 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                     questions: sessionQuestions,
                     time: sessionTime
                 });
+                refreshWeekChart();
+                refreshGoal();
 
                 sessionQuestions = 0;
                 sessionTime = 0;
@@ -6515,7 +6774,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
             if (currentQ < questions.length) {
                 return questions[currentQ];
             }
-            return "Session complete!";
+            return "Training complete!";
         }
 
         function resetPhases() {
@@ -7104,7 +7363,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                         if (showCompleteText) {
                             setQuestion('Training Complete!');
                             questionEl.classList.add('fade-in');
-                            instructionsEl.textContent = 'Session completed.';
+                            instructionsEl.textContent = 'Training completed.';
                         } else {
                             setQuestion('Configure your settings and click Start to begin your custom training');
                             instructionsEl.textContent = 'This exercise helps you develop better speaking habits by practicing thoughtful pauses before responding.';
@@ -7296,7 +7555,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 <div style="font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:10px;">Camera & Microphone</div>
                 <div style="font-size:14px;color:#555;line-height:1.6;margin-bottom:22px;">
                     PauzFirst uses your <strong>camera</strong> so you can see yourself while training, and your <strong>microphone</strong> to detect when you start speaking.<br><br>
-                    On iPhone, iOS asks for permission each session — tap <strong>Allow</strong> on the next prompt to keep training uninterrupted.
+                    On iPhone, iOS asks for permission each training — tap <strong>Allow</strong> on the next prompt to keep training uninterrupted.
                 </div>
                 <button id="pfPermBtn" style="background:#1a6bfa;color:#fff;border:none;border-radius:12px;padding:14px 28px;font-size:16px;font-weight:600;width:100%;cursor:pointer;">Got it — Allow Access</button>
             </div>

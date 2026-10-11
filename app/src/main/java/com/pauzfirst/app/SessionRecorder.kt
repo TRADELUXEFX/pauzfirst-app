@@ -121,7 +121,7 @@ object SessionRecorder {
             where = ""
         }
         try { src.delete() } catch (e: Exception) { }
-        val msg = if (where.isNotEmpty()) "Session recording saved in " + where else "Couldn't save the session recording."
+        val msg = if (where.isNotEmpty()) "Training recording saved in " + where else "Couldn't save the training recording."
         Handler(Looper.getMainLooper()).post { Toast.makeText(app, msg, Toast.LENGTH_LONG).show() }
     }
 }

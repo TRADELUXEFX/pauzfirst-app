@@ -15,10 +15,28 @@ import java.util.Calendar
 object Reminder {
     const val ACTION = "com.pauzfirst.app.DAILY_REMINDER"
     private const val CHANNEL = "pauzfirst_reminder"
+    const val STREAK_ACTION = "com.pauzfirst.app.STREAK_ALERT"
+    private const val STREAK_CHANNEL = "pauzfirst_streak"
 
     var enabled: Boolean
         get() = Session.prefs.getBoolean("s_rem_on", false)
         set(v) { Session.prefs.edit().putBoolean("s_rem_on", v).apply() }
+
+    /** Evening alert, only sent when you have a streak that would end tonight. */
+    var streakAlert: Boolean
+        get() = Session.prefs.getBoolean("s_streak_on", false)
+        set(v) { Session.prefs.edit().putBoolean("s_streak_on", v).apply() }
+
+    /** When the streak alert is checked. Starts at 9 PM; you can change it on the reminder screen. */
+    var streakHour: Int
+        get() = Session.prefs.getInt("s_streak_h", 21)
+        set(v) { Session.prefs.edit().putInt("s_streak_h", v).apply() }
+
+    var streakMinute: Int
+        get() = Session.prefs.getInt("s_streak_m", 0)
+        set(v) { Session.prefs.edit().putInt("s_streak_m", v).apply() }
+
+    fun streakTimeText(is24: Boolean): String = clockText(streakHour, streakMinute, is24)
 
     var hour: Int
         get() = Session.prefs.getInt("s_rem_h", 19)
@@ -28,9 +46,9 @@ object Reminder {
         get() = Session.prefs.getInt("s_rem_m", 0)
         set(v) { Session.prefs.edit().putInt("s_rem_m", v).apply() }
 
-    fun timeText(is24: Boolean): String {
-        val h = hour
-        val m = minute
+    fun timeText(is24: Boolean): String = clockText(hour, minute, is24)
+
+    private fun clockText(h: Int, m: Int, is24: Boolean): String {
         val mm = (if (m < 10) "0" else "") + m
         if (is24) return (if (h < 10) "0" else "") + h + ":" + mm
         val h12 = if (h % 12 == 0) 12 else h % 12
@@ -40,6 +58,56 @@ object Reminder {
     private fun pending(ctx: Context): PendingIntent {
         val i = Intent(ctx, ReminderReceiver::class.java).setAction(ACTION)
         return PendingIntent.getBroadcast(ctx, 7, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    private fun streakPending(ctx: Context): PendingIntent {
+        val i = Intent(ctx, ReminderReceiver::class.java).setAction(STREAK_ACTION)
+        return PendingIntent.getBroadcast(ctx, 9, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    fun cancelStreak(ctx: Context) {
+        try {
+            val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            am.cancel(streakPending(ctx))
+        } catch (e: Exception) {
+        }
+    }
+
+    /** Sets the next streak check at the chosen time. Does nothing when the streak alert is off. */
+    fun scheduleStreak(ctx: Context) {
+        cancelStreak(ctx)
+        if (!streakAlert) return
+        try {
+            val t = Calendar.getInstance()
+            t.set(Calendar.HOUR_OF_DAY, streakHour)
+            t.set(Calendar.MINUTE, streakMinute)
+            t.set(Calendar.SECOND, 0)
+            t.set(Calendar.MILLISECOND, 0)
+            if (t.timeInMillis <= System.currentTimeMillis() + 5000L) t.add(Calendar.DAY_OF_YEAR, 1)
+            val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t.timeInMillis, streakPending(ctx))
+        } catch (e: Exception) {
+        }
+    }
+
+    fun showStreak(ctx: Context, days: Int) {
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(NotificationChannel(STREAK_CHANNEL, "Streak alert", NotificationManager.IMPORTANCE_DEFAULT))
+        }
+        val open = PendingIntent.getActivity(
+            ctx, 10, Intent(ctx, HomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(ctx, STREAK_CHANNEL) else Notification.Builder(ctx)
+        val n = b.setContentTitle("Your " + days + "-day streak ends tonight")
+            .setContentText("Do a quick training to keep it going.")
+            .setSmallIcon(R.drawable.ic_stat_pauzfirst)
+            .setColor(Ui.BLUE)
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        nm.notify(2002, n)
     }
 
     fun cancel(ctx: Context) {
@@ -52,6 +120,7 @@ object Reminder {
 
     /** Sets (or replaces) the next reminder. Does nothing when the reminder is off. */
     fun schedule(ctx: Context) {
+        scheduleStreak(ctx)
         cancel(ctx)
         if (!enabled) return
         try {
@@ -72,7 +141,9 @@ object Reminder {
     fun dismiss(ctx: Context?) {
         if (ctx == null) return
         try {
-            (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(2001)
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(2001)
+            nm.cancel(2002)
         } catch (e: Exception) {
         }
     }
@@ -106,6 +177,13 @@ class ReminderReceiver : BroadcastReceiver() {
                 val done = StatsStore.local().optString("lastPracticeDate", "") == StatsStore.today()
                 if (Reminder.enabled && Session.loggedIn() && !done) Reminder.show(context)
                 Reminder.schedule(context)
+            }
+            Reminder.STREAK_ACTION -> {
+                // only when yesterday was the last training day: the streak is alive but would end tonight
+                val s = StatsStore.local()
+                val atRisk = s.optString("lastPracticeDate", "") == StatsStore.yesterday() && s.optInt("dailyStreak", 0) > 0
+                if (Reminder.streakAlert && Session.loggedIn() && atRisk) Reminder.showStreak(context, s.optInt("dailyStreak", 0))
+                Reminder.scheduleStreak(context)
             }
             Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> Reminder.schedule(context)
         }

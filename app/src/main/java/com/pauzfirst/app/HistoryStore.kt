@@ -3,6 +3,7 @@ package com.pauzfirst.app
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
@@ -100,11 +101,66 @@ object HistoryStore {
         return true
     }
 
+    private fun parseIso(iso: String): Long {
+        for (p in listOf("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'")) {
+            try {
+                val f = SimpleDateFormat(p, Locale.US)
+                f.timeZone = TimeZone.getTimeZone("UTC")
+                val d = f.parse(iso)
+                if (d != null) return d.time
+            } catch (e: Exception) {
+            }
+        }
+        return 0L
+    }
+
+    /** Seconds trained on each of the last [days] days (phone's own calendar days). The last item is today. */
+    fun dailySeconds(days: Int): LongArray {
+        val out = LongArray(days)
+        val starts = LongArray(days)
+        for (i in 0 until days) {
+            val c = Calendar.getInstance()
+            c.set(Calendar.HOUR_OF_DAY, 0)
+            c.set(Calendar.MINUTE, 0)
+            c.set(Calendar.SECOND, 0)
+            c.set(Calendar.MILLISECOND, 0)
+            c.add(Calendar.DAY_OF_YEAR, -(days - 1 - i))
+            starts[i] = c.timeInMillis
+        }
+        val h = saved() ?: return out
+        for (k in 0 until h.length()) {
+            val o = h.optJSONObject(k) ?: continue
+            val ms = parseIso(o.optString("date", ""))
+            if (ms < starts[0]) continue
+            var idx = days - 1
+            while (idx > 0 && starts[idx] > ms) idx--
+            out[idx] += o.optInt("time", 0).toLong()
+        }
+        return out
+    }
+
+    /** Set by load(): false when the list came from the copy on the phone because the internet was not reachable. */
+    @Volatile var lastLoadOnline: Boolean = true
+
+    /** What is saved on the phone right now (last loaded history plus anything waiting to send). Null if nothing yet. */
+    fun saved(): JSONArray? {
+        val old = cached()
+        val pend = pending()
+        return if (old.length() > 0 || pend.length() > 0) merge(old, pend) else null
+    }
+
+    /** Called while online (from the home screen) so History already works offline the very first time it is opened. */
+    fun warmCache() {
+        val remote = Api.fetchHistory() ?: return
+        try { Session.prefs.edit().putString(cacheKey(), remote.toString()).apply() } catch (e: Exception) { }
+    }
+
     /** Newest first. Null only when offline and nothing is saved on the phone. */
     fun load(): JSONArray? {
         flush()
         val remote = Api.fetchHistory()
         val pend = pending()
+        lastLoadOnline = remote != null
         if (remote != null) {
             try { Session.prefs.edit().putString(cacheKey(), remote.toString()).apply() } catch (e: Exception) { }
             return merge(remote, pend)

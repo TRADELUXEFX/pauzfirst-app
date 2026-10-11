@@ -64,10 +64,10 @@ class ScreenRecordService : Service() {
         val channel = "pauzfirst_record"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.createNotificationChannel(NotificationChannel(channel, "Session recording", NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(channel, "Training recording", NotificationManager.IMPORTANCE_LOW))
         }
         val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, channel) else Notification.Builder(this)
-        val n = b.setContentTitle("Recording your session")
+        val n = b.setContentTitle("Recording your training")
             .setContentText(if (withVideo) "The screen and all sound are being recorded" else "All sound is being recorded")
             .setSmallIcon(R.drawable.ic_stat_pauzfirst)
             .setColor(Ui.BLUE)

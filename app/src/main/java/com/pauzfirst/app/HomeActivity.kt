@@ -30,6 +30,11 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var tileStreak: TextView
     private lateinit var extraStats: TextView
     private lateinit var offlineBanner: TextView
+    private lateinit var firstRunCard: LinearLayout
+    private lateinit var goalCard: LinearLayout
+    private lateinit var goalRing: GoalRing
+    private lateinit var goalSub: TextView
+    private val goalOptions = intArrayOf(0, 5, 10, 15, 30)
     private lateinit var syncNote: TextView
     private var net: NetWatch? = null
     private var wasOffline = false
@@ -89,7 +94,7 @@ class HomeActivity : AppCompatActivity() {
         AppDialog.show(
             this,
             "Allow access once",
-            message = "So nothing interrupts your training, PAUZFIRST asks for these now:\n\nNotifications: your daily reminder\nCamera: Mirror mode\nMicrophone: the voice meter and session recording\n\nYou can change them any time in your phone's Settings.",
+            message = "So nothing interrupts your training, PAUZFIRST asks for these now:\n\nNotifications: your daily reminder\nCamera: Mirror mode\nMicrophone: the voice meter and training recording\n\nYou can change them any time in your phone's Settings.",
             buttons = listOf(
                 Btn("Not now", Kind.SOFT) {
                     Session.prefs.edit().putBoolean("perms_asked", true).apply()
@@ -197,7 +202,7 @@ class HomeActivity : AppCompatActivity() {
 
         val tiles = LinearLayout(c)
         tiles.orientation = LinearLayout.HORIZONTAL
-        val t1 = statTile("Sessions")
+        val t1 = statTile("Trainings")
         val t2 = statTile("Questions")
         val t3 = statTile("Day streak")
         tileSessions = t1.second
@@ -222,14 +227,14 @@ class HomeActivity : AppCompatActivity() {
         syncNote.visibility = View.GONE
         hero.addTo(syncNote, 6)
 
-        val historyChip = Ui.chip(c, "Training history  ›", Ui.WHITE, Color.parseColor("#33FFFFFF"))
+        val historyChip = Ui.chip(c, "View progress  ›", Ui.WHITE, Color.parseColor("#33FFFFFF"))
         val hp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         hp.gravity = Gravity.CENTER_HORIZONTAL
         hp.topMargin = Ui.dp(c, 12)
         hero.addView(historyChip, hp)
         historyChip.setOnClickListener { startActivity(Intent(this, HistoryActivity::class.java)) }
 
-        resumeBtn = Ui.pill(c, "Return to running session", Ui.GREEN)
+        resumeBtn = Ui.pill(c, "Return to running training", Ui.GREEN)
         resumeBtn.visibility = View.GONE
         hero.addTo(resumeBtn, 14)
         body.addTo(hero)
@@ -238,6 +243,35 @@ class HomeActivity : AppCompatActivity() {
         val obLp = Ui.lp(c, 12)
         obLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
         body.addView(offlineBanner, obLp)
+
+        // brand-new account: a friendly box instead of a screen of zeros (hidden once there is a first training)
+        firstRunCard = Ui.card(c)
+        firstRunCard.addTo(Ui.text(c, "Start your first training", 16f, Ui.TEXT, Ui.BOLD))
+        firstRunCard.addTo(Ui.text(c, "Pick a mode below and press Start training. Your numbers, streak and history will show up here after your first one.", 13f, Ui.MUTED, Ui.REG), 6)
+        firstRunCard.visibility = View.GONE
+        val frLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        frLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
+        body.addView(firstRunCard, frLp)
+
+        // daily goal: a ring showing today's progress; tap to pick the goal
+        goalCard = Ui.card(c)
+        goalCard.orientation = LinearLayout.HORIZONTAL
+        goalCard.gravity = Gravity.CENTER_VERTICAL
+        goalRing = GoalRing(c)
+        goalCard.addView(goalRing, LinearLayout.LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)))
+        val goalCol = LinearLayout(c)
+        goalCol.orientation = LinearLayout.VERTICAL
+        goalCol.addView(Ui.text(c, "Daily goal", 15f, Ui.TEXT, Ui.BOLD))
+        goalSub = Ui.text(c, "", 13f, Ui.MUTED, Ui.MED)
+        goalCol.addView(goalSub, Ui.lp(c, 3))
+        val gcLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        gcLp.leftMargin = Ui.dp(c, 14)
+        goalCard.addView(goalCol, gcLp)
+        goalCard.addView(Ui.text(c, "›", 22f, Ui.MUTED, Ui.BOLD))
+        goalCard.setOnClickListener { openGoalPicker() }
+        val gLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        gLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
+        body.addView(goalCard, gLp)
 
         // ---------- questions source ----------
         val pad = Ui.dp(c, 16)
@@ -274,7 +308,7 @@ class HomeActivity : AppCompatActivity() {
         srcCard.addTo(spinWrap, 10)
         val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         srcLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        body.addView(groupLabel("Session"))
+        body.addView(groupLabel("Training"))
         body.addView(srcCard, srcLp)
 
         var refresh: () -> Unit = {}
@@ -482,7 +516,7 @@ class HomeActivity : AppCompatActivity() {
             AppDialog.show(
                 this,
                 "Logout?",
-                message = "This stops any running session and signs you out.",
+                message = "This stops any running training and signs you out.",
                 buttons = listOf(
                     Btn("Cancel", Kind.SOFT),
                     Btn("Logout", Kind.DANGER) {
@@ -639,7 +673,7 @@ class HomeActivity : AppCompatActivity() {
         if (!::syncNote.isInitialized) return
         val n = HistoryStore.pendingCount()
         if (n > 0) {
-            syncNote.text = if (n == 1) "1 session waiting to sync" else n.toString() + " sessions waiting to sync"
+            syncNote.text = if (n == 1) "1 training waiting to sync" else n.toString() + " trainings waiting to sync"
             syncNote.visibility = View.VISIBLE
         } else {
             syncNote.visibility = View.GONE
@@ -660,6 +694,8 @@ class HomeActivity : AppCompatActivity() {
             val remoteStats = Api.fetchStats()
             val remoteUsed = Api.fetchUsed()
             val synced = try { waiting > 0 && HistoryStore.flush() } catch (e: Exception) { false }
+            // keep a copy of the history on the phone so the History tab also works offline
+            try { HistoryStore.warmCache() } catch (e: Exception) { }
             if (remoteUsed != null) UsedStore.syncFromRemote(remoteUsed)
             val merged: JSONObject? =
                 if (remoteStats != null) StatsStore.merge(remoteStats, StatsStore.local()) else null
@@ -675,11 +711,12 @@ class HomeActivity : AppCompatActivity() {
             runOnUiThread {
                 stopStatsPulse()
                 if (isFinishing || isDestroyed) return@runOnUiThread
+                refreshFirstRun(merged ?: StatsStore.local())
                 updateSyncNote()
                 if (synced) {
                     Toast.makeText(
                         this,
-                        if (waiting == 1) "Back online. Your session is synced." else "Back online. " + waiting + " sessions synced.",
+                        if (waiting == 1) "Back online. Your training is synced." else "Back online. " + waiting + " trainings synced.",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -705,6 +742,8 @@ class HomeActivity : AppCompatActivity() {
     /** While the first stats are still coming back, the three tiles breathe instead of showing 0. */
     private fun startStatsPulse() {
         if (statsPulse != null) return
+        if (::firstRunCard.isInitialized) firstRunCard.visibility = View.GONE
+        if (::goalCard.isInitialized) goalCard.visibility = View.VISIBLE
         val a = android.animation.ValueAnimator.ofFloat(0.35f, 1f)
         a.duration = 750
         a.repeatMode = android.animation.ValueAnimator.REVERSE
@@ -739,8 +778,49 @@ class HomeActivity : AppCompatActivity() {
         tileSessions.text = s.optLong("lifetimeSessions", 0L).toString()
         tileQuestions.text = s.optLong("lifetimeQuestions", 0L).toString()
         tileStreak.text = s.optInt("dailyStreak", 0).toString()
-        extraStats.text = "Time practiced " + StatsStore.formatTime(s.optLong("lifetimeTime", 0L)) +
+        extraStats.text = "Time practiced " + StatsStore.formatDuration(s.optLong("lifetimeTime", 0L)) +
             "   •   Best streak " + s.optInt("lifetimeStreak", 0)
+        refreshFirstRun(s)
+    }
+
+    /** Shows the "Start your first training" box only when there are no trainings and the numbers are done loading. */
+    private fun refreshFirstRun(s: JSONObject) {
+        if (!::firstRunCard.isInitialized) return
+        firstRunCard.visibility = if (s.optLong("lifetimeSessions", 0L) == 0L && statsPulse == null) View.VISIBLE else View.GONE
+        // a brand-new account sees the "first training" box; the goal card appears once that box is gone
+        if (::goalCard.isInitialized) goalCard.visibility = if (firstRunCard.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        refreshGoal()
+    }
+
+    private fun openGoalPicker() {
+        val names = goalOptions.map { if (it == 0) "No daily goal" else if (it == 1) "1 minute a day" else it.toString() + " minutes a day" }
+        val at = goalOptions.indexOf(Settings.goalMinutes)
+        PickerDialog.show(this, "Daily goal", names, names.map { false }, if (at < 0) 0 else at, "Tap to choose how long to train each day") { i ->
+            if (i >= 0 && i < goalOptions.size) {
+                Settings.goalMinutes = goalOptions[i]
+                refreshGoal()
+            }
+        }
+    }
+
+    /** Fills the ring from today's trained time (read from the history saved on the phone). */
+    private fun refreshGoal() {
+        if (!::goalCard.isInitialized) return
+        val goal = Settings.goalMinutes
+        if (goal <= 0) {
+            goalRing.set(0f, "", false)
+            goalSub.text = "Tap to set how many minutes to train each day"
+            return
+        }
+        val secs = try { HistoryStore.dailySeconds(1)[0] } catch (e: Exception) { 0L }
+        val target = goal * 60L
+        val done = secs >= target
+        goalRing.set(if (done) 1f else secs.toFloat() / target.toFloat(), if (done) "✓" else (secs * 100 / target).toString() + "%", done)
+        goalSub.text = if (done) {
+            "Goal reached  •  " + StatsStore.formatDuration(secs) + " today"
+        } else {
+            StatsStore.formatDuration(secs) + " of " + goal + " min today"
+        }
     }
 
     private var afterRecordPrep: (() -> Unit)? = null
@@ -749,7 +829,7 @@ class HomeActivity : AppCompatActivity() {
         if (ok) {
             askScreenOrGo()
         } else {
-            Toast.makeText(this, "Microphone is off, so this session won't be recorded.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Microphone is off, so this training won't be recorded.", Toast.LENGTH_LONG).show()
             runAfterPrep()
         }
     }

@@ -22,7 +22,7 @@ class TrainingService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(
-                NotificationChannel(channelId, "Training session", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(channelId, "Training", NotificationManager.IMPORTANCE_LOW)
             )
         }
         val open = PendingIntent.getActivity(
@@ -39,8 +39,8 @@ class TrainingService : Service() {
             Notification.Builder(this)
         }
         val notification = builder
-            .setContentTitle("Training session running")
-            .setContentText("Tap to return to your session")
+            .setContentTitle("Training running")
+            .setContentText("Tap to return to your training")
             .setSmallIcon(R.drawable.ic_stat_pauzfirst)
             .setColor(Ui.BLUE)
             .setContentIntent(open)

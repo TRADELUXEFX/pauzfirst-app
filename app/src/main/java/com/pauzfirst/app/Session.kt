@@ -59,6 +59,11 @@ object Settings {
         return night == android.content.res.Configuration.UI_MODE_NIGHT_YES
     }
 
+    /** Daily training goal in minutes. 0 means no goal. */
+    var goalMinutes: Int
+        get() = getInt("s_goal_min", 0)
+        set(v) = putInt("s_goal_min", v)
+
     var total: Int
         get() = getInt("s_total", 5)
         set(v) = putInt("s_total", v)

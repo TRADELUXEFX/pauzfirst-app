@@ -339,9 +339,9 @@ class SummaryActivity : AppCompatActivity() {
             val i = Intent(Intent.ACTION_SEND)
             i.type = "image/png"
             i.putExtra(Intent.EXTRA_STREAM, uri)
-            i.putExtra(Intent.EXTRA_TEXT, "I just finished a Pauzfirst session. Trained to pause and think before responding.")
+            i.putExtra(Intent.EXTRA_TEXT, "I just finished a Pauzfirst training. Trained to pause and think before responding.")
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            startActivity(Intent.createChooser(i, "Share your session"))
+            startActivity(Intent.createChooser(i, "Share your training"))
         } catch (e: Exception) {
             Toast.makeText(this, "Couldn't share the image", Toast.LENGTH_SHORT).show()
         }

@@ -87,6 +87,18 @@ object StatsStore {
         return o
     }
 
+    /** Easy-to-read length for totals and history: "3h 59m 20s", "4m 12s" or "24s". The running timer keeps using formatTime. */
+    fun formatDuration(totalSeconds: Long): String {
+        val h = totalSeconds / 3600
+        val m = (totalSeconds % 3600) / 60
+        val s = totalSeconds % 60
+        return when {
+            h > 0 -> h.toString() + "h " + m + "m " + s + "s"
+            m > 0 -> m.toString() + "m " + s + "s"
+            else -> s.toString() + "s"
+        }
+    }
+
     fun formatTime(totalSeconds: Long): String {
         val m = totalSeconds / 60
         val s = totalSeconds % 60

@@ -75,6 +75,43 @@ class ReminderActivity : AppCompatActivity() {
         })
         card.addTo(timeRow, 14)
         body.addTo(card)
+
+        val streakTimeText = Ui.text(c, Reminder.streakTimeText(is24), 15f, Ui.BLUE, Ui.BOLD)
+        val streakTimeRow = LinearLayout(c)
+        streakTimeRow.orientation = LinearLayout.HORIZONTAL
+        streakTimeRow.gravity = Gravity.CENTER_VERTICAL
+        streakTimeRow.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
+        streakTimeRow.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
+        val streakLabel = Ui.text(c, "Alert me at", 15f, Ui.TEXT, Ui.MED)
+        streakLabel.gravity = Gravity.CENTER_VERTICAL
+        streakTimeRow.addView(streakLabel, LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f))
+        streakTimeRow.addView(streakTimeText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        streakTimeRow.visibility = if (Reminder.streakAlert) View.VISIBLE else View.GONE
+        streakTimeRow.setOnClickListener {
+            TimePickerDialog(this, { _, hh, mm ->
+                Reminder.streakHour = hh
+                Reminder.streakMinute = mm
+                streakTimeText.text = Reminder.streakTimeText(is24)
+                Reminder.scheduleStreak(this)
+            }, Reminder.streakHour, Reminder.streakMinute, is24).show()
+        }
+
+        val streakCard = Ui.card(c)
+        streakCard.addTo(Ui.switchRow(c, "Streak alert", "Only sent if your streak would end today", Reminder.streakAlert) { on ->
+            Reminder.streakAlert = on
+            streakTimeRow.visibility = if (on) View.VISIBLE else View.GONE
+            if (on) {
+                Reminder.scheduleStreak(this)
+                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                if (!nm.areNotificationsEnabled()) {
+                    Toast.makeText(this, "Turn on notifications for PAUZFIRST in your phone's Settings to get alerts.", Toast.LENGTH_LONG).show()
+                }
+            } else {
+                Reminder.cancelStreak(this)
+            }
+        })
+        streakCard.addTo(streakTimeRow, 14)
+        body.addTo(streakCard, 12)
         body.addTo(Ui.note(c, "No reminder on days you've already practiced."), 12)
 
         val scroll = ScrollView(c)
