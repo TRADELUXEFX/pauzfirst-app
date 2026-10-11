@@ -1,9 +1,22 @@
 name: Build PauzFirst APK (Capacitor + Native TTS)
 
+# Phone workflow: upload ANY zip into the "incoming" folder on github.com
+# (Add file -> Upload files -> Commit to main). This workflow unpacks it into
+# the repo, commits, deletes the zip, then builds the APK from that commit.
+# Plain pushes and manual runs still just build.
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
+
+permissions:
+  contents: write
+
+# A newer upload cancels an older still-running build so stale code never wins.
+concurrency:
+  group: build-main
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -11,6 +24,149 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract any zip(s) found in incoming/ into repo root
+        id: extract
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          set -e
+          shopt -s nullglob dotglob
+          zips=(incoming/*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "No zip files found in incoming/. Nothing to unpack."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+          repo_lc=$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]')
+
+          for z in "${zips[@]}"; do
+            echo "Unpacking $z ..."
+            stage=$(mktemp -d)
+            unzip -q -o "$z" -x "__MACOSX/*" "*/.DS_Store" ".DS_Store" -d "$stage"
+
+            # Strip an extra wrapper folder (e.g. pauzfirst-app-main/www/... -> www/...)
+            for pass in 1 2 3; do
+              entries=("$stage"/*)
+              [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ] || break
+              inner="${entries[0]}"
+              name=$(basename "$inner")
+              name_lc=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+
+              case "$name_lc" in
+                www|android-native-tts-plugin|incoming|.github) break ;;
+              esac
+
+              wrapper=false
+              if [ "$name_lc" = "$repo_lc" ] || [[ "$name_lc" == "$repo_lc"-* ]] || [[ "$name_lc" == *-main ]] || [[ "$name_lc" == *-master ]]; then
+                wrapper=true
+              fi
+              for marker in www android-native-tts-plugin incoming .github package.json capacitor.config.json; do
+                [ -e "$inner/$marker" ] && wrapper=true
+              done
+
+              [ "$wrapper" = true ] || break
+              echo "Removing wrapper folder: $name/"
+              stage="$inner"
+            done
+
+            # GitHub blocks the default token from changing workflow files.
+            rm -rf "$stage/.github/workflows"
+
+            echo "Files being deployed:"
+            (cd "$stage" && find . -type f | sed 's|^\./||' | head -200)
+
+            cp -a "$stage"/. .
+            rm -f "$z"
+          done
+
+      # To delete files, put DELETE_FILES.txt at the root of the zip: one
+      # repo-relative path per line (blank lines and # comments ignored).
+      - name: Delete files listed in DELETE_FILES.txt
+        if: steps.extract.outputs.found == 'true'
+        run: |
+          set -e
+          list="DELETE_FILES.txt"
+          if [ ! -f "$list" ]; then
+            echo "No $list in the zip - nothing to delete."
+            exit 0
+          fi
+          deleted=0
+          skipped=0
+          while IFS= read -r line || [ -n "$line" ]; do
+            p=$(printf '%s' "$line" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+            case "$p" in
+              ''|'#'*) continue ;;
+            esac
+            p="${p#./}"
+            case "$p" in
+              /*|*..*|.git|.git/*|.github|.github/*|incoming|incoming/*|package.json|capacitor.config.json|DELETE_FILES.txt)
+                echo "::warning::Skipped (protected or unsafe path): $p"
+                skipped=$((skipped + 1))
+                continue
+                ;;
+            esac
+            if [ -f "$p" ]; then
+              rm -f -- "$p"
+              echo "Deleted: $p"
+              deleted=$((deleted + 1))
+            elif [ -e "$p" ]; then
+              echo "::warning::Skipped (not a regular file): $p"
+              skipped=$((skipped + 1))
+            else
+              echo "Not found (already gone): $p"
+            fi
+          done < "$list"
+          rm -f "$list"
+          echo "Deleted $deleted file(s), skipped $skipped."
+
+      - name: Commit unpacked files
+        if: steps.extract.outputs.found == 'true'
+        id: commit_unpacked
+        run: |
+          git config user.name "deploy-bot"
+          git config user.email "deploy-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed after extracting the zip - continuing anyway."
+          else
+            git commit -m "Deploy: unpack zip(s) from incoming/"
+          fi
+          if git push; then
+            echo "Push succeeded."
+          else
+            echo "::error::Push of unpacked files was rejected (see log above)."
+            echo "push_failed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Remove the zip even if the full push failed
+        if: steps.extract.outputs.found == 'true' && steps.commit_unpacked.outputs.push_failed == 'true'
+        run: |
+          set -e
+          git fetch origin main
+          git checkout origin/main -- .
+          shopt -s nullglob
+          zips=(incoming/*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then exit 0; fi
+          git rm -f "${zips[@]}"
+          git commit -m "Deploy: remove zip(s) from incoming/ after failed deploy"
+          git push origin HEAD:main
+
+      - name: Stop here if the new code never made it to main
+        if: steps.commit_unpacked.outputs.push_failed == 'true'
+        run: |
+          echo "::error::Your zip could not be pushed to main, so the build was stopped instead of building old code."
+          exit 1
+
+      - name: Build from the latest main
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+          echo "Building from commit: $(git rev-parse HEAD)"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -41,6 +197,9 @@ jobs:
           if ! grep -q 'TtsForegroundService' "$MANIFEST"; then
             sed -i 's#</application>#    <service android:name="com.pauzfirst.app.TtsForegroundService" android:foregroundServiceType="mediaPlayback" android:exported="false" />\n</application>#' "$MANIFEST"
           fi
+          if ! grep -q 'android.intent.action.TTS_SERVICE' "$MANIFEST"; then
+            sed -i 's#</manifest>#    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>\n</manifest>#' "$MANIFEST"
+          fi
           cat "$MANIFEST"
 
       - name: Copy native TTS plugin files into Android project
@@ -48,6 +207,8 @@ jobs:
           mkdir -p android/app/src/main/java/com/pauzfirst/app
           cp android-native-tts-plugin/NativeTTSPlugin.java android/app/src/main/java/com/pauzfirst/app/
           cp android-native-tts-plugin/TtsForegroundService.java android/app/src/main/java/com/pauzfirst/app/
+          # Registers NativeTTSPlugin with Capacitor (without this TTS never works)
+          cp android-native-tts-plugin/MainActivity.java android/app/src/main/java/com/pauzfirst/app/
 
       - name: Install ImageMagick for icon generation
         run: sudo apt-get update && sudo apt-get install -y imagemagick
