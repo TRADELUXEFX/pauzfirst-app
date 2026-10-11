@@ -2,7 +2,7 @@ package com.pauzfirst.app
 
 import org.json.JSONArray
 
-/** Favorite questions, kept on this phone as their own list (newest first). No server setup needed. */
+/** Favorite questions, kept on this phone as their own list (newest first) and copied to the account by ExtrasSync. */
 object FavStore {
     private fun key(): String = "favs_" + Session.userId
 
@@ -19,11 +19,19 @@ object FavStore {
         return out
     }
 
-    private fun save(list: List<String>) {
+    private fun write(list: List<String>) {
         val a = JSONArray()
         for (s in list) a.put(s)
         Session.prefs.edit().putString(key(), a.toString()).apply()
     }
+
+    private fun save(list: List<String>) {
+        write(list)
+        ExtrasSync.changed()
+    }
+
+    /** Used by the sync when the account's copy is newer. Does not trigger another upload. */
+    fun replaceAll(list: List<String>) = write(list)
 
     fun has(q: String): Boolean = all().contains(q)
 

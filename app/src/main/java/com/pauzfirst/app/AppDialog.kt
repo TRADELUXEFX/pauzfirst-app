@@ -49,6 +49,7 @@ object AppDialog {
         t.background = Ui.rounded(c, bg, 24)
         t.minHeight = Ui.dp(c, 48)
         t.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0)
+        Ui.fit(t, 14, 10)
         return t
     }
 

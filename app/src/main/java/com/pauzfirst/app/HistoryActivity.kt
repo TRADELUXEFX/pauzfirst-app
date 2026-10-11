@@ -24,6 +24,8 @@ class HistoryActivity : AppCompatActivity() {
     private lateinit var tabStats: TextView
     private lateinit var tabHistory: TextView
     private var tab = 0               // 0 = Training Stats, 1 = Training History
+    private lateinit var exportBar: LinearLayout
+    private var navBottom = 0        // height of the system navigation bar, added under the Stats list
     private var history: JSONArray? = null
     private var historyLoaded = false
     private var filter: String? = null   // null = All, otherwise one training mode
@@ -94,15 +96,41 @@ class HistoryActivity : AppCompatActivity() {
         val scroll = ScrollView(c)
         scroll.addView(body)
         Ui.noClip(body, scroll)
-        Ui.padInsets(body, bottom = true)
+        // The system bar space is added under the list only on Stats; on History the fixed bar below handles it.
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(body) { _, insets ->
+            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
+            navBottom = bars.bottom
+            applyBodyPad()
+            insets
+        }
+        androidx.core.view.ViewCompat.requestApplyInsets(body)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+
+        // fixed bottom bar with Export, always visible on the History tab (same idea as New list / Import on the lists screen)
+        exportBar = LinearLayout(c)
+        exportBar.orientation = LinearLayout.HORIZONTAL
+        Ui.bottomBarBg(c, exportBar)
+        exportBar.elevation = Ui.dp(c, 8).toFloat()
+        exportBar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        Ui.padInsets(exportBar, bottom = true)
+        val exportBtn = Ui.pill(c, "Export history")
+        exportBtn.textSize = 15f
+        exportBtn.setOnClickListener { chooseExportRange() }
+        exportBar.addView(exportBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        exportBar.visibility = android.view.View.GONE
+        page.addView(exportBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         setContentView(page)
+    }
+
+    private fun applyBodyPad() {
+        body.setPadding(body.paddingLeft, body.paddingTop, body.paddingRight, Ui.dp(this, 24) + (if (tab == 0) navBottom else 0))
     }
 
     private fun toggleTab(label: String, onTap: () -> Unit): TextView {
         val t = Ui.text(this, label, 13f, Ui.MUTED, Ui.BOLD)
         t.gravity = Gravity.CENTER
         t.setPadding(Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10))
+        Ui.fit(t, 13)
         t.setOnClickListener { onTap() }
         return t
     }
@@ -121,6 +149,8 @@ class HistoryActivity : AppCompatActivity() {
         tab = i
         styleTab(tabStats, i == 0)
         styleTab(tabHistory, i == 1)
+        exportBar.visibility = if (i == 1) android.view.View.VISIBLE else android.view.View.GONE
+        applyBodyPad()
         if (i == 0) {
             renderStats()
         } else if (historyLoaded) {
@@ -619,9 +649,6 @@ class HistoryActivity : AppCompatActivity() {
             body.addTo(entry, 10)
         }
 
-        val export = Ui.pill(c, "Export history", Ui.BLUE_SOFT, Ui.BLUE)
-        export.setOnClickListener { chooseExportRange() }
-        body.addTo(export, 16)
     }
 
     private fun csv(v: String): String = "\"" + v.replace("\"", "\"\"") + "\""
@@ -868,7 +895,7 @@ class HistoryActivity : AppCompatActivity() {
             val dir = java.io.File(cacheDir, "shared")
             dir.mkdirs()
             val file = java.io.File(dir, name)
-            PdfReport.write(file, rangeLabel, period, generated, totals, modes, feelList, bar.first, bar.second, pdfRows)
+            PdfReport.write(this, file, rangeLabel, period, generated, totals, modes, feelList, bar.first, bar.second, pdfRows)
             deliver(file, name, "application/pdf")
         } catch (e: Exception) {
             android.widget.Toast.makeText(this, "Couldn't create the PDF", android.widget.Toast.LENGTH_SHORT).show()

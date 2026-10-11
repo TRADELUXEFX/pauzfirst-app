@@ -327,6 +327,25 @@ object Api {
         return authed("POST", "/rest/v1/user_stats?on_conflict=id", body, "resolution=merge-duplicates,return=minimal").ok
     }
 
+    // ---------- favorites and ratings (user_stats.extras) ----------
+
+    /** Online extras (empty object if none yet), null if the request failed or the column doesn't exist yet. */
+    fun fetchExtras(): JSONObject? {
+        val r = authed("GET", "/rest/v1/user_stats?select=extras&id=eq." + Session.userId, null, null)
+        if (!r.ok) return null
+        return try {
+            val arr = JSONArray(r.body)
+            if (arr.length() == 0) JSONObject() else (arr.getJSONObject(0).optJSONObject("extras") ?: JSONObject())
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun saveExtras(extras: JSONObject): Boolean {
+        val body = JSONObject().put("id", Session.userId).put("extras", extras).toString()
+        return authed("POST", "/rest/v1/user_stats?on_conflict=id", body, "resolution=merge-duplicates,return=minimal").ok
+    }
+
     // ---------- used questions ----------
 
     /** Online used_questions (empty object if none yet), null if the request failed. */

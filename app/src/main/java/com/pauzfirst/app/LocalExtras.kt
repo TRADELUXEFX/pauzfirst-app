@@ -25,6 +25,12 @@ object LocalExtras {
         val o = ratingsObj()
         o.put(date, rating)
         Session.prefs.edit().putString(ratingsKey(), o.toString()).apply()
+        ExtrasSync.changed()
+    }
+
+    /** Used by the sync when the account's copy is newer. Does not trigger another upload. */
+    fun replaceRatings(o: JSONObject) {
+        Session.prefs.edit().putString(ratingsKey(), o.toString()).apply()
     }
 
     /** 1..5, or 0 when this training was not rated. */

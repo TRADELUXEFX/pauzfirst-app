@@ -234,7 +234,8 @@ object Ui {
     /** "Label            (-)  value  (+)" */
     fun stepper(
         c: Context, label: String, get: () -> Int, set: (Int) -> Unit,
-        min: Int, max: Int, step: Int, show: (Int) -> String
+        min: Int, max: Int, step: Int, show: (Int) -> String,
+        fastFrom: Int = Int.MAX_VALUE, fastStep: Int = step
     ): LinearLayout {
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
@@ -250,12 +251,12 @@ object Ui {
         row.addView(value, LinearLayout.LayoutParams(dp(c, 52), LinearLayout.LayoutParams.WRAP_CONTENT))
         row.addView(plus, LinearLayout.LayoutParams(size, size))
         minus.setOnClickListener {
-            val v = Math.max(min, get() - step)
+            val v = Math.max(min, get() - (if (get() > fastFrom) fastStep else step))
             set(v)
             value.text = show(v)
         }
         plus.setOnClickListener {
-            val v = Math.min(max, get() + step)
+            val v = Math.min(max, get() + (if (get() >= fastFrom) fastStep else step))
             set(v)
             value.text = show(v)
         }
@@ -326,11 +327,69 @@ object Ui {
     }
 
     /** Small rounded tap target used for list actions. */
+    /**
+     * Keeps a label on ONE line. If the text is too wide for its button or chip, it shrinks a little
+     * (down to minSp) instead of dropping to a second line. Call it after the text size is set.
+     */
+    fun fit(t: TextView, maxSp: Int, minSp: Int = 9) {
+        t.maxLines = 1
+        androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+            t, minSp, maxSp, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
+    }
+
+    /**
+     * Round selection marker: empty ring when off, solid blue circle with a drawn white tick when on.
+     * The tick is a vector line, centered exactly (the old "✓" text character sat off-center because
+     * the app font has no tick, so the phone drew it from another font).
+     */
+    fun tick(c: Context, on: Boolean, sizeDp: Int): FrameLayout {
+        val f = FrameLayout(c)
+        val g = GradientDrawable()
+        g.shape = GradientDrawable.OVAL
+        if (on) g.setColor(BLUE) else { g.setColor(SURFACE); g.setStroke(dp(c, 2), CHECK_LINE) }
+        f.background = g
+        if (on) {
+            val s = dp(c, (sizeDp * 0.64f).toInt())
+            f.addView(FsIconView(c, Icons.CHECK, WHITE), FrameLayout.LayoutParams(s, s, Gravity.CENTER))
+        }
+        return f
+    }
+
+    /** "Pick one" marker for pop-up lists: a ring, with a solid blue dot inside when chosen. */
+    fun radio(c: Context, on: Boolean, sizeDp: Int): FrameLayout {
+        val f = FrameLayout(c)
+        val ring = GradientDrawable()
+        ring.shape = GradientDrawable.OVAL
+        ring.setColor(SURFACE)
+        ring.setStroke(dp(c, 2), if (on) BLUE else CHECK_LINE)
+        f.background = ring
+        if (on) {
+            val dot = View(c)
+            val d = GradientDrawable()
+            d.shape = GradientDrawable.OVAL
+            d.setColor(BLUE)
+            dot.background = d
+            val s = dp(c, (sizeDp * 0.46f).toInt())
+            f.addView(dot, FrameLayout.LayoutParams(s, s, Gravity.CENTER))
+        }
+        return f
+    }
+
+    /** Bottom action bar with curved top corners, the mirror image of the header's curved bottom corners. */
+    fun bottomBarBg(c: Context, bar: View) {
+        val g = GradientDrawable()
+        g.setColor(SURFACE)
+        val r = dp(c, 24).toFloat()
+        g.cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+        bar.background = g
+    }
+
     fun chip(c: Context, label: String, fg: Int, bg: Int): TextView {
         val t = text(c, label, 13f, fg, BOLD)
         t.gravity = Gravity.CENTER
         t.background = rounded(c, bg, 20)
         t.setPadding(dp(c, 16), dp(c, 10), dp(c, 16), dp(c, 10))
+        fit(t, 13)
         return t
     }
 }

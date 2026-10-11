@@ -163,7 +163,7 @@ class ListsActivity : AppCompatActivity() {
 
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.HORIZONTAL
-        bar.setBackgroundColor(Ui.SURFACE)
+        Ui.bottomBarBg(c, bar)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         Ui.padInsets(bar, bottom = true)
@@ -171,6 +171,8 @@ class ListsActivity : AppCompatActivity() {
         newBtn.textSize = 15f
         val importBtn = Ui.pill(c, "Import by code", Ui.BLUE_SOFT, Ui.BLUE)
         importBtn.textSize = 15f
+        Ui.fit(newBtn, 15, 11)
+        Ui.fit(importBtn, 15, 11)
         bar.addView(newBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         val ip = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         ip.leftMargin = Ui.dp(c, 10)
@@ -329,12 +331,7 @@ class ListsActivity : AppCompatActivity() {
         top.addView(cnt, cl)
         if (selectMode) {
             val on = selected.contains(name)
-            val box = Ui.text(c, if (on) "✓" else "", 14f, Ui.WHITE, Ui.BOLD)
-            box.gravity = Gravity.CENTER
-            val g = android.graphics.drawable.GradientDrawable()
-            g.shape = android.graphics.drawable.GradientDrawable.OVAL
-            if (on) g.setColor(Ui.BLUE) else { g.setColor(Ui.SURFACE); g.setStroke(Ui.dp(c, 2), Ui.CHECK_LINE) }
-            box.background = g
+            val box = Ui.tick(c, on, 26)
             val bl = LinearLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26))
             bl.rightMargin = Ui.dp(c, 12)
             top.addView(box, 0, bl)

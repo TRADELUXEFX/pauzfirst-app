@@ -73,12 +73,7 @@ object PickerDialog {
             }
 
             // round marker on the left: empty ring = not chosen, blue tick = chosen
-            val mark = Ui.text(c, if (on) "✓" else "", 13f, Ui.WHITE, Ui.BOLD)
-            mark.gravity = Gravity.CENTER
-            val g = android.graphics.drawable.GradientDrawable()
-            g.shape = android.graphics.drawable.GradientDrawable.OVAL
-            if (on) g.setColor(Ui.BLUE) else { g.setColor(Ui.SURFACE); g.setStroke(Ui.dp(c, 2), Ui.CHECK_LINE) }
-            mark.background = g
+            val mark = Ui.radio(c, on, 24)
             val ml = LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24))
             ml.rightMargin = Ui.dp(c, 12)
             row.addView(mark, ml)

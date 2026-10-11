@@ -33,9 +33,11 @@ object SurprisePause {
         get() = Session.prefs.getInt("sp_end", 20 * 60)
         set(v) { Session.prefs.edit().putInt("sp_end", v).apply() }
 
+    const val MAX_PER_DAY = 100
+
     var perDay: Int
-        get() = Session.prefs.getInt("sp_n", 2).coerceIn(1, 5)
-        set(v) { Session.prefs.edit().putInt("sp_n", v.coerceIn(1, 5)).apply() }
+        get() = Session.prefs.getInt("sp_n", 2).coerceIn(1, MAX_PER_DAY)
+        set(v) { Session.prefs.edit().putInt("sp_n", v.coerceIn(1, MAX_PER_DAY)).apply() }
 
     fun clockText(min: Int, is24: Boolean): String {
         val h = min / 60
@@ -69,9 +71,10 @@ object SurprisePause {
      * so they are never bunched together. The plan is kept so it doesn't change on every call.
      */
     private fun planFor(day: Calendar): List<Int> {
-        val n = perDay
         val start = startMin
         val end = endMin
+        // never more surprises than there are minutes in the window, so every one lands inside it
+        val n = Math.max(1, Math.min(perDay, end - start))
         val sig = dayKey(day) + "|" + start + "|" + end + "|" + n
         val saved = Session.prefs.getString("sp_plan", "") ?: ""
         if (saved.startsWith(sig + "|")) {

@@ -37,7 +37,7 @@ class FavoritesActivity : AppCompatActivity() {
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val bar = LinearLayout(c)
-        bar.setBackgroundColor(Ui.SURFACE)
+        Ui.bottomBarBg(c, bar)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         Ui.padInsets(bar, bottom = true)

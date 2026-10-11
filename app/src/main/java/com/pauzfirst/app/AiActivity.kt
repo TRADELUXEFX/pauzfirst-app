@@ -82,6 +82,7 @@ class AiActivity : AppCompatActivity() {
         fun typeChip(label: String, get: () -> Boolean, set: (Boolean) -> Unit, first: Boolean) {
             val t = Ui.chip(c, label, Ui.WHITE, Ui.BLUE)
             t.setPadding(Ui.dp(c, 6), Ui.dp(c, 10), Ui.dp(c, 6), Ui.dp(c, 10))
+            Ui.fit(t, 13)
             styleChip(t, get())
             t.setOnClickListener {
                 val now = !get()
@@ -138,7 +139,7 @@ class AiActivity : AppCompatActivity() {
 
         bar = LinearLayout(c)
         bar.orientation = LinearLayout.VERTICAL
-        bar.setBackgroundColor(Ui.SURFACE)
+        Ui.bottomBarBg(c, bar)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         Ui.padInsets(bar, bottom = true)

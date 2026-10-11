@@ -183,7 +183,7 @@ class ReminderActivity : AppCompatActivity() {
         options.addTo(Ui.stepper(c, "Surprises per day", { SurprisePause.perDay }, {
             SurprisePause.perDay = it
             SurprisePause.schedule(this)
-        }, 1, 5, 1) { it.toString() }, 14)
+        }, 1, SurprisePause.MAX_PER_DAY, 1, { it.toString() }, 10, 5), 14)
         options.visibility = if (SurprisePause.enabled) View.VISIBLE else View.GONE
 
         val card = Ui.card(c)

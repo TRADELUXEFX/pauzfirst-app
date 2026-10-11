@@ -125,6 +125,7 @@ class HomeActivity : AppCompatActivity() {
         value.gravity = Gravity.CENTER
         val cap = Ui.text(c, label, 11f, Color.parseColor("#CCE4FF"), Ui.MED)
         cap.gravity = Gravity.CENTER
+        Ui.fit(cap, 11, 8)
         tile.addView(value)
         tile.addView(cap, Ui.lp(c, 4))
         return Pair(tile, value)
@@ -353,7 +354,8 @@ class HomeActivity : AppCompatActivity() {
                 val i = rowStart + j
                 val chip = Ui.text(c, modeNames[i], 13f, Ui.TEXT, Ui.BOLD)
                 chip.gravity = Gravity.CENTER
-                chip.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 12))
+                chip.setPadding(Ui.dp(c, 4), Ui.dp(c, 12), Ui.dp(c, 4), Ui.dp(c, 12))
+                Ui.fit(chip, 13)
                 val clp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 if (j > 0) clp.leftMargin = Ui.dp(c, 8)
                 chipRow.addView(chip, clp)
@@ -415,6 +417,7 @@ class HomeActivity : AppCompatActivity() {
         for (chip in listOf(recAudioChip, recVideoChip)) {
             chip.gravity = Gravity.CENTER
             chip.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12))
+            Ui.fit(chip, 13)
         }
         recAudioChip.setOnClickListener {
             Settings.recordAudio = true
@@ -472,6 +475,8 @@ class HomeActivity : AppCompatActivity() {
         saveBtn.textSize = 15f
         val listBtn = Ui.pill(c, "Settings list", Ui.BLUE_SOFT, Ui.BLUE)
         listBtn.textSize = 15f
+        Ui.fit(saveBtn, 15, 11)
+        Ui.fit(listBtn, 15, 11)
         saveRow.addView(saveBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         val listLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         listLp.leftMargin = Ui.dp(c, 10)
@@ -507,7 +512,7 @@ class HomeActivity : AppCompatActivity() {
         // ---------- sticky start bar ----------
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.VERTICAL
-        bar.setBackgroundColor(Ui.SURFACE)
+        Ui.bottomBarBg(c, bar)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         Ui.padInsets(bar, bottom = true)
@@ -619,6 +624,8 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         if (!Session.loggedIn()) return
         if (!::tileSessions.isInitialized) return
+        // favorites and ratings: send waiting changes, or take newer ones from another phone
+        Thread { ExtrasSync.pull() }.start()
         if (Presets.justApplied) {
             // a saved setup was just loaded: rebuild the screen so every switch and number shows it
             Presets.justApplied = false
