@@ -19,7 +19,7 @@ object Api {
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
     private val JSON_TYPE = "application/json".toMediaType()
@@ -321,5 +321,79 @@ object Api {
     fun saveHistory(history: JSONArray): Boolean {
         val body = JSONObject().put("id", Session.userId).put("session_history", history).toString()
         return authed("POST", "/rest/v1/user_stats?on_conflict=id", body, "resolution=merge-duplicates,return=minimal").ok
+    }
+
+    // ---------- used questions ----------
+
+    /** Online used_questions (empty object if none yet), null if the request failed. */
+    fun fetchUsed(): JSONObject? {
+        val r = authed("GET", "/rest/v1/user_stats?select=used_questions&id=eq." + Session.userId, null, null)
+        if (!r.ok) return null
+        return try {
+            val arr = JSONArray(r.body)
+            if (arr.length() == 0) JSONObject() else (arr.getJSONObject(0).optJSONObject("used_questions") ?: JSONObject())
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun saveUsed(used: JSONObject): Boolean {
+        val body = JSONObject().put("id", Session.userId).put("used_questions", used).toString()
+        return authed("POST", "/rest/v1/user_stats?on_conflict=id", body, "resolution=merge-duplicates,return=minimal").ok
+    }
+
+    // ---------- AI question generation (same gemini-proxy function as the website) ----------
+
+    class GenResult(val questions: List<String>?, val error: String?)
+
+    fun generateQuestions(theme: String, count: Int): GenResult {
+        val themeLine = if (theme.isBlank()) "" else " Lean the prompts toward this theme: " + theme.trim() + "."
+        val prompt = "Write " + count + " short prompts for a mindfulness exercise where the listener pauses before answering. " +
+            "Make them silly, absurd or playful, never offensive or personal. " +
+            "Mix yes/no questions (like \"Can a squirrel ride a bicycle?\") with playful claims about the listener " +
+            "(like \"You secretly knit sweaters for squirrels.\"). " +
+            "Keep each under 8 words, with no numbering, and make every one different." + themeLine
+        val parts = JSONArray().put(JSONObject().put("text", prompt))
+        val schema = JSONObject().put("type", "ARRAY").put("items", JSONObject().put("type", "STRING"))
+        val body = JSONObject()
+            .put("contents", JSONArray().put(JSONObject().put("parts", parts)))
+            .put("generationConfig", JSONObject()
+                .put("responseMimeType", "application/json")
+                .put("responseSchema", schema)
+                .put("temperature", 1.0))
+            .toString()
+        val r = authed("POST", "/functions/v1/gemini-proxy", body, null)
+        if (!r.ok) return GenResult(null, "Couldn't reach the AI service. Try again.")
+        return try {
+            val o = JSONObject(r.body)
+            val text = o.optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")
+                ?.optJSONArray("parts")?.optJSONObject(0)?.optString("text", "") ?: ""
+            if (text.isBlank()) {
+                val msg = o.optJSONObject("error")?.optString("message", "") ?: ""
+                GenResult(null, if (msg.isNotBlank()) "The AI service said: " + msg else "The AI returned nothing. Try again.")
+            } else {
+                GenResult(parseQuestions(text), null)
+            }
+        } catch (e: Exception) {
+            GenResult(null, "The AI sent something unreadable. Try again.")
+        }
+    }
+
+    private fun parseQuestions(text: String): List<String> {
+        val clean = text.replace("```json", "").replace("```", "").trim()
+        val out = ArrayList<String>()
+        try {
+            val a = JSONArray(clean)
+            for (i in 0 until a.length()) {
+                val q = a.opt(i)
+                if (q is String && q.isNotBlank()) out.add(q.trim())
+            }
+        } catch (e: Exception) {
+            for (line in clean.split("\n")) {
+                val t = line.trim().trimStart('-', '*', ' ').replace(Regex("^\\d+[.)]\\s*"), "").trim().trim('"', ',')
+                if (t.isNotEmpty() && t != "[" && t != "]") out.add(t)
+            }
+        }
+        return out.distinct()
     }
 }

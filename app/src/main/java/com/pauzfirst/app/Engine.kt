@@ -61,6 +61,8 @@ object Engine {
 
     private var answered = 0
     private var startedAt = 0L
+    private var usedBucket = "default"
+    private var usedPool: List<String> = emptyList()
 
     // ---- text to speech ----
     private var tts: TextToSpeech? = null
@@ -174,7 +176,7 @@ object Engine {
     // ---- public controls ----
     fun isActive(): Boolean = phase != Phase.IDLE && phase != Phase.DONE
 
-    fun start(ctx: Context, qs: List<String>) {
+    fun start(ctx: Context, qs: List<String>, bucket: String = "default", pool: List<String> = qs) {
         val a = ctx.applicationContext
         app = a
         stopInternal(false)
@@ -187,6 +189,8 @@ object Engine {
         tipInt = Settings.tipInterval
         mode = if (Settings.eyesOpen) "eyes-open" else "eyes-closed"
         questions = qs
+        usedBucket = bucket
+        usedPool = pool
         index = 0
         answered = 0
         startedAt = SystemClock.elapsedRealtime()
@@ -393,6 +397,9 @@ object Engine {
         if (q <= 0) return
         val secs = ((SystemClock.elapsedRealtime() - startedAt) / 1000L).toInt()
         val m = mode
+        val doneQs = questions.take(q)
+        val bucket = usedBucket
+        val pool = usedPool
         Thread {
             try {
                 val remote = Api.fetchStats()
@@ -408,6 +415,11 @@ object Engine {
                 HistoryStore.flush()
             } catch (e: Exception) {
                 // the session stays waiting on the phone and is sent next time
+            }
+            try {
+                UsedStore.markUsed(doneQs, bucket, pool)
+            } catch (e: Exception) {
+                // not critical: questions may repeat sooner
             }
             h.post { onSaved?.invoke() }
         }.start()

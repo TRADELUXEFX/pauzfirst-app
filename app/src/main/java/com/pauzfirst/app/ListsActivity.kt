@@ -48,6 +48,22 @@ class ListsActivity : AppCompatActivity() {
         page.setBackgroundColor(Ui.BG)
         page.addView(Ui.header(c, "My lists") { finish() })
 
+        val aiCard = Ui.card(c)
+        val aiRow = LinearLayout(c)
+        aiRow.orientation = LinearLayout.HORIZONTAL
+        aiRow.gravity = Gravity.CENTER_VERTICAL
+        val aiCol = LinearLayout(c)
+        aiCol.orientation = LinearLayout.VERTICAL
+        aiCol.addView(Ui.text(c, "Generate with AI", 15f, Ui.TEXT, Ui.BOLD))
+        aiCol.addView(Ui.text(c, "Create a fresh list of questions", 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
+        aiRow.addView(aiCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        aiRow.addView(Ui.text(c, "›", 22f, Ui.BLUE, Ui.BOLD))
+        aiCard.addView(aiRow)
+        aiCard.setOnClickListener { startActivity(Intent(this, AiActivity::class.java)) }
+        val aiLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        aiLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 4))
+        page.addView(aiCard, aiLp)
+
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
         holder.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 20))

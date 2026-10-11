@@ -275,6 +275,8 @@ class HomeActivity : AppCompatActivity() {
         Thread {
             val remoteLists = Api.fetchLists()
             val remoteStats = Api.fetchStats()
+            val remoteUsed = Api.fetchUsed()
+            if (remoteUsed != null) UsedStore.saveLocal(remoteUsed)
             val merged: JSONObject? =
                 if (remoteStats != null) StatsStore.merge(remoteStats, StatsStore.local()) else null
             if (merged != null) StatsStore.saveLocal(merged)
@@ -304,14 +306,15 @@ class HomeActivity : AppCompatActivity() {
     private fun startTraining() {
         val src = Settings.source
         val pool: List<String> =
-            if (src == Settings.DEFAULT_SOURCE) Defaults.load(this) else (lists[src] ?: emptyList())
+            (if (src == Settings.DEFAULT_SOURCE) Defaults.load(this) else (lists[src] ?: emptyList())).distinct()
         if (pool.isEmpty()) {
             Toast.makeText(this, "No questions found in \"" + src + "\".", Toast.LENGTH_LONG).show()
             return
         }
         val n = Math.min(Settings.total, pool.size)
-        val picked = pool.shuffled().take(n)
-        Engine.start(this, picked)
+        val bucket = if (src == Settings.DEFAULT_SOURCE) "default" else "saved"
+        val picked = UsedStore.pick(pool, n, bucket)
+        Engine.start(this, picked, bucket, pool)
         startActivity(Intent(this, TrainingActivity::class.java))
     }
 }
