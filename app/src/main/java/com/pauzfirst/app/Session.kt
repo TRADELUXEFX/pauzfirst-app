@@ -154,9 +154,36 @@ object Settings {
         if (s.remove(name)) savePinned(s)
     }
 
-    /** Pinned lists first, then A-Z. */
+    /** Pinned lists first, then A-Z with numbers in real order (Batch 2 before Batch 10). */
     fun order(names: Collection<String>): List<String> {
         val pins = pinnedSet()
-        return names.sortedWith(compareBy<String>({ !pins.contains(it) }, { it.lowercase() }))
+        return names.sortedWith(
+            compareBy<String> { !pins.contains(it) }
+                .thenComparator { a, b -> naturalCompare(a, b) }
+        )
+    }
+
+    private val chunkRegex = Regex("\\d+|\\D+")
+
+    /** Compares text chunk by chunk. Number chunks compare by value, text chunks ignore case. */
+    private fun naturalCompare(a: String, b: String): Int {
+        val x = chunkRegex.findAll(a.trim()).map { it.value }.toList()
+        val y = chunkRegex.findAll(b.trim()).map { it.value }.toList()
+        val n = Math.min(x.size, y.size)
+        for (i in 0 until n) {
+            val p = x[i]
+            val q = y[i]
+            val bothNumbers = p[0].isDigit() && q[0].isDigit()
+            val r = if (bothNumbers) {
+                val pt = p.trimStart('0')
+                val qt = q.trimStart('0')
+                if (pt.length != qt.length) pt.length - qt.length else pt.compareTo(qt)
+            } else {
+                p.lowercase().compareTo(q.lowercase())
+            }
+            if (r != 0) return r
+        }
+        if (x.size != y.size) return x.size - y.size
+        return a.compareTo(b)
     }
 }

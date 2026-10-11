@@ -9,7 +9,9 @@ import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
+import android.text.InputType
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -17,6 +19,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import com.pauzfirst.app.AppDialog.Btn
+import com.pauzfirst.app.AppDialog.Kind
 import com.pauzfirst.app.Ui.addTo
 import org.json.JSONObject
 
@@ -159,6 +163,7 @@ class HomeActivity : AppCompatActivity() {
         spinWrap.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
         sourceText = Ui.text(c, Settings.source, 15f, Ui.TEXT, Ui.MED)
         sourceText.maxLines = 1
+        sourceText.gravity = Gravity.CENTER_VERTICAL
         sourceText.ellipsize = android.text.TextUtils.TruncateAt.END
         spinWrap.addView(sourceText, LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f))
         val chevron = Ui.text(c, "▾", 16f, Ui.MUTED, Ui.BOLD)
@@ -173,7 +178,22 @@ class HomeActivity : AppCompatActivity() {
 
         // ---------- training mode ----------
         val modeCard = Ui.card(c)
-        modeCard.addTo(Ui.sectionTitle(c, "Training mode"))
+        // heading row: "TRAINING MODE" on the left, Deep Pause + its switch on the right
+        val modeHead = LinearLayout(c)
+        modeHead.orientation = LinearLayout.HORIZONTAL
+        modeHead.gravity = Gravity.CENTER_VERTICAL
+        modeHead.addView(Ui.sectionTitle(c, "Training mode"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        modeHead.addView(Ui.text(c, "Deep Pause", 13f, Ui.TEXT, Ui.BOLD), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val deepSwitch = androidx.appcompat.widget.SwitchCompat(c)
+        deepSwitch.isChecked = Settings.deepPause
+        deepSwitch.setOnCheckedChangeListener { _, checked ->
+            Settings.deepPause = checked
+            refresh()
+        }
+        val dsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        dsLp.leftMargin = Ui.dp(c, 8)
+        modeHead.addView(deepSwitch, dsLp)
+        modeCard.addTo(modeHead)
         val modeKeys = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")
         val modeNames = listOf("Eyes Closed", "Eyes Open", "Mirror", "Animated Eyes")
         val modeDescs = listOf(
@@ -207,10 +227,6 @@ class HomeActivity : AppCompatActivity() {
         }
         modeCard.addTo(modeGrid, 12)
         modeCard.addTo(modeDesc, 10)
-        modeCard.addTo(Ui.switchRow(c, "Deep Pause", "No time limit. Tap Next when ready", Settings.deepPause) {
-            Settings.deepPause = it
-            refresh()
-        }, 14)
         val modeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         modeLp.setMargins(pad, Ui.dp(c, 14), pad, 0)
         body.addView(modeCard, modeLp)
@@ -244,8 +260,25 @@ class HomeActivity : AppCompatActivity() {
         deepBox.addTo(Ui.switchRow(c, "3 Why Challenge", "Asks \"Why did you say that?\"", Settings.threeWhy) { Settings.threeWhy = it }, 14)
         opts.addTo(deepBox)
         val optsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        optsLp.setMargins(pad, Ui.dp(c, 14), pad, Ui.dp(c, 20))
+        optsLp.setMargins(pad, Ui.dp(c, 14), pad, Ui.dp(c, 14))
         body.addView(opts, optsLp)
+
+        // ---------- save settings / settings list ----------
+        val saveRow = LinearLayout(c)
+        saveRow.orientation = LinearLayout.HORIZONTAL
+        val saveBtn = Ui.pill(c, "Save settings")
+        saveBtn.textSize = 15f
+        val listBtn = Ui.pill(c, "Settings list", Ui.BLUE_SOFT, Ui.BLUE)
+        listBtn.textSize = 15f
+        saveRow.addView(saveBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val listLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        listLp.leftMargin = Ui.dp(c, 10)
+        saveRow.addView(listBtn, listLp)
+        val saveLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        saveLp.setMargins(pad, 0, pad, Ui.dp(c, 24))
+        body.addView(saveRow, saveLp)
+        saveBtn.setOnClickListener { showSaveDialog() }
+        listBtn.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
 
         refresh = {
             val m = Settings.mode
@@ -294,6 +327,46 @@ class HomeActivity : AppCompatActivity() {
         start.setOnClickListener { startTraining() }
     }
 
+    private fun showSaveDialog() {
+        val c = this
+        val input = EditText(c)
+        input.hint = "e.g. Mirror Intense, Quick 5Q"
+        input.setHintTextColor(Color.parseColor("#94A3B8"))
+        input.setTextColor(Ui.TEXT)
+        input.textSize = 15f
+        input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        input.setSingleLine(true)
+        Ui.setFont(c, input, Ui.MED)
+        input.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+        input.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 14))
+        val box = LinearLayout(c)
+        box.orientation = LinearLayout.VERTICAL
+        box.addView(input, Ui.lp(c))
+        AppDialog.show(
+            this,
+            "Save settings",
+            message = "Saves your training settings and the selected question list under a name.",
+            content = box,
+            buttons = listOf(
+                Btn("Cancel", Kind.SOFT),
+                Btn("Save", Kind.PRIMARY) { saveNamed(input.text.toString()) }
+            ),
+            showKeyboard = true
+        )
+        input.requestFocus()
+    }
+
+    private fun saveNamed(raw: String) {
+        val name = raw.trim()
+        if (name.isEmpty()) {
+            Toast.makeText(this, "Give your settings a name.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val replaced = Presets.exists(name)
+        Presets.save(name)
+        Toast.makeText(this, (if (replaced) "Updated \"" else "Saved \"") + name + "\"", Toast.LENGTH_SHORT).show()
+    }
+
     private fun showSource() {
         val src = Settings.source
         sourceText.text = if (src != Settings.DEFAULT_SOURCE && Settings.isPinned(src)) "★  " + src else src
@@ -326,6 +399,12 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         if (!Session.loggedIn()) return
         if (!::tileSessions.isInitialized) return
+        if (Presets.justApplied) {
+            // a saved setup was just loaded: rebuild the screen so every switch and number shows it
+            Presets.justApplied = false
+            recreate()
+            return
+        }
         resumeBtn.visibility = if (Engine.isActive()) View.VISIBLE else View.GONE
         showSource()
         showStats(StatsStore.local())

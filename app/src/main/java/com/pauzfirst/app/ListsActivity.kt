@@ -10,11 +10,12 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.widget.EditText
+import com.pauzfirst.app.AppDialog.Btn
+import com.pauzfirst.app.AppDialog.Kind
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import com.pauzfirst.app.Ui.addTo
@@ -301,57 +302,81 @@ class ListsActivity : AppCompatActivity() {
 
     private fun showQuestions(name: String, texts: List<String>) {
         val c = this
-        val tv = Ui.text(c, texts.mapIndexed { i, q -> (i + 1).toString() + ".  " + q }.joinToString("\n\n"), 14f, Ui.TEXT, Ui.REG)
-        tv.setLineSpacing(0f, 1.15f)
-        tv.setPadding(Ui.dp(c, 22), Ui.dp(c, 8), Ui.dp(c, 22), Ui.dp(c, 8))
-        val sv = ScrollView(c)
-        sv.addView(tv)
-        AlertDialog.Builder(this)
-            .setTitle(name)
-            .setView(sv)
-            .setPositiveButton("Close", null)
-            .show()
+        val col = LinearLayout(c)
+        col.orientation = LinearLayout.VERTICAL
+        for ((i, q) in texts.withIndex()) {
+            val row = LinearLayout(c)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+            row.setPadding(Ui.dp(c, 12), Ui.dp(c, 12), Ui.dp(c, 14), Ui.dp(c, 12))
+            val num = Ui.text(c, (i + 1).toString(), 12f, Ui.BLUE, Ui.BOLD)
+            num.gravity = Gravity.CENTER
+            num.minWidth = Ui.dp(c, 26)
+            num.minHeight = Ui.dp(c, 26)
+            num.setPadding(Ui.dp(c, 6), 0, Ui.dp(c, 6), 0)
+            num.background = Ui.rounded(c, Ui.BLUE_SOFT, 13)
+            row.addView(num, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            val t = Ui.text(c, q, 14f, Ui.TEXT, Ui.REG)
+            t.setLineSpacing(0f, 1.15f)
+            val tl = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            tl.leftMargin = Ui.dp(c, 10)
+            row.addView(t, tl)
+            col.addTo(row, if (i == 0) 0 else 8)
+        }
+        AppDialog.show(
+            this,
+            name,
+            message = texts.size.toString() + (if (texts.size == 1) " question" else " questions"),
+            content = col,
+            buttons = listOf(Btn("Close", Kind.PRIMARY))
+        )
     }
 
     private fun confirmReset(name: String, texts: List<String>) {
-        AlertDialog.Builder(this)
-            .setTitle("Reset progress?")
-            .setMessage("Every question in \"" + name + "\" counts as unused again.")
-            .setPositiveButton("Reset") { _, _ ->
-                Thread {
-                    UsedStore.clear(texts, "saved")
-                    runOnUiThread {
-                        if (!isFinishing && !isDestroyed) render()
-                    }
-                }.start()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        AppDialog.show(
+            this,
+            "Reset progress?",
+            message = "Every question in \"" + name + "\" counts as unused again.",
+            buttons = listOf(
+                Btn("Cancel", Kind.SOFT),
+                Btn("Reset", Kind.DANGER) {
+                    Thread {
+                        UsedStore.clear(texts, "saved")
+                        runOnUiThread {
+                            if (!isFinishing && !isDestroyed) render()
+                        }
+                    }.start()
+                }
+            )
+        )
     }
 
     // ---------- delete ----------
 
     private fun confirmDelete(name: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Delete \"" + name + "\"?")
-            .setMessage("This removes the list from your account, including on the website.")
-            .setPositiveButton("Delete") { _, _ ->
-                Thread {
-                    val ok = Api.deleteList(name)
-                    runOnUiThread {
-                        if (isFinishing || isDestroyed) return@runOnUiThread
-                        if (ok) {
-                            Settings.removePin(name)
-                            if (Settings.source == name) Settings.source = Settings.DEFAULT_SOURCE
-                            load()
-                        } else {
-                            Toast.makeText(this, "Couldn't delete the list. Try again.", Toast.LENGTH_LONG).show()
+        AppDialog.show(
+            this,
+            "Delete \"" + name + "\"?",
+            message = "This removes the list from your account, including on the website.",
+            buttons = listOf(
+                Btn("Cancel", Kind.SOFT),
+                Btn("Delete", Kind.DANGER) {
+                    Thread {
+                        val ok = Api.deleteList(name)
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            if (ok) {
+                                Settings.removePin(name)
+                                if (Settings.source == name) Settings.source = Settings.DEFAULT_SOURCE
+                                load()
+                            } else {
+                                Toast.makeText(this, "Couldn't delete the list. Try again.", Toast.LENGTH_LONG).show()
+                            }
                         }
-                    }
-                }.start()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+                    }.start()
+                }
+            )
+        )
     }
 
     // ---------- share ----------
@@ -382,42 +407,56 @@ class ListsActivity : AppCompatActivity() {
 
     private fun showCode(name: String, code: String) {
         val msg = "Try my PauzFirst list \"" + name + "\". In the app open Question lists > Import by code and enter: " + code
-        AlertDialog.Builder(this)
-            .setTitle("Share code: " + code)
-            .setMessage("Anyone with this code can import a copy of \"" + name + "\".")
-            .setPositiveButton("Share") { _, _ ->
-                val i = Intent(Intent.ACTION_SEND)
-                i.type = "text/plain"
-                i.putExtra(Intent.EXTRA_TEXT, msg)
-                startActivity(Intent.createChooser(i, "Share list"))
-            }
-            .setNeutralButton("Copy code") { _, _ ->
-                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                cm.setPrimaryClip(ClipData.newPlainText("PauzFirst code", code))
-                Toast.makeText(this, "Code copied", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Close", null)
-            .show()
+        AppDialog.show(
+            this,
+            "Share code: " + code,
+            message = "Anyone with this code can import a copy of \"" + name + "\".",
+            buttons = listOf(
+                Btn("Share", Kind.PRIMARY) {
+                    val i = Intent(Intent.ACTION_SEND)
+                    i.type = "text/plain"
+                    i.putExtra(Intent.EXTRA_TEXT, msg)
+                    startActivity(Intent.createChooser(i, "Share list"))
+                },
+                Btn("Copy code", Kind.SOFT) {
+                    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("PauzFirst code", code))
+                    Toast.makeText(this, "Code copied", Toast.LENGTH_SHORT).show()
+                },
+                Btn("Close", Kind.SOFT)
+            )
+        )
     }
 
     // ---------- import ----------
 
     private fun showImportDialog() {
         val c = this
-        val box = LinearLayout(c)
-        box.setPadding(Ui.dp(c, 20), Ui.dp(c, 8), Ui.dp(c, 20), 0)
         val input = EditText(c)
         input.hint = "Share code"
+        input.setHintTextColor(Color.parseColor("#94A3B8"))
+        input.setTextColor(Ui.TEXT)
+        input.textSize = 15f
         input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         input.setSingleLine(true)
         Ui.setFont(c, input, Ui.MED)
-        box.addView(input, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        AlertDialog.Builder(this)
-            .setTitle("Import by code")
-            .setView(box)
-            .setPositiveButton("Import") { _, _ -> doImport(input.text.toString()) }
-            .setNegativeButton("Cancel", null)
-            .show()
+        input.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+        input.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 14))
+        val box = LinearLayout(c)
+        box.orientation = LinearLayout.VERTICAL
+        box.addView(input, Ui.lp(c))
+        AppDialog.show(
+            this,
+            "Import by code",
+            message = "Enter the share code you were sent.",
+            content = box,
+            buttons = listOf(
+                Btn("Cancel", Kind.SOFT),
+                Btn("Import", Kind.PRIMARY) { doImport(input.text.toString()) }
+            ),
+            showKeyboard = true
+        )
+        input.requestFocus()
     }
 
     private fun doImport(rawCode: String) {

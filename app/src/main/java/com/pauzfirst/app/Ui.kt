@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.SwitchCompat
@@ -198,7 +199,7 @@ object Ui {
         return row
     }
 
-    /** Blue top bar with a Back pill and a title. */
+    /** Blue top bar with a round arrow-only Back button and the title centered. */
     fun header(c: Context, title: String, onBack: () -> Unit): LinearLayout {
         val h = LinearLayout(c)
         h.orientation = LinearLayout.HORIZONTAL
@@ -207,16 +208,28 @@ object Ui {
         val r = dp(c, 24).toFloat()
         bg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r)
         h.background = bg
-        h.setPadding(dp(c, 16), dp(c, 12), dp(c, 20), dp(c, 18))
-        val back = text(c, "‹  Back", 13f, WHITE, BOLD)
-        back.background = rounded(c, Color.parseColor("#33FFFFFF"), 20)
-        back.setPadding(dp(c, 14), dp(c, 9), dp(c, 14), dp(c, 9))
+        h.setPadding(dp(c, 16), dp(c, 12), dp(c, 16), dp(c, 18))
+
+        val size = dp(c, 40)
+        val back = FrameLayout(c)
+        val circle = GradientDrawable()
+        circle.shape = GradientDrawable.OVAL
+        circle.setColor(Color.parseColor("#33FFFFFF"))
+        back.background = circle
+        back.contentDescription = "Back"
         back.setOnClickListener { onBack() }
-        h.addView(back, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val arrow = FsIconView(c, "M15 18l-6-6 6-6", WHITE)
+        back.addView(arrow, FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
+        h.addView(back, LinearLayout.LayoutParams(size, size))
+
         val t = text(c, title, 20f, WHITE, BOLD)
-        val p = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        p.leftMargin = dp(c, 14)
-        h.addView(t, p)
+        t.gravity = Gravity.CENTER
+        t.maxLines = 1
+        t.ellipsize = android.text.TextUtils.TruncateAt.END
+        h.addView(t, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+
+        // empty box the same size as the arrow, so the title sits in the true center
+        h.addView(View(c), LinearLayout.LayoutParams(size, size))
         return h
     }
 

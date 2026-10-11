@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -74,6 +77,10 @@ class TrainingActivity : AppCompatActivity() {
     private lateinit var fsSecs: TextView
     private lateinit var fsNext: LinearLayout
     private lateinit var fsEnd: LinearLayout
+    private lateinit var fsMeter: AudioLevelView
+    private var micOn = false
+    private var micAsked = false
+    @Volatile private var micGen = 0
     private var fsOn = false
     private var doneClosePosted = false
 
@@ -84,7 +91,16 @@ class TrainingActivity : AppCompatActivity() {
     private val uiH = Handler(Looper.getMainLooper())
 
     private val camPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) startCamera() else hideCamera()
+        if (ok) {
+            startCamera()
+            ensureMic()
+        } else {
+            hideCamera()
+        }
+    }
+
+    private val micPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) startMic()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -188,26 +204,32 @@ class TrainingActivity : AppCompatActivity() {
                     camPerm.launch(Manifest.permission.CAMERA)
                 }
             }
+            // ask for the mic after the camera question so two pop-ups never fight
+            if (Settings.animatedEyes || ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                ensureMic()
+            }
         }
         if (counting) startCountdown()
     }
 
     // ---------------------------------------------------------------- full screen layer
 
-    /** Transparent camera button: icon above the label, like the website. */
+    /** Wide transparent camera button: icon above the label, like the website. */
     private fun fsIconButton(c: Context, iconPath: String, label: String): LinearLayout {
         val box = LinearLayout(c)
         box.orientation = LinearLayout.VERTICAL
-        box.gravity = Gravity.CENTER_HORIZONTAL
+        box.gravity = Gravity.CENTER
         val sl = android.graphics.drawable.StateListDrawable()
-        sl.addState(intArrayOf(android.R.attr.state_pressed), Ui.rounded(c, Color.parseColor("#8C1E90FF"), 16, Color.parseColor("#40FFFFFF"), 1))
-        sl.addState(intArrayOf(), Ui.rounded(c, Color.parseColor("#8C000000"), 16, Color.parseColor("#40FFFFFF"), 1))
+        sl.addState(intArrayOf(android.R.attr.state_pressed), Ui.rounded(c, Color.parseColor("#8C1E90FF"), 18, Color.parseColor("#59FFFFFF"), 1))
+        sl.addState(intArrayOf(), Ui.rounded(c, Color.parseColor("#99000000"), 18, Color.parseColor("#59FFFFFF"), 1))
         box.background = sl
-        box.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
-        box.addView(FsIconView(c, iconPath), LinearLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22)))
-        val t = Ui.text(c, label, 13f, Ui.WHITE, Ui.MED)
+        box.minimumHeight = Ui.dp(c, 72)
+        box.setPadding(Ui.dp(c, 8), Ui.dp(c, 12), Ui.dp(c, 8), Ui.dp(c, 12))
+        box.addView(FsIconView(c, iconPath), LinearLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26)))
+        val t = Ui.text(c, label, 15f, Ui.WHITE, Ui.BOLD)
+        t.maxLines = 1
         val tlp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        tlp.topMargin = Ui.dp(c, 4)
+        tlp.topMargin = Ui.dp(c, 5)
         box.addView(t, tlp)
         return box
     }
@@ -321,13 +343,17 @@ class TrainingActivity : AppCompatActivity() {
         fsNext = fsIconButton(c, Icons.NEXT, "Next")
         fsNext.visibility = View.GONE
         if (Settings.animatedEyes) flip.visibility = View.GONE
+        // equal width, share the full row, so nothing is squeezed or cut off
         val btnViews = arrayOf<View>(flip, fsEnd, fsNext)
         for (i in btnViews.indices) {
-            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             if (i > 0) lp.leftMargin = Ui.dp(c, 10)
             btns.addView(btnViews[i], lp)
         }
+        fsMeter = AudioLevelView(c)
+        fsOverlay.addView(fsMeter, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         val btnsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        btnsLp.topMargin = Ui.dp(c, 8)
         btnsLp.bottomMargin = Ui.dp(c, 16)
         fsOverlay.addView(btns, btnsLp)
         flip.setOnClickListener { flipCamera() }
@@ -410,6 +436,7 @@ class TrainingActivity : AppCompatActivity() {
     private fun closeFs() {
         if (!fsOn) return
         fsOn = false
+        stopMic()
         fsEyes?.visibility = View.GONE
         fs.visibility = View.GONE
         applyImmersive(false)
@@ -423,6 +450,72 @@ class TrainingActivity : AppCompatActivity() {
             Engine.stop()
         }
         finish()
+    }
+
+    // ---------------------------------------------------------------- mic level bars
+
+    /** Ask for the mic once; if it is already allowed, start the bars. */
+    private fun ensureMic() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startMic()
+        } else if (!micAsked) {
+            micAsked = true
+            micPerm.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    @android.annotation.SuppressLint("MissingPermission")
+    private fun startMic() {
+        if (micOn || !fsOn) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
+        val rate = 16000
+        val minBuf = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        if (minBuf <= 0) return
+        micOn = true
+        val my = ++micGen
+        val meter = fsMeter
+        Thread {
+            var rec: AudioRecord? = null
+            try {
+                rec = AudioRecord(
+                    MediaRecorder.AudioSource.MIC, rate,
+                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    Math.max(minBuf, 4096)
+                )
+                if (rec.state == AudioRecord.STATE_INITIALIZED) {
+                    rec.startRecording()
+                    val buf = ShortArray(1024)
+                    val seg = buf.size / AudioLevelView.BARS
+                    val out = FloatArray(AudioLevelView.BARS)
+                    while (micGen == my) {
+                        val n = rec.read(buf, 0, buf.size)
+                        if (n < 0) break
+                        if (n < buf.size) continue
+                        for (b in 0 until AudioLevelView.BARS) {
+                            var sum = 0f
+                            for (k in 0 until seg) {
+                                val v = buf[b * seg + k] / 32768f
+                                sum += v * v
+                            }
+                            out[b] = Math.sqrt((sum / seg).toDouble()).toFloat()
+                        }
+                        meter.push(out)
+                    }
+                }
+            } catch (e: Exception) {
+                // no mic: the bars simply stay flat
+            } finally {
+                try { rec?.stop() } catch (e: Exception) { }
+                try { rec?.release() } catch (e: Exception) { }
+                meter.clear()
+                runOnUiThread { if (micGen == my) micOn = false }
+            }
+        }.start()
+    }
+
+    private fun stopMic() {
+        micGen++
+        micOn = false
     }
 
     // ---------------------------------------------------------------- camera
@@ -479,14 +572,19 @@ class TrainingActivity : AppCompatActivity() {
         if (!::question.isInitialized) return
         Engine.listener = { render() }
         render()
+        if (fsOn && Engine.phase != Engine.Phase.DONE &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        ) startMic()
     }
 
     override fun onPause() {
         super.onPause()
         Engine.listener = null
+        stopMic()
     }
 
     override fun onDestroy() {
+        stopMic()
         uiH.removeCallbacksAndMessages(null)
         if (isFinishing) PendingStart.clear()
         super.onDestroy()
