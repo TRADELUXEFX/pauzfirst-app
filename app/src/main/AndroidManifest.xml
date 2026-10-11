@@ -108,7 +108,7 @@
             android:exported="false"
             android:foregroundServiceType="mediaProjection|microphone" />
 
-        <activity android:name=".FavoritesActivity" android:exported="false" />
+        <activity android:name=".BankActivity" android:exported="false" />
 
         <receiver
             android:name=".StreakWidget"

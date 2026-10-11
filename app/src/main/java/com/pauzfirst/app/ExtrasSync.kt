@@ -4,7 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Keeps the favorites, the "How did it feel?" ratings and the saved Settings list on the account
+ * Keeps the "How did it feel?" ratings and the saved Settings list on the account
  * (user_stats.extras), so they follow the user to a new phone. The phone stays the working copy: everything keeps
  * working offline, and a change that could not be sent waits until the next time it can.
  *
@@ -17,7 +17,7 @@ object ExtrasSync {
 
     @Volatile private var lastPull = 0L
 
-    /** Call after any local change to favorites or ratings. */
+    /** Call after any local change to ratings or presets. */
     fun changed() {
         if (!Session.loggedIn()) return
         Session.prefs.edit().putLong(tsKey(), System.currentTimeMillis()).putBoolean(dirtyKey(), true).apply()
@@ -28,9 +28,7 @@ object ExtrasSync {
     private fun push(): Boolean {
         if (!Session.loggedIn()) return false
         val ts = Session.prefs.getLong(tsKey(), 0L)
-        val favs = JSONArray()
-        for (f in FavStore.all()) favs.put(f)
-        val extras = JSONObject().put("favs", favs).put("ratings", LocalExtras.allRatings())
+        val extras = JSONObject().put("ratings", LocalExtras.allRatings())
             .put("presets", Presets.rawArray()).put("ts", ts)
         val ok = Api.saveExtras(extras)
         // only mark as sent if nothing changed while the request was running
@@ -57,14 +55,12 @@ object ExtrasSync {
         val dirty = Session.prefs.getBoolean(dirtyKey(), false)
         val localTs = Session.prefs.getLong(tsKey(), 0L)
         val remoteTs = remote.optLong("ts", 0L)
-        val rFavs = remote.optJSONArray("favs") ?: JSONArray()
         val rRatings = remote.optJSONObject("ratings") ?: JSONObject()
         val rPresets = remote.optJSONArray("presets") ?: JSONArray()
-        val remoteHas = rFavs.length() > 0 || rRatings.length() > 0 || rPresets.length() > 0
-        val localFavs = FavStore.all()
+        val remoteHas = rRatings.length() > 0 || rPresets.length() > 0
         val localRatings = LocalExtras.allRatings()
         val localPresets = Presets.rawArray()
-        val localHas = localFavs.isNotEmpty() || localRatings.length() > 0 || localPresets.length() > 0
+        val localHas = localRatings.length() > 0 || localPresets.length() > 0
 
         if (dirty) {
             push()
@@ -79,11 +75,6 @@ object ExtrasSync {
         }
         if (localTs == 0L && localHas) {
             // never synced from this phone, but both sides have something: keep everything
-            val favs = ArrayList<String>(localFavs)
-            for (i in 0 until rFavs.length()) {
-                val s = rFavs.optString(i, "")
-                if (s.isNotEmpty() && !favs.contains(s)) favs.add(s)
-            }
             val ratings = JSONObject()
             for (k in rRatings.keys()) ratings.put(k, rRatings.optInt(k, 0))
             for (k in localRatings.keys()) ratings.put(k, localRatings.optInt(k, 0))
@@ -96,7 +87,6 @@ object ExtrasSync {
                     if (n.isNotEmpty() && names.add(n)) presets.put(o)
                 }
             }
-            FavStore.replaceAll(favs)
             LocalExtras.replaceRatings(ratings)
             Presets.replaceRaw(presets)
             Session.prefs.edit().putLong(tsKey(), now).apply()
@@ -104,12 +94,6 @@ object ExtrasSync {
             return
         }
         if (remoteTs > localTs || !localHas) {
-            val favs = ArrayList<String>()
-            for (i in 0 until rFavs.length()) {
-                val s = rFavs.optString(i, "")
-                if (s.isNotEmpty()) favs.add(s)
-            }
-            FavStore.replaceAll(favs)
             LocalExtras.replaceRatings(rRatings)
             Presets.replaceRaw(rPresets)
             Session.prefs.edit().putLong(tsKey(), remoteTs).putBoolean(dirtyKey(), false).apply()

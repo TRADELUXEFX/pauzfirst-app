@@ -23,7 +23,6 @@ import org.json.JSONArray
 
 class ListsActivity : AppCompatActivity() {
     private lateinit var holder: LinearLayout
-    private lateinit var favCount: TextView
     private var raw: Map<String, JSONArray> = emptyMap()
     private var loadedOnce = false
     private lateinit var offlineNote: TextView
@@ -59,8 +58,6 @@ class ListsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!::holder.isInitialized) return
-        val fc = FavStore.all().size
-        favCount.text = if (fc == 0) "Star questions during training to save them here" else fc.toString() + (if (fc == 1) " saved question" else " saved questions")
         load()
         net = NetWatch(this) { online ->
             offlineNote.visibility = if (online) View.GONE else View.VISIBLE
@@ -103,23 +100,22 @@ class ListsActivity : AppCompatActivity() {
         aiLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 4))
         page.addView(aiCard, aiLp)
 
-        // favorites: its own list, kept on this phone
-        val favCard = Ui.card(c)
-        val favRow = LinearLayout(c)
-        favRow.orientation = LinearLayout.HORIZONTAL
-        favRow.gravity = Gravity.CENTER_VERTICAL
-        val favCol = LinearLayout(c)
-        favCol.orientation = LinearLayout.VERTICAL
-        favCol.addView(Ui.text(c, "Favorite questions", 15f, Ui.TEXT, Ui.BOLD))
-        favCount = Ui.text(c, "", 12f, Ui.MUTED, Ui.REG)
-        favCol.addView(favCount, Ui.lp(c, 3))
-        favRow.addView(favCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        favRow.addView(Ui.text(c, "\u2605", 22f, Ui.AMBER, Ui.BOLD))
-        favCard.addView(favRow)
-        favCard.setOnClickListener { startActivity(Intent(this, FavoritesActivity::class.java)) }
-        val favLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        favLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 4))
-        page.addView(favCard, favLp)
+        // the shared question bank that Default mode draws from
+        val bankCard = Ui.card(c)
+        val bankRow = LinearLayout(c)
+        bankRow.orientation = LinearLayout.HORIZONTAL
+        bankRow.gravity = Gravity.CENTER_VERTICAL
+        val bankCol = LinearLayout(c)
+        bankCol.orientation = LinearLayout.VERTICAL
+        bankCol.addView(Ui.text(c, "Question bank", 15f, Ui.TEXT, Ui.BOLD))
+        bankCol.addView(Ui.text(c, Defaults.pool(c).distinct().size.toString() + " questions in Default mode", 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
+        bankRow.addView(bankCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        bankRow.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
+        bankCard.addView(bankRow)
+        bankCard.setOnClickListener { startActivity(Intent(this, BankActivity::class.java)) }
+        val bankLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        bankLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 4))
+        page.addView(bankCard, bankLp)
 
         selectRow = LinearLayout(c)
         selectRow.orientation = LinearLayout.HORIZONTAL

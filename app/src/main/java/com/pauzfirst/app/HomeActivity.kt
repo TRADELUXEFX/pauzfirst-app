@@ -540,6 +540,7 @@ class HomeActivity : AppCompatActivity() {
                     Btn("Cancel", Kind.SOFT),
                     Btn("Logout", Kind.DANGER) {
                         Engine.stop()
+                        StartNotice.cancel(this)
                         Session.clear()
                         goLogin()
                     }
@@ -624,7 +625,7 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         if (!Session.loggedIn()) return
         if (!::tileSessions.isInitialized) return
-        // favorites and ratings: send waiting changes, or take newer ones from another phone
+        // ratings and presets: send waiting changes, or take newer ones from another phone
         Thread { ExtrasSync.pull() }.start()
         if (Presets.justApplied) {
             // a saved setup was just loaded: rebuild the screen so every switch and number shows it
@@ -713,6 +714,7 @@ class HomeActivity : AppCompatActivity() {
         Thread {
             val waiting = HistoryStore.pendingCount()
             val remoteLists = Api.fetchLists()
+            try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }
             val remoteStats = Api.fetchStats()
             val remoteUsed = Api.fetchUsed()
             val synced = try { waiting > 0 && HistoryStore.flush() } catch (e: Exception) { false }
@@ -893,7 +895,7 @@ class HomeActivity : AppCompatActivity() {
     private fun launchTraining() {
         val src = Settings.source
         val pool: List<String> =
-            (if (src == Settings.DEFAULT_SOURCE) Defaults.load(this) else (lists[src] ?: emptyList())).distinct()
+            (if (src == Settings.DEFAULT_SOURCE) Defaults.pool(this) else (lists[src] ?: emptyList())).distinct()
         if (pool.isEmpty()) {
             val msg = if (src != Settings.DEFAULT_SOURCE && lists.isEmpty())
                 "\"" + src + "\" isn't saved on this phone yet. Connect to the internet once to load it, or choose Default questions."

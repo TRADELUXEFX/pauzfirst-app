@@ -185,6 +185,11 @@ class AiActivity : AppCompatActivity() {
             if (useA) types.add("ASSUMPTION")
             if (useS) types.add("STATEMENT")
             val r = Api.generateQuestions(theme, count, ListCache.texts(existing).values.flatten(), types)
+            // like the website: only AI output from the default prompts (no theme) goes into the shared bank
+            val fresh = r.questions
+            if (theme.isEmpty() && fresh != null && fresh.isNotEmpty()) {
+                try { Api.sendToBank(fresh) } catch (e: Exception) { }
+            }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 val qs = r.questions

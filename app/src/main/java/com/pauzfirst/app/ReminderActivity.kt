@@ -112,6 +112,7 @@ class ReminderActivity : AppCompatActivity() {
         })
         streakCard.addTo(streakTimeRow, 14)
         body.addTo(streakCard, 12)
+
         body.addTo(buildSurpriseCard(is24), 12)
         body.addTo(Ui.note(c, "No reminder on days you've already practiced."), 12)
 

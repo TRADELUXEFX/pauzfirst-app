@@ -505,7 +505,7 @@ object Engine {
                 // the session stays waiting on the phone and is sent next time
             }
             try {
-                if (bucket != "favorites") UsedStore.markUsed(doneQs, bucket, pool)
+                UsedStore.markUsed(doneQs, bucket, pool)
             } catch (e: Exception) {
                 // not critical: questions may repeat sooner
             }

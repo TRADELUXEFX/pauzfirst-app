@@ -139,6 +139,21 @@ object HistoryStore {
         return out
     }
 
+    /** Sessions, questions and seconds between two moments (fromMs inclusive, toMs exclusive), from what is saved on the phone. */
+    fun totals(fromMs: Long, toMs: Long): LongArray {
+        val out = LongArray(3)
+        val h = saved() ?: return out
+        for (k in 0 until h.length()) {
+            val o = h.optJSONObject(k) ?: continue
+            val ms = parseIso(o.optString("date", ""))
+            if (ms < fromMs || ms >= toMs) continue
+            out[0] += 1
+            out[1] += o.optInt("questions", 0).toLong()
+            out[2] += o.optInt("time", 0).toLong()
+        }
+        return out
+    }
+
     /** Seconds trained on each day of one calendar month (index 0 = the 1st). Month is 0-based like Calendar. */
     fun monthSeconds(year: Int, month: Int): LongArray {
         val first = Calendar.getInstance()

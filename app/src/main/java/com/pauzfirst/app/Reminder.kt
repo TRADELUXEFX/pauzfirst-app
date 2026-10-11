@@ -121,6 +121,8 @@ object Reminder {
     /** Sets (or replaces) the next reminder. Does nothing when the reminder is off. */
     fun schedule(ctx: Context) {
         scheduleStreak(ctx)
+        WeeklySummary.schedule(ctx)
+        if (Session.loggedIn()) StartNotice.post(ctx)
         cancel(ctx)
         if (!enabled) return
         try {
@@ -184,6 +186,19 @@ class ReminderReceiver : BroadcastReceiver() {
                 val atRisk = s.optString("lastPracticeDate", "") == StatsStore.yesterday() && s.optInt("dailyStreak", 0) > 0
                 if (Reminder.streakAlert && Session.loggedIn() && atRisk) Reminder.showStreak(context, s.optInt("dailyStreak", 0))
                 Reminder.scheduleStreak(context)
+            }
+            WeeklySummary.ACTION -> {
+                val pr = goAsync()
+                Thread {
+                    try {
+                        // refresh the saved history first so the numbers are current (skipped silently when offline)
+                        try { HistoryStore.warmCache() } catch (e: Exception) { }
+                        if (Session.loggedIn()) WeeklySummary.show(context)
+                        WeeklySummary.schedule(context)
+                    } finally {
+                        pr.finish()
+                    }
+                }.start()
             }
             Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> Reminder.schedule(context)
         }

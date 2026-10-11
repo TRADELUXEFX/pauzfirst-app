@@ -125,7 +125,7 @@ object SurprisePause {
             if (pool.isNotEmpty()) bucket = "saved"
         }
         if (pool.isEmpty()) {
-            pool = Defaults.load(ctx).distinct()
+            pool = Defaults.pool(ctx).distinct()
             bucket = "default"
         }
         return Pair(pool, bucket)

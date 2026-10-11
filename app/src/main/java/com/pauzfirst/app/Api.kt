@@ -327,7 +327,7 @@ object Api {
         return authed("POST", "/rest/v1/user_stats?on_conflict=id", body, "resolution=merge-duplicates,return=minimal").ok
     }
 
-    // ---------- favorites and ratings (user_stats.extras) ----------
+    // ---------- ratings and presets (user_stats.extras) ----------
 
     /** Online extras (empty object if none yet), null if the request failed or the column doesn't exist yet. */
     fun fetchExtras(): JSONObject? {
@@ -363,6 +363,36 @@ object Api {
     fun saveUsed(used: JSONObject): Boolean {
         val body = JSONObject().put("id", Session.userId).put("used_questions", used).toString()
         return authed("POST", "/rest/v1/user_stats?on_conflict=id", body, "resolution=merge-duplicates,return=minimal").ok
+    }
+
+    // ---------- question bank (community_questions, same table the website uses) ----------
+
+    /** The shared bank of AI-generated questions used by Default mode, or null if the request failed. */
+    fun fetchBank(): List<String>? {
+        val r = authed("GET", "/rest/v1/community_questions?select=question&limit=1000", null, null)
+        if (!r.ok) return null
+        return try {
+            val arr = JSONArray(r.body)
+            val out = ArrayList<String>()
+            for (i in 0 until arr.length()) {
+                val q = arr.getJSONObject(i).optString("question", "").trim()
+                if (q.isNotEmpty()) out.add(q)
+            }
+            out
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Adds AI-generated questions to the bank. Questions already there are skipped. */
+    fun sendToBank(questions: List<String>): Boolean {
+        val arr = JSONArray()
+        for (q in questions) {
+            val t = q.trim()
+            if (t.isNotEmpty()) arr.put(JSONObject().put("question", t))
+        }
+        if (arr.length() == 0) return true
+        return authed("POST", "/rest/v1/community_questions?on_conflict=question", arr.toString(), "resolution=ignore-duplicates,return=minimal").ok
     }
 
     // ---------- AI question generation (same gemini-proxy function as the website) ----------
