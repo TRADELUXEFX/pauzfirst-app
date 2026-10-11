@@ -74,6 +74,9 @@ object Engine {
         private set
     @Volatile var lastBest = -1
         private set
+    /** True when this session extended the daily streak (used for milestone badges). */
+    @Volatile var lastStreakUp = false
+        private set
     private var startedAt = 0L
     private var usedBucket = "default"
     private var usedPool: List<String> = emptyList()
@@ -437,6 +440,7 @@ object Engine {
         lastModeKey = modeKey
         lastStreak = -1
         lastBest = -1
+        lastStreakUp = false
         if (q <= 0) return
         val m = mode
         val doneQs = questions.take(q)
@@ -447,6 +451,7 @@ object Engine {
                 val remote = Api.fetchStats()
                 val base = StatsStore.merge(remote, StatsStore.local())
                 val updated = StatsStore.addSession(base, q, secs, m)
+                lastStreakUp = updated.optInt("dailyStreak", 0) > base.optInt("dailyStreak", 0)
                 lastStreak = updated.optInt("dailyStreak", 0)
                 lastBest = updated.optInt("lifetimeStreak", 0)
                 h.post { notifyUi() }

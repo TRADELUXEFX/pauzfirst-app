@@ -13,6 +13,7 @@ import android.provider.MediaStore
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -22,7 +23,6 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
-import androidx.core.view.WindowCompat
 import androidx.core.widget.TextViewCompat
 import com.pauzfirst.app.Ui.addTo
 import java.io.File
@@ -33,37 +33,43 @@ import java.util.Locale
 
 /**
  * The one finish page every training mode ends on.
- * Shows the session stats on a shareable card, with Share, Save image and Back to home.
+ * Blue header and stats card on top (that part is what gets shared), Done at the bottom with round Save and Share buttons.
  */
 class SummaryActivity : AppCompatActivity() {
-    private lateinit var card: LinearLayout
+    private lateinit var shareArea: LinearLayout
     private lateinit var vals: Array<TextView>
-    private lateinit var streak: TextView
+    private lateinit var streakChip: LinearLayout
+    private lateinit var streakText: TextView
+    private lateinit var checkCircle: FrameLayout
+    private lateinit var milestone: LinearLayout
+    private lateinit var milestoneText: TextView
+    private var milestoneShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.edgeToEdge(this)
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !Ui.dark
         val c = this
+        val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
+        val match = LinearLayout.LayoutParams.MATCH_PARENT
 
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        Ui.padInsets(page, top = true, bottom = true)
 
-        val body = LinearLayout(c)
-        body.orientation = LinearLayout.VERTICAL
-        body.gravity = Gravity.CENTER_VERTICAL
-        body.setPadding(Ui.dp(c, 20), Ui.dp(c, 16), Ui.dp(c, 20), Ui.dp(c, 20))
-        Ui.noClip(body)
+        // ---------- the part that gets shared: blue header + stats card ----------
+        shareArea = LinearLayout(c)
+        shareArea.orientation = LinearLayout.VERTICAL
+        shareArea.setBackgroundColor(Ui.BG)
 
-        // ---------- the shareable card ----------
-        card = LinearLayout(c)
-        card.orientation = LinearLayout.VERTICAL
-        card.gravity = Gravity.CENTER_HORIZONTAL
-        card.background = cardBg(28f)
-        card.elevation = Ui.dp(c, 4).toFloat()
-        card.setPadding(Ui.dp(c, 22), Ui.dp(c, 26), Ui.dp(c, 22), Ui.dp(c, 24))
+        val hero = LinearLayout(c)
+        hero.orientation = LinearLayout.VERTICAL
+        hero.gravity = Gravity.CENTER_HORIZONTAL
+        val heroBg = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
+        val r = Ui.dp(c, 26).toFloat()
+        heroBg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r)
+        hero.background = heroBg
+        hero.setPadding(Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 58))
+        Ui.padInsets(hero, top = true)
 
         val brand = LinearLayout(c)
         brand.orientation = LinearLayout.HORIZONTAL
@@ -74,86 +80,154 @@ class SummaryActivity : AppCompatActivity() {
         val logoLp = LinearLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 30))
         logoLp.rightMargin = Ui.dp(c, 8)
         brand.addView(logo, logoLp)
-        val name = Ui.text(c, "PAUZFIRST", 17f, Ui.WHITE, Ui.BOLD)
+        val name = Ui.text(c, "PAUZFIRST", 16f, Ui.WHITE, Ui.BOLD)
         name.letterSpacing = 0.1f
         brand.addView(name)
-        val brandLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        card.addView(brand, brandLp)
+        hero.addView(brand, LinearLayout.LayoutParams(wrap, wrap))
 
         val circle = FrameLayout(c)
         val circleBg = GradientDrawable()
         circleBg.shape = GradientDrawable.OVAL
         circleBg.setColor(Color.parseColor("#33FFFFFF"))
         circle.background = circleBg
-        circle.addView(FsIconView(c, "M5 13l4 4L19 7", Ui.WHITE), FrameLayout.LayoutParams(Ui.dp(c, 38), Ui.dp(c, 38), Gravity.CENTER))
-        val circleLp = LinearLayout.LayoutParams(Ui.dp(c, 76), Ui.dp(c, 76))
+        checkCircle = circle
+        circle.addView(FsIconView(c, Icons.CHECK, Ui.WHITE), FrameLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 34), Gravity.CENTER))
+        val circleLp = LinearLayout.LayoutParams(Ui.dp(c, 70), Ui.dp(c, 70))
         circleLp.topMargin = Ui.dp(c, 24)
-        card.addView(circle, circleLp)
+        hero.addView(circle, circleLp)
 
         val title = Ui.text(c, "Session complete", 24f, Ui.WHITE, Ui.BOLD)
         title.gravity = Gravity.CENTER
-        card.addTo(title, 16)
+        hero.addTo(title, 14)
 
         val sub = Ui.text(c, "Training to pause and think before responding", 13f, Color.parseColor("#CCE4FF"), Ui.REG)
         sub.gravity = Gravity.CENTER
         sub.setLineSpacing(0f, 1.2f)
-        card.addTo(sub, 6)
+        hero.addTo(sub, 6)
 
         val date = Ui.text(c, SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date()), 12f, Color.parseColor("#CCE4FF"), Ui.MED)
         date.gravity = Gravity.CENTER
-        card.addTo(date, 4)
+        hero.addTo(date, 4)
+
+        // streak milestone badge (3, 7, 14, 30, 100 ... days), shown once the streak is known
+        milestone = LinearLayout(c)
+        milestone.orientation = LinearLayout.HORIZONTAL
+        milestone.gravity = Gravity.CENTER
+        milestone.background = Ui.rounded(c, Ui.WHITE, 20)
+        milestone.setPadding(Ui.dp(c, 14), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 8))
+        val mFlame = FsIconView(c, Icons.FLAME, Ui.AMBER)
+        val mFlameLp = LinearLayout.LayoutParams(Ui.dp(c, 18), Ui.dp(c, 18))
+        mFlameLp.rightMargin = Ui.dp(c, 6)
+        milestone.addView(mFlame, mFlameLp)
+        milestoneText = Ui.text(c, "", 13f, Color.parseColor("#92400E"), Ui.BOLD)
+        milestone.addView(milestoneText)
+        milestone.visibility = View.GONE
+        val mLp = LinearLayout.LayoutParams(wrap, wrap)
+        mLp.topMargin = Ui.dp(c, 14)
+        hero.addView(milestone, mLp)
+        shareArea.addView(hero, LinearLayout.LayoutParams(match, wrap))
+
+        // stats card overlapping the header
+        val stats = LinearLayout(c)
+        stats.orientation = LinearLayout.VERTICAL
+        stats.background = Ui.rounded(c, Ui.SURFACE, 22)
+        stats.elevation = Ui.dp(c, 3).toFloat()
+        stats.setPadding(Ui.dp(c, 10), Ui.dp(c, 14), Ui.dp(c, 10), Ui.dp(c, 14))
 
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
         val labels = arrayOf("Questions", "Time", "Mode")
-        vals = Array(3) { Ui.text(c, "", 22f, Ui.WHITE, Ui.BOLD) }
+        val icons = arrayOf(Icons.HELP, Icons.CLOCK, Icons.EYE)
+        vals = Array(3) { Ui.text(c, "", 20f, Ui.TEXT, Ui.BOLD) }
         for (i in 0 until 3) {
-            val tile = LinearLayout(c)
-            tile.orientation = LinearLayout.VERTICAL
-            tile.gravity = Gravity.CENTER
-            tile.background = Ui.rounded(c, Color.parseColor("#26FFFFFF"), 16)
-            tile.setPadding(Ui.dp(c, 6), Ui.dp(c, 14), Ui.dp(c, 6), Ui.dp(c, 14))
+            val cell = LinearLayout(c)
+            cell.orientation = LinearLayout.VERTICAL
+            cell.gravity = Gravity.CENTER_HORIZONTAL
+            cell.setPadding(Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4))
+            cell.addView(FsIconView(c, icons[i], Ui.BLUE), LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24)))
             vals[i].gravity = Gravity.CENTER
             vals[i].maxLines = 1
-            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(vals[i], 12, 22, 1, TypedValue.COMPLEX_UNIT_SP)
-            tile.addView(vals[i], LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 30)))
-            val cap = Ui.text(c, labels[i], 11f, Color.parseColor("#CCE4FF"), Ui.MED)
+            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(vals[i], 12, 20, 1, TypedValue.COMPLEX_UNIT_SP)
+            val vLp = LinearLayout.LayoutParams(match, Ui.dp(c, 30))
+            vLp.topMargin = Ui.dp(c, 6)
+            cell.addView(vals[i], vLp)
+            val cap = Ui.text(c, labels[i], 11f, Ui.MUTED, Ui.MED)
             cap.gravity = Gravity.CENTER
-            tile.addView(cap, Ui.lp(c, 4))
-            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            if (i > 0) lp.leftMargin = Ui.dp(c, 8)
-            row.addView(tile, lp)
+            cell.addView(cap, Ui.lp(c, 2))
+            row.addView(cell, LinearLayout.LayoutParams(0, wrap, 1f))
         }
-        card.addTo(row, 22)
+        stats.addView(row, LinearLayout.LayoutParams(match, wrap))
 
-        streak = Ui.text(c, "", 12f, Color.parseColor("#CCE4FF"), Ui.MED)
-        streak.gravity = Gravity.CENTER
-        streak.visibility = View.GONE
-        card.addTo(streak, 16)
+        streakChip = LinearLayout(c)
+        streakChip.orientation = LinearLayout.HORIZONTAL
+        streakChip.gravity = Gravity.CENTER
+        streakChip.background = Ui.rounded(c, Ui.c("#FEF3C7", "#3A2F10"), 16)
+        streakChip.setPadding(Ui.dp(c, 14), Ui.dp(c, 10), Ui.dp(c, 14), Ui.dp(c, 10))
+        val amberText = Ui.c("#92400E", "#FCD34D")
+        val flame = FsIconView(c, Icons.FLAME, amberText)
+        val flameLp = LinearLayout.LayoutParams(Ui.dp(c, 18), Ui.dp(c, 18))
+        flameLp.rightMargin = Ui.dp(c, 6)
+        streakChip.addView(flame, flameLp)
+        streakText = Ui.text(c, "", 12f, amberText, Ui.MED)
+        streakChip.addView(streakText)
+        streakChip.visibility = View.GONE
+        stats.addTo(streakChip, 12)
 
-        body.addTo(card)
+        val statsLp = LinearLayout.LayoutParams(match, wrap)
+        statsLp.setMargins(Ui.dp(c, 16), -Ui.dp(c, 40), Ui.dp(c, 16), Ui.dp(c, 16))
+        shareArea.addView(stats, statsLp)
 
-        // ---------- actions ----------
-        val shareBtn = Ui.pill(c, "Share", Ui.BLUE)
-        shareBtn.setOnClickListener { share() }
-        body.addTo(shareBtn, 20)
+        val content = LinearLayout(c)
+        content.orientation = LinearLayout.VERTICAL
+        content.addView(shareArea, LinearLayout.LayoutParams(match, wrap))
 
-        if (Build.VERSION.SDK_INT >= 29) {
-            val saveBtn = Ui.pill(c, "Save image", Ui.BLUE_SOFT, Ui.BLUE)
-            saveBtn.setOnClickListener { saveToGallery() }
-            body.addTo(saveBtn, 12)
-        }
-
-        val homeBtn = Ui.pill(c, "Back to home", Ui.SOFT, Ui.TEXT)
-        homeBtn.setOnClickListener { goHome() }
-        body.addTo(homeBtn, 12)
+        val again = Ui.pill(c, "Train again", Ui.BLUE_SOFT, Ui.BLUE)
+        again.setOnClickListener { trainAgain() }
+        val againLp = LinearLayout.LayoutParams(match, wrap)
+        againLp.setMargins(Ui.dp(c, 16), 0, Ui.dp(c, 16), Ui.dp(c, 16))
+        content.addView(again, againLp)
+        Ui.noClip(content, shareArea)
 
         val scroll = ScrollView(c)
         scroll.isFillViewport = true
         scroll.clipToPadding = false
-        scroll.addView(body, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
-        page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        scroll.addView(content, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+        page.addView(scroll, LinearLayout.LayoutParams(match, 0, 1f))
+
+        // ---------- bottom bar: one main action, share and save as round icons ----------
+        val bar = LinearLayout(c)
+        bar.orientation = LinearLayout.HORIZONTAL
+        bar.gravity = Gravity.CENTER_VERTICAL
+        bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 10), Ui.dp(c, 16), Ui.dp(c, 16))
+        Ui.padInsets(bar, bottom = true)
+
+        val done = Ui.pill(c, "Done", Ui.BLUE)
+        done.setOnClickListener { goHome() }
+        bar.addView(done, LinearLayout.LayoutParams(0, wrap, 1f))
+
+        fun roundBtn(path: String, desc: String, onClick: () -> Unit) {
+            val box = FrameLayout(c)
+            val bg = GradientDrawable()
+            bg.shape = GradientDrawable.OVAL
+            bg.setColor(Ui.BLUE_SOFT)
+            box.background = bg
+            box.contentDescription = desc
+            box.addView(FsIconView(c, path, Ui.BLUE), FrameLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24), Gravity.CENTER))
+            box.setOnClickListener { onClick() }
+            val lp = LinearLayout.LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56))
+            lp.leftMargin = Ui.dp(c, 10)
+            bar.addView(box, lp)
+        }
+        if (Build.VERSION.SDK_INT >= 29) roundBtn(Icons.DOWNLOAD, "Save image") { saveToGallery() }
+        roundBtn(Icons.SHARE, "Share") { share() }
+        page.addView(bar, LinearLayout.LayoutParams(match, wrap))
+
         setContentView(page)
+
+        // the check pops in
+        checkCircle.scaleX = 0.6f
+        checkCircle.scaleY = 0.6f
+        checkCircle.animate().scaleX(1f).scaleY(1f).setDuration(450).setInterpolator(OvershootInterpolator(2.2f)).start()
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { goHome() }
@@ -174,12 +248,6 @@ class SummaryActivity : AppCompatActivity() {
         Engine.listener = null
     }
 
-    private fun cardBg(radiusDp: Float): GradientDrawable {
-        val g = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
-        g.cornerRadius = Ui.dp(this, radiusDp.toInt()).toFloat()
-        return g
-    }
-
     private fun modeLabel(key: String): String = when (key) {
         "eyes-closed" -> "Eyes closed"
         "eyes-open" -> "Eyes open"
@@ -194,11 +262,34 @@ class SummaryActivity : AppCompatActivity() {
         vals[2].text = modeLabel(Engine.lastModeKey)
         val s = Engine.lastStreak
         if (s >= 0) {
-            streak.text = s.toString() + " day streak  \u00B7  Best streak " + Engine.lastBest
-            streak.visibility = View.VISIBLE
+            streakText.text = s.toString() + " day streak  \u00B7  Best streak " + Engine.lastBest
+            streakChip.visibility = View.VISIBLE
+            if (Engine.lastStreakUp && isMilestone(s)) {
+                milestoneText.text = s.toString() + " day streak"
+                milestone.visibility = View.VISIBLE
+                if (!milestoneShown) {
+                    milestoneShown = true
+                    // a second, bigger pop on the check to mark the milestone
+                    checkCircle.animate().scaleX(1.18f).scaleY(1.18f).setDuration(220).withEndAction {
+                        checkCircle.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(OvershootInterpolator(2.5f)).start()
+                    }.start()
+                }
+            }
         } else {
-            streak.visibility = View.GONE
+            streakChip.visibility = View.GONE
         }
+    }
+
+    private fun isMilestone(n: Int): Boolean =
+        n == 3 || n == 7 || n == 14 || n == 21 || n == 30 || n == 50 || n == 75 || n == 365 || (n >= 100 && n % 100 == 0)
+
+    private fun trainAgain() {
+        Engine.reset()
+        val i = Intent(this, HomeActivity::class.java)
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        i.putExtra(HomeActivity.EXTRA_AGAIN, true)
+        startActivity(i)
+        finish()
     }
 
     private fun goHome() {
@@ -207,20 +298,16 @@ class SummaryActivity : AppCompatActivity() {
         finish()
     }
 
-    /** The card as a sharp picture (3x), with square corners so it looks right anywhere it is posted. */
+    /** The blue header and stats card as a sharp picture (3x), ready to post. */
     private fun cardBitmap(): Bitmap {
         val scale = 3f
-        val w = card.width
-        val h = card.height
+        val w = shareArea.width
+        val h = shareArea.height
         val bmp = Bitmap.createBitmap((w * scale).toInt(), (h * scale).toInt(), Bitmap.Config.ARGB_8888)
         val cv = Canvas(bmp)
+        cv.drawColor(Ui.BG)
         cv.scale(scale, scale)
-        val old = card.background
-        val square = cardBg(0f)
-        square.setBounds(0, 0, w, h)
-        card.background = square
-        card.draw(cv)
-        card.background = old
+        shareArea.draw(cv)
         return bmp
     }
 

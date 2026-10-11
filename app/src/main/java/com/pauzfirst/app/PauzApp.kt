@@ -8,10 +8,16 @@ import android.os.Bundle
 class PauzApp : Application() {
     private val themeOf = java.util.WeakHashMap<Activity, Boolean>()
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // phone switched between light and dark: follow it unless the user chose their own
+        if (!Settings.darkChosen) Ui.dark = Settings.isDark(this)
+    }
+
     override fun onCreate() {
         super.onCreate()
         Session.init(this)
-        Ui.dark = Settings.darkMode
+        Ui.dark = Settings.isDark(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(a: Activity, s: Bundle?) {
                 themeOf[a] = Ui.dark

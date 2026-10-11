@@ -47,6 +47,25 @@ class HomeActivity : AppCompatActivity() {
         Ui.edgeToEdge(this)
         buildUi()
         askNotificationPermission()
+        handleTrainAgain()
+    }
+
+    /** "Train again" on the finish page comes back here and starts a fresh session with the same settings. */
+    private fun handleTrainAgain() {
+        if (intent?.getBooleanExtra(EXTRA_AGAIN, false) == true) {
+            intent.removeExtra(EXTRA_AGAIN)
+            startTraining()
+        }
+    }
+
+    override fun onNewIntent(i: Intent?) {
+        super.onNewIntent(i)
+        if (i != null) setIntent(i)
+        handleTrainAgain()
+    }
+
+    companion object {
+        const val EXTRA_AGAIN = "train_again"
     }
 
     private fun askNotificationPermission() {
@@ -121,7 +140,7 @@ class HomeActivity : AppCompatActivity() {
         logout.background = Ui.rounded(c, Ui.RED, 20)
         logout.setPadding(Ui.dp(c, 14), Ui.dp(c, 9), Ui.dp(c, 14), Ui.dp(c, 9))
 
-        fun headerIcon(path: String, desc: String, onClick: () -> Unit) {
+        fun headerIcon(path: String, desc: String, onLong: (() -> Unit)? = null, onClick: () -> Unit) {
             val box = android.widget.FrameLayout(c)
             val bg = GradientDrawable()
             bg.shape = GradientDrawable.OVAL
@@ -130,11 +149,18 @@ class HomeActivity : AppCompatActivity() {
             box.contentDescription = desc
             box.addView(FsIconView(c, path, Ui.WHITE), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 21), Ui.dp(c, 21), Gravity.CENTER))
             box.setOnClickListener { onClick() }
+            if (onLong != null) box.setOnLongClickListener { onLong(); true }
             val lp = LinearLayout.LayoutParams(Ui.dp(c, 38), Ui.dp(c, 38))
             lp.rightMargin = Ui.dp(c, 8)
             top.addView(box, lp)
         }
-        headerIcon(if (Ui.dark) Icons.SUN else Icons.MOON, if (Ui.dark) "Switch to light mode" else "Switch to dark mode") {
+        val followPhone = {
+            Settings.followPhone()
+            Ui.dark = Settings.isDark(this)
+            Toast.makeText(this, "Dark mode now follows your phone", Toast.LENGTH_SHORT).show()
+            recreate()
+        }
+        headerIcon(if (Ui.dark) Icons.SUN else Icons.MOON, if (Ui.dark) "Switch to light mode" else "Switch to dark mode", followPhone) {
             Settings.darkMode = !Ui.dark
             Ui.dark = Settings.darkMode
             recreate()

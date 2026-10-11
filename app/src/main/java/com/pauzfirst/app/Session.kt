@@ -44,9 +44,20 @@ object Settings {
     private fun getBool(k: String, d: Boolean): Boolean = Session.prefs.getBoolean(k, d)
     private fun putBool(k: String, v: Boolean) { Session.prefs.edit().putBoolean(k, v).apply() }
 
+    /** The user's own choice (set by the header icon). Until then dark mode follows the phone. */
     var darkMode: Boolean
         get() = getBool("s_dark", false)
         set(v) = putBool("s_dark", v)
+
+    val darkChosen: Boolean get() = Session.prefs.contains("s_dark")
+
+    fun followPhone() { Session.prefs.edit().remove("s_dark").apply() }
+
+    fun isDark(ctx: Context): Boolean {
+        if (darkChosen) return darkMode
+        val night = ctx.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        return night == android.content.res.Configuration.UI_MODE_NIGHT_YES
+    }
 
     var total: Int
         get() = getInt("s_total", 5)
