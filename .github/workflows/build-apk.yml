@@ -1,4 +1,4 @@
-name: Build PauzFirst APK (Capacitor + Native TTS)
+name: Build PauzFirst APK (Native)
 
 # Phone workflow: upload ANY zip into the "incoming" folder on github.com
 # (Add file -> Upload files -> Commit to main). This workflow unpacks it into
@@ -49,7 +49,7 @@ jobs:
             stage=$(mktemp -d)
             unzip -q -o "$z" -x "__MACOSX/*" "*/.DS_Store" ".DS_Store" -d "$stage"
 
-            # Strip an extra wrapper folder (e.g. pauzfirst-app-main/www/... -> www/...)
+            # Strip an extra wrapper folder (e.g. pauzfirst-app-main/app/... -> app/...)
             for pass in 1 2 3; do
               entries=("$stage"/*)
               [ ${#entries[@]} -eq 1 ] && [ -d "${entries[0]}" ] || break
@@ -58,14 +58,14 @@ jobs:
               name_lc=$(echo "$name" | tr '[:upper:]' '[:lower:]')
 
               case "$name_lc" in
-                www|android-native-tts-plugin|incoming|.github) break ;;
+                app|incoming|.github|gradle) break ;;
               esac
 
               wrapper=false
               if [ "$name_lc" = "$repo_lc" ] || [[ "$name_lc" == "$repo_lc"-* ]] || [[ "$name_lc" == *-main ]] || [[ "$name_lc" == *-master ]]; then
                 wrapper=true
               fi
-              for marker in www android-native-tts-plugin incoming .github package.json capacitor.config.json; do
+              for marker in app incoming .github build.gradle settings.gradle gradle.properties; do
                 [ -e "$inner/$marker" ] && wrapper=true
               done
 
@@ -104,7 +104,7 @@ jobs:
             esac
             p="${p#./}"
             case "$p" in
-              /*|*..*|.git|.git/*|.github|.github/*|incoming|incoming/*|package.json|capacitor.config.json|DELETE_FILES.txt)
+              /*|*..*|.git|.git/*|.github|.github/*|incoming|incoming/*|build.gradle|app/build.gradle|settings.gradle|gradle.properties|DELETE_FILES.txt)
                 echo "::warning::Skipped (protected or unsafe path): $p"
                 skipped=$((skipped + 1))
                 continue
@@ -168,94 +168,44 @@ jobs:
           git reset --hard origin/main
           echo "Building from commit: $(git rev-parse HEAD)"
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
 
-      - name: Add Android platform
-        run: npx cap add android || true
-
-      - name: Add camera permission to AndroidManifest.xml
+      - name: Decode release keystore
         run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
-          if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
-            sed -i 's#</manifest>#    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />\n</manifest>#' "$MANIFEST"
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::ANDROID_KEYSTORE_BASE64 secret not set - APK will be signed with the debug key and will NOT update over your installed app."
           fi
-          if ! grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' "$MANIFEST"; then
-            sed -i 's#</manifest>#    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n</manifest>#' "$MANIFEST"
-          fi
-          if ! grep -q 'TtsForegroundService' "$MANIFEST"; then
-            sed -i 's#</application>#    <service android:name="com.pauzfirst.app.TtsForegroundService" android:foregroundServiceType="mediaPlayback" android:exported="false" />\n</application>#' "$MANIFEST"
-          fi
-          if ! grep -q 'android.intent.action.TTS_SERVICE' "$MANIFEST"; then
-            sed -i 's#</manifest>#    <queries>\n        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE" />\n        </intent>\n    </queries>\n</manifest>#' "$MANIFEST"
-          fi
-          cat "$MANIFEST"
 
-      - name: Copy native TTS plugin files into Android project
-        run: |
-          mkdir -p android/app/src/main/java/com/pauzfirst/app
-          cp android-native-tts-plugin/NativeTTSPlugin.java android/app/src/main/java/com/pauzfirst/app/
-          cp android-native-tts-plugin/TtsForegroundService.java android/app/src/main/java/com/pauzfirst/app/
-          # Registers NativeTTSPlugin with Capacitor (without this TTS never works)
-          cp android-native-tts-plugin/MainActivity.java android/app/src/main/java/com/pauzfirst/app/
-
-      - name: Install ImageMagick for icon generation
-        run: sudo apt-get update && sudo apt-get install -y imagemagick
-
-      - name: Generate app icons from icon-512.png
-        run: |
-          ICON=www/icon-512.png
-          declare -A SIZES=( [mdpi]=48 [hdpi]=72 [xhdpi]=96 [xxhdpi]=144 [xxxhdpi]=192 )
-          for density in "${!SIZES[@]}"; do
-            size=${SIZES[$density]}
-            dir="android/app/src/main/res/mipmap-$density"
-            mkdir -p "$dir"
-            convert "$ICON" -resize ${size}x${size} "$dir/ic_launcher.png"
-            convert "$ICON" -resize ${size}x${size} "$dir/ic_launcher_round.png"
-            convert "$ICON" -resize ${size}x${size} "$dir/ic_launcher_foreground.png"
-          done
-          # On Android 8.0+ (API 26+), the launcher reads mipmap-anydpi-v26/ic_launcher.xml
-          # first, which points at vector/webp placeholder drawables from the Capacitor
-          # template — it ignores the density PNGs above entirely on any modern phone.
-          # Delete that adaptive-icon override so the OS falls back to the PNGs we just
-          # generated (our real logo) instead of showing the default placeholder icon.
-          rm -rf android/app/src/main/res/mipmap-anydpi-v26
-          # Also remove any leftover default webp icons so they can't shadow our PNGs.
-          find android/app/src/main/res -maxdepth 1 -name 'mipmap-*' -type d -exec sh -c '
-            rm -f "$1"/ic_launcher.webp "$1"/ic_launcher_round.webp "$1"/ic_launcher_foreground.webp
-          ' _ {} \;
-
-      - name: Sync Capacitor
-        run: npx cap sync android
-
-      - name: Restore keystore from secret
-        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/android/app/release.keystore
-
-      - name: Build signed release APK
+      - name: Build APK
+        run: gradle assembleRelease
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: pauzfirst
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          cd android
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=${{ github.workspace }}/android/app/release.keystore \
-            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias=pauzfirst \
-            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: pauzfirst-apk
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload APK to Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/app-release.apk
+          tag_name: v2.0.${{ github.run_number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
