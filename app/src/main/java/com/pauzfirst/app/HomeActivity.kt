@@ -222,7 +222,7 @@ class HomeActivity : AppCompatActivity() {
         syncNote.visibility = View.GONE
         hero.addTo(syncNote, 6)
 
-        val historyChip = Ui.chip(c, "Session history  ›", Ui.WHITE, Color.parseColor("#33FFFFFF"))
+        val historyChip = Ui.chip(c, "Training history  ›", Ui.WHITE, Color.parseColor("#33FFFFFF"))
         val hp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         hp.gravity = Gravity.CENTER_HORIZONTAL
         hp.topMargin = Ui.dp(c, 12)
@@ -241,6 +241,14 @@ class HomeActivity : AppCompatActivity() {
 
         // ---------- questions source ----------
         val pad = Ui.dp(c, 16)
+        // small heading above each group of settings
+        fun groupLabel(text: String): TextView {
+            val l = Ui.sectionTitle(c, text)
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.setMargins(pad + Ui.dp(c, 4), Ui.dp(c, 20), pad, 0)
+            l.layoutParams = lp
+            return l
+        }
         val srcCard = Ui.card(c)
         val srcHead = LinearLayout(c)
         srcHead.orientation = LinearLayout.HORIZONTAL
@@ -265,7 +273,8 @@ class HomeActivity : AppCompatActivity() {
         spinWrap.setOnClickListener { openSourcePicker() }
         srcCard.addTo(spinWrap, 10)
         val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        srcLp.setMargins(pad, Ui.dp(c, 18), pad, 0)
+        srcLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        body.addView(groupLabel("Session"))
         body.addView(srcCard, srcLp)
 
         var refresh: () -> Unit = {}
@@ -324,13 +333,12 @@ class HomeActivity : AppCompatActivity() {
         modeCard.addTo(modeGrid, 12)
         modeCard.addTo(modeDesc, 10)
         val modeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        modeLp.setMargins(pad, Ui.dp(c, 14), pad, 0)
+        modeLp.setMargins(pad, Ui.dp(c, 12), pad, 0)
         body.addView(modeCard, modeLp)
 
         // ---------- timing ----------
         val timing = Ui.card(c)
-        timing.addTo(Ui.sectionTitle(c, "Timing"))
-        timing.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it }, 1, 50, 1) { it.toString() }, 14)
+        timing.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it }, 1, 50, 1) { it.toString() }, 0)
         // Pause and Respond times do not apply in Deep Pause (no time limit)
         val timeBox = LinearLayout(c)
         timeBox.orientation = LinearLayout.VERTICAL
@@ -338,28 +346,76 @@ class HomeActivity : AppCompatActivity() {
         timeBox.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
         timing.addTo(timeBox)
         val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        timingLp.setMargins(pad, Ui.dp(c, 14), pad, 0)
+        timingLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        body.addView(groupLabel("Timing"))
         body.addView(timing, timingLp)
 
-        // ---------- options ----------
-        val opts = Ui.card(c)
-        opts.addTo(Ui.sectionTitle(c, "Options"))
-        opts.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 14)
-        opts.addTo(Ui.switchRow(c, "Record training audio", null, Settings.recordAudio) { Settings.recordAudio = it }, 14)
-        opts.addTo(Ui.switchRow(c, "Record training video", null, Settings.recordScreen) { Settings.recordScreen = it }, 14)
+        // ---------- sound ----------
+        val sound = Ui.card(c)
+        sound.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 0)
         // Mirror and Animated eyes only
         val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the screen", Settings.phaseGuide) { Settings.phaseGuide = it }
-        opts.addTo(guideRow, 14)
-        // Deep Pause options
-        val deepBox = LinearLayout(c)
-        deepBox.orientation = LinearLayout.VERTICAL
-        deepBox.addTo(Ui.switchRow(c, "Voice tip", "Says \"Answer when you feel ready\"", Settings.tip) { Settings.tip = it }, 14)
+        sound.addTo(guideRow, 14)
+        val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        body.addView(groupLabel("Sound"))
+        body.addView(sound, soundLp)
+
+        // ---------- recording ----------
+        val recCard = Ui.card(c)
+        // recording: two boxes side by side. Tap one to pick it, tap it again to turn recording off.
+        // Video includes the sound, so picking video also counts as audio.
+        val recRow = LinearLayout(c)
+        recRow.orientation = LinearLayout.HORIZONTAL
+        val recAudioChip = Ui.text(c, "Record audio", 13f, Ui.TEXT, Ui.BOLD)
+        val recVideoChip = Ui.text(c, "Record video", 13f, Ui.TEXT, Ui.BOLD)
+        fun paintRec() {
+            val audioOn = Settings.recordAudio && !Settings.recordScreen
+            val videoOn = Settings.recordScreen
+            recAudioChip.background = Ui.rounded(c, if (audioOn) Ui.BLUE else Ui.SOFT, 14)
+            recAudioChip.setTextColor(if (audioOn) Ui.WHITE else Ui.MUTED)
+            recVideoChip.background = Ui.rounded(c, if (videoOn) Ui.BLUE else Ui.SOFT, 14)
+            recVideoChip.setTextColor(if (videoOn) Ui.WHITE else Ui.MUTED)
+        }
+        for (chip in listOf(recAudioChip, recVideoChip)) {
+            chip.gravity = Gravity.CENTER
+            chip.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12))
+        }
+        recAudioChip.setOnClickListener {
+            val wasOn = Settings.recordAudio && !Settings.recordScreen
+            Settings.recordAudio = !wasOn
+            Settings.recordScreen = false
+            paintRec()
+        }
+        recVideoChip.setOnClickListener {
+            val wasOn = Settings.recordScreen
+            Settings.recordScreen = !wasOn
+            Settings.recordAudio = !wasOn
+            paintRec()
+        }
+        recRow.addView(recAudioChip, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val recLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        recLp.leftMargin = Ui.dp(c, 8)
+        recRow.addView(recVideoChip, recLp)
+        paintRec()
+        recCard.addTo(recRow, 0)
+        val recCardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        recCardLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        body.addView(groupLabel("Recording"))
+        body.addView(recCard, recCardLp)
+
+        // ---------- Deep Pause (only shown while Deep Pause is on) ----------
+        val deepGroup = LinearLayout(c)
+        deepGroup.orientation = LinearLayout.VERTICAL
+        val deepBox = Ui.card(c)
+        deepBox.addTo(Ui.switchRow(c, "Voice tip", "Says \"Answer when you feel ready\"", Settings.tip) { Settings.tip = it }, 0)
         deepBox.addTo(Ui.stepper(c, "Tip repeats every", { Settings.tipInterval }, { Settings.tipInterval = it }, 0, 120, 5) { if (it == 0) "once" else it.toString() + "s" }, 14)
         deepBox.addTo(Ui.switchRow(c, "3 Why Challenge", "Asks \"Why did you say that?\"", Settings.threeWhy) { Settings.threeWhy = it }, 14)
-        opts.addTo(deepBox)
-        val optsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        optsLp.setMargins(pad, Ui.dp(c, 14), pad, Ui.dp(c, 14))
-        body.addView(opts, optsLp)
+        deepGroup.addView(groupLabel("Deep Pause"))
+        val deepLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        deepLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        deepGroup.addView(deepBox, deepLp)
+        body.addView(deepGroup, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // ---------- save settings / settings list ----------
         val saveRow = LinearLayout(c)
@@ -373,7 +429,7 @@ class HomeActivity : AppCompatActivity() {
         listLp.leftMargin = Ui.dp(c, 10)
         saveRow.addView(listBtn, listLp)
         val saveLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        saveLp.setMargins(pad, 0, pad, Ui.dp(c, 24))
+        saveLp.setMargins(pad, Ui.dp(c, 20), pad, Ui.dp(c, 24))
         body.addView(saveRow, saveLp)
         saveBtn.setOnClickListener { showSaveDialog() }
         listBtn.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
@@ -389,7 +445,7 @@ class HomeActivity : AppCompatActivity() {
             modeDesc.text = modeDescs[Math.max(0, modeKeys.indexOf(m))]
             timeBox.visibility = if (deep) View.GONE else View.VISIBLE
             guideRow.visibility = if (Settings.mirror && !deep) View.VISIBLE else View.GONE
-            deepBox.visibility = if (deep) View.VISIBLE else View.GONE
+            deepGroup.visibility = if (deep) View.VISIBLE else View.GONE
         }
         refresh()
 

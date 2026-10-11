@@ -85,7 +85,7 @@ class ListsActivity : AppCompatActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "My lists") { finish() })
+        page.addView(Ui.header(c, "My question lists") { finish() })
 
         val aiCard = Ui.card(c)
         val aiRow = LinearLayout(c)
@@ -124,7 +124,7 @@ class ListsActivity : AppCompatActivity() {
         selectRow = LinearLayout(c)
         selectRow.orientation = LinearLayout.HORIZONTAL
         selectRow.gravity = Gravity.CENTER_VERTICAL
-        selectRow.setPadding(Ui.dp(c, 20), Ui.dp(c, 10), Ui.dp(c, 16), Ui.dp(c, 2))
+        selectRow.setPadding(Ui.dp(c, 20), Ui.dp(c, 10), Ui.dp(c, 16), Ui.dp(c, 12))
         selectRow.visibility = View.GONE
         selLabel = Ui.sectionTitle(c, "Your lists")
         selectRow.addView(selLabel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -246,7 +246,7 @@ class ListsActivity : AppCompatActivity() {
         val c = this
         selectRow.visibility = if (raw.isNotEmpty() || selectMode) View.VISIBLE else View.GONE
         if (selectMode) {
-            selLabel.text = (if (selected.isEmpty()) "TAP LISTS TO SELECT" else selected.size.toString() + " SELECTED")
+            selLabel.text = (if (selected.isEmpty()) "TAP LIST" else selected.size.toString() + " SELECTED")
             allChip.visibility = View.VISIBLE
             allChip.text = if (selected.size == raw.size && raw.isNotEmpty()) "None" else "All"
             cancelChip.visibility = View.VISIBLE

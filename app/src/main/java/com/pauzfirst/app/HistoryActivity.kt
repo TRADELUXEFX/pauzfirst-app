@@ -40,7 +40,7 @@ class HistoryActivity : AppCompatActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "Session history") { finish() })
+        page.addView(Ui.header(c, "Training history") { finish() })
 
         body = LinearLayout(c)
         body.orientation = LinearLayout.VERTICAL
