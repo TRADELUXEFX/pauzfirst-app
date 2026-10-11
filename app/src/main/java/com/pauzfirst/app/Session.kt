@@ -2,6 +2,7 @@ package com.pauzfirst.app
 
 import android.content.Context
 import android.content.SharedPreferences
+import org.json.JSONArray
 
 /** Login tokens + the user's local settings, in SharedPreferences. */
 object Session {
@@ -83,4 +84,57 @@ object Settings {
     var source: String
         get() = Session.prefs.getString("s_source", DEFAULT_SOURCE) ?: DEFAULT_SOURCE
         set(v) { Session.prefs.edit().putString("s_source", v).apply() }
+
+    // Pinned lists (mirrors the online "pinned" flag). Pinned lists show first.
+    private fun pinnedSet(): MutableSet<String> {
+        val out = LinkedHashSet<String>()
+        try {
+            val a = JSONArray(Session.prefs.getString("s_pinned", "[]") ?: "[]")
+            for (i in 0 until a.length()) out.add(a.getString(i))
+        } catch (e: Exception) {
+        }
+        return out
+    }
+
+    private fun savePinned(s: Set<String>) {
+        Session.prefs.edit().putString("s_pinned", JSONArray(s.toList()).toString()).apply()
+    }
+
+    fun isPinned(name: String): Boolean = pinnedSet().contains(name)
+
+    /** Mirror of the online "pinned" flags (the website's data is the source of truth). */
+    fun setPinned(names: Collection<String>) {
+        savePinned(LinkedHashSet(names))
+    }
+
+    fun setPin(name: String, on: Boolean) {
+        val s = pinnedSet()
+        if (on) s.add(name) else s.remove(name)
+        savePinned(s)
+    }
+
+    fun togglePin(name: String) {
+        val s = pinnedSet()
+        if (!s.remove(name)) s.add(name)
+        savePinned(s)
+    }
+
+    fun renamePin(old: String, new: String) {
+        val s = pinnedSet()
+        if (s.remove(old)) {
+            s.add(new)
+            savePinned(s)
+        }
+    }
+
+    fun removePin(name: String) {
+        val s = pinnedSet()
+        if (s.remove(name)) savePinned(s)
+    }
+
+    /** Pinned lists first, then A-Z. */
+    fun order(names: Collection<String>): List<String> {
+        val pins = pinnedSet()
+        return names.sortedWith(compareBy<String>({ !pins.contains(it) }, { it.lowercase() }))
+    }
 }

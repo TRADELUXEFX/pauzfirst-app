@@ -96,10 +96,11 @@ object Api {
     private fun doAuthed(method: String, path: String, bodyStr: String?, prefer: String?): Result {
         val b = builder(path, Session.access)
         if (prefer != null) b.header("Prefer", prefer)
-        if (method == "POST") {
-            b.post((bodyStr ?: "{}").toRequestBody(JSON_TYPE))
-        } else {
-            b.get()
+        when (method) {
+            "POST" -> b.post((bodyStr ?: "{}").toRequestBody(JSON_TYPE))
+            "PATCH" -> b.patch((bodyStr ?: "{}").toRequestBody(JSON_TYPE))
+            "DELETE" -> b.delete()
+            else -> b.get()
         }
         return call(b.build())
     }
@@ -117,13 +118,15 @@ object Api {
 
     /** The user's saved question lists (name -> questions), or null if the request failed. */
     fun fetchLists(): Map<String, List<String>>? {
-        val r = authed("GET", "/rest/v1/question_lists?select=name,questions&user_id=eq." + Session.userId, null, null)
+        val r = authed("GET", "/rest/v1/question_lists?select=name,questions,pinned&user_id=eq." + Session.userId, null, null)
         if (!r.ok) return null
         return try {
             val arr = JSONArray(r.body)
             val out = LinkedHashMap<String, List<String>>()
+            val pins = ArrayList<String>()
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
+                if (o.optBoolean("pinned", false)) pins.add(o.getString("name"))
                 val qs = o.optJSONArray("questions") ?: continue
                 val list = ArrayList<String>()
                 for (j in 0 until qs.length()) {
@@ -137,6 +140,7 @@ object Api {
                 }
                 out[o.getString("name")] = list
             }
+            Settings.setPinned(pins)
             out
         } catch (e: Exception) {
             null
@@ -165,5 +169,157 @@ object Api {
             .toString()
         val r = authed("POST", "/rest/v1/user_stats?on_conflict=id", body, "resolution=merge-duplicates,return=minimal")
         return r.ok
+    }
+
+    // ---------- lists: create / edit / delete / share ----------
+
+    private const val CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+    private fun enc(s: String): String = java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20")
+
+    fun questionText(q: Any?): String {
+        if (q is String) return q
+        if (q is JSONObject) return q.optString("question", q.optString("text", ""))
+        return ""
+    }
+
+    /** Saved lists exactly as stored (name -> questions array), or null if the request failed. */
+    fun fetchListsRaw(): Map<String, JSONArray>? {
+        val r = authed("GET", "/rest/v1/question_lists?select=name,questions,pinned&user_id=eq." + Session.userId, null, null)
+        if (!r.ok) return null
+        return try {
+            val arr = JSONArray(r.body)
+            val out = LinkedHashMap<String, JSONArray>()
+            val pins = ArrayList<String>()
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                if (o.optBoolean("pinned", false)) pins.add(o.getString("name"))
+                out[o.getString("name")] = o.optJSONArray("questions") ?: JSONArray()
+            }
+            Settings.setPinned(pins)
+            out
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** How questions are stored: null = plain strings, otherwise the object key ("question" or "text"). */
+    fun questionStyle(arrays: Collection<JSONArray>): String? {
+        for (a in arrays) {
+            for (j in 0 until a.length()) {
+                val q = a.opt(j)
+                if (q is JSONObject) return if (q.has("question")) "question" else "text"
+            }
+        }
+        return null
+    }
+
+    fun buildQuestions(lines: List<String>, style: String?): JSONArray {
+        val a = JSONArray()
+        for (l in lines) {
+            if (style == null) a.put(l) else a.put(JSONObject().put(style, l))
+        }
+        return a
+    }
+
+    fun createList(name: String, questions: JSONArray): Boolean {
+        val body = JSONObject()
+            .put("user_id", Session.userId)
+            .put("name", name)
+            .put("questions", questions)
+            .toString()
+        return authed("POST", "/rest/v1/question_lists", body, "return=minimal").ok
+    }
+
+    fun updateList(oldName: String, newName: String, questions: JSONArray): Boolean {
+        val body = JSONObject().put("name", newName).put("questions", questions).toString()
+        val path = "/rest/v1/question_lists?user_id=eq." + Session.userId + "&name=eq." + enc(oldName)
+        return authed("PATCH", path, body, "return=minimal").ok
+    }
+
+    fun deleteList(name: String): Boolean {
+        val path = "/rest/v1/question_lists?user_id=eq." + Session.userId + "&name=eq." + enc(name)
+        return authed("DELETE", path, null, "return=minimal").ok
+    }
+
+    fun setPinned(name: String, pinned: Boolean): Boolean {
+        val body = JSONObject().put("pinned", pinned).toString()
+        val path = "/rest/v1/question_lists?user_id=eq." + Session.userId + "&name=eq." + enc(name)
+        return authed("PATCH", path, body, "return=minimal").ok
+    }
+
+    /** Publishes a copy of the list (same table the website uses) under a new code. Null if it failed. */
+    fun shareList(name: String, lines: List<String>): String? {
+        val rnd = java.security.SecureRandom()
+        val qs = JSONArray()
+        for (l in lines) qs.put(l)
+        for (attempt in 0 until 5) {
+            val sb = StringBuilder()
+            for (i in 0 until 6) sb.append(CODE_CHARS[rnd.nextInt(CODE_CHARS.length)])
+            val code = sb.toString()
+            val body = JSONObject()
+                .put("code", code)
+                .put("user_id", Session.userId)
+                .put("list_name", name)
+                .put("questions", qs)
+                .toString()
+            val r = authed("POST", "/rest/v1/shared_lists", body, "return=minimal")
+            if (r.ok) {
+                // Remember the code on the list, like the website does. Not critical if it fails.
+                val patch = JSONObject().put("share_code", code).toString()
+                authed("PATCH", "/rest/v1/question_lists?user_id=eq." + Session.userId + "&name=eq." + enc(name), patch, "return=minimal")
+                return code
+            }
+            if (r.code != 409) return null
+        }
+        return null
+    }
+
+    class Shared(val name: String, val questions: JSONArray)
+
+    /** ok=false: request failed. ok=true and shared=null: no such code. */
+    class SharedResult(val ok: Boolean, val shared: Shared?)
+
+    private fun fetchSharedExact(code: String): SharedResult {
+        val r = authed("GET", "/rest/v1/shared_lists?select=list_name,questions&limit=1&code=eq." + enc(code), null, null)
+        if (!r.ok) return SharedResult(false, null)
+        return try {
+            val arr = JSONArray(r.body)
+            if (arr.length() == 0) {
+                SharedResult(true, null)
+            } else {
+                val o = arr.getJSONObject(0)
+                SharedResult(true, Shared(o.getString("list_name"), o.optJSONArray("questions") ?: JSONArray()))
+            }
+        } catch (e: Exception) {
+            SharedResult(false, null)
+        }
+    }
+
+    /** Tries the code as typed, then in capitals. */
+    fun fetchShared(code: String): SharedResult {
+        val first = fetchSharedExact(code)
+        if (!first.ok || first.shared != null) return first
+        val up = code.uppercase()
+        return if (up != code) fetchSharedExact(up) else first
+    }
+
+    // ---------- session history ----------
+
+    /** Online session history (newest first), empty if none yet, null if the request failed. */
+    fun fetchHistory(): JSONArray? {
+        val r = authed("GET", "/rest/v1/user_stats?select=session_history&id=eq." + Session.userId, null, null)
+        if (!r.ok) return null
+        return try {
+            val arr = JSONArray(r.body)
+            if (arr.length() == 0) JSONArray() else (arr.getJSONObject(0).optJSONArray("session_history") ?: JSONArray())
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun saveHistory(history: JSONArray): Boolean {
+        val body = JSONObject().put("id", Session.userId).put("session_history", history).toString()
+        return authed("POST", "/rest/v1/user_stats?on_conflict=id", body, "resolution=merge-duplicates,return=minimal").ok
     }
 }

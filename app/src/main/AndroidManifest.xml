@@ -35,6 +35,15 @@
 
         <activity android:name=".HomeActivity" android:exported="false" />
 
+        <activity android:name=".ListsActivity" android:exported="false" />
+
+        <activity android:name=".HistoryActivity" android:exported="false" />
+
+        <activity
+            android:name=".ListEditActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".TrainingActivity"
             android:exported="false"

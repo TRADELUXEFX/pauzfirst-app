@@ -403,6 +403,12 @@ object Engine {
             } catch (e: Exception) {
                 // progress stays in the local copy
             }
+            try {
+                HistoryStore.record(q, secs, m, deep)
+                HistoryStore.flush()
+            } catch (e: Exception) {
+                // the session stays waiting on the phone and is sent next time
+            }
             h.post { onSaved?.invoke() }
         }.start()
     }

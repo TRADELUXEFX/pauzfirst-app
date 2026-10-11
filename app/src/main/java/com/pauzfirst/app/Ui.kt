@@ -188,4 +188,35 @@ object Ui {
         row.addView(sw, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         return row
     }
+
+    /** Blue top bar with a Back pill and a title. */
+    fun header(c: Context, title: String, onBack: () -> Unit): LinearLayout {
+        val h = LinearLayout(c)
+        h.orientation = LinearLayout.HORIZONTAL
+        h.gravity = Gravity.CENTER_VERTICAL
+        val bg = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(BLUE, BLUE_DARK))
+        val r = dp(c, 24).toFloat()
+        bg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r)
+        h.background = bg
+        h.setPadding(dp(c, 16), dp(c, 12), dp(c, 20), dp(c, 18))
+        val back = text(c, "‹  Back", 13f, WHITE, BOLD)
+        back.background = rounded(c, Color.parseColor("#33FFFFFF"), 20)
+        back.setPadding(dp(c, 14), dp(c, 9), dp(c, 14), dp(c, 9))
+        back.setOnClickListener { onBack() }
+        h.addView(back, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val t = text(c, title, 20f, WHITE, BOLD)
+        val p = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        p.leftMargin = dp(c, 14)
+        h.addView(t, p)
+        return h
+    }
+
+    /** Small rounded tap target used for list actions. */
+    fun chip(c: Context, label: String, fg: Int, bg: Int): TextView {
+        val t = text(c, label, 13f, fg, BOLD)
+        t.gravity = Gravity.CENTER
+        t.background = rounded(c, bg, 20)
+        t.setPadding(dp(c, 16), dp(c, 10), dp(c, 16), dp(c, 10))
+        return t
+    }
 }

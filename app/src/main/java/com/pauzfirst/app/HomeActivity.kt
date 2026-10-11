@@ -106,7 +106,7 @@ class HomeActivity : AppCompatActivity() {
         titleCol.addView(Ui.text(c, "Pause and think before you respond", 12f, Color.parseColor("#CCE4FF"), Ui.REG), Ui.lp(c, 3))
         top.addView(titleCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         val logout = Ui.text(c, "Log out", 12f, Ui.WHITE, Ui.BOLD)
-        logout.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)
+        logout.background = Ui.rounded(c, Ui.RED, 20)
         logout.setPadding(Ui.dp(c, 14), Ui.dp(c, 9), Ui.dp(c, 14), Ui.dp(c, 9))
         top.addView(logout, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         hero.addTo(top)
@@ -133,6 +133,13 @@ class HomeActivity : AppCompatActivity() {
         extraStats.gravity = Gravity.CENTER
         hero.addTo(extraStats, 12)
 
+        val historyChip = Ui.chip(c, "Session history  ›", Ui.WHITE, Color.parseColor("#33FFFFFF"))
+        val hp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        hp.gravity = Gravity.CENTER_HORIZONTAL
+        hp.topMargin = Ui.dp(c, 12)
+        hero.addView(historyChip, hp)
+        historyChip.setOnClickListener { startActivity(Intent(this, HistoryActivity::class.java)) }
+
         resumeBtn = Ui.pill(c, "Return to running session", Ui.GREEN)
         resumeBtn.visibility = View.GONE
         hero.addTo(resumeBtn, 14)
@@ -148,6 +155,11 @@ class HomeActivity : AppCompatActivity() {
         spinWrap.setPadding(Ui.dp(c, 8), Ui.dp(c, 2), Ui.dp(c, 8), Ui.dp(c, 2))
         spinWrap.addView(spinner, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 48)))
         srcCard.addTo(spinWrap, 10)
+        val manage = Ui.text(c, "Manage lists  ›", 13f, Ui.BLUE, Ui.BOLD)
+        manage.gravity = Gravity.END
+        manage.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 6))
+        manage.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java)) }
+        srcCard.addTo(manage)
         val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         srcLp.setMargins(pad, Ui.dp(c, 18), pad, 0)
         body.addView(srcCard, srcLp)
@@ -222,9 +234,10 @@ class HomeActivity : AppCompatActivity() {
     private fun refreshSpinner() {
         val names = ArrayList<String>()
         names.add(Settings.DEFAULT_SOURCE)
-        names.addAll(lists.keys)
+        names.addAll(Settings.order(lists.keys))
         sourceNames = names
-        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, names) {
+        val shown = names.map { if (Settings.isPinned(it)) "★  " + it else it }
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, shown) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val v = super.getView(position, convertView, parent)
                 styleSpinnerText(v)
