@@ -36,6 +36,17 @@ import java.util.Locale
  * Blue header and stats card on top (that part is what gets shared), Done at the bottom with round Save and Share buttons.
  */
 class SummaryActivity : AppCompatActivity() {
+    companion object {
+        /** The rating, 1 to 3: Hard, Okay, Great. */
+        val RATING_FACES = arrayOf("\uD83D\uDE13", "\uD83D\uDE10", "\uD83D\uDE04")
+        val RATING_LABELS = arrayOf("Hard", "Okay", "Great")
+        val RATING_CAPTIONS = arrayOf(
+            "Hard sessions build the most. Well done for finishing.",
+            "Steady work. Every session adds up.",
+            "Great session. Keep it going!"
+        )
+    }
+
     private lateinit var shareArea: LinearLayout
     private lateinit var vals: Array<TextView>
     private lateinit var modeChip: LinearLayout
@@ -46,6 +57,25 @@ class SummaryActivity : AppCompatActivity() {
     private lateinit var milestone: LinearLayout
     private lateinit var milestoneText: TextView
     private var milestoneShown = false
+    private lateinit var rateCard: LinearLayout
+    private lateinit var rateCaption: TextView
+    private val rateTiles = ArrayList<LinearLayout>()
+    private val rateLabels = ArrayList<TextView>()
+    private var rating = 0
+
+    private fun paintRating() {
+        for (i in rateTiles.indices) {
+            val on = rating == i + 1
+            val bg = GradientDrawable()
+            bg.cornerRadius = Ui.dp(this, 18).toFloat()
+            bg.setColor(if (on) Ui.BLUE_SOFT else Ui.SURFACE)
+            bg.setStroke(Ui.dp(this, 3), if (on) Ui.BLUE else Color.TRANSPARENT)
+            rateTiles[i].background = bg
+            rateTiles[i].alpha = if (rating == 0 || on) 1f else 0.55f
+            rateLabels[i].setTextColor(if (on) Ui.BLUE else Ui.MUTED_TINT)
+        }
+        rateCaption.text = if (rating in 1..3) RATING_CAPTIONS[rating - 1] else "Pick the one that fits"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -199,6 +229,44 @@ class SummaryActivity : AppCompatActivity() {
         content.orientation = LinearLayout.VERTICAL
         content.addView(shareArea, LinearLayout.LayoutParams(match, wrap))
 
+        // "How did it feel?" 1 (hard) to 5 (great), saved with this training
+        rateCard = Ui.card(c, Ui.CARD_TINT)
+        val rateTitle = Ui.text(c, "How did it feel?", 17f, Ui.TEXT, Ui.BOLD)
+        rateTitle.gravity = Gravity.CENTER
+        rateCard.addTo(rateTitle)
+        rateCaption = Ui.text(c, "", 13f, Ui.MUTED_TINT, Ui.MED)
+        rateCaption.gravity = Gravity.CENTER
+        rateCard.addTo(rateCaption, 4)
+        val rateRow = LinearLayout(c)
+        rateRow.orientation = LinearLayout.HORIZONTAL
+        for (n in 1..3) {
+            val tile = LinearLayout(c)
+            tile.orientation = LinearLayout.VERTICAL
+            tile.gravity = Gravity.CENTER_HORIZONTAL
+            tile.setPadding(Ui.dp(c, 4), Ui.dp(c, 14), Ui.dp(c, 4), Ui.dp(c, 12))
+            val face = Ui.text(c, RATING_FACES[n - 1], 34f, Ui.TEXT, Ui.REG)
+            face.gravity = Gravity.CENTER
+            tile.addView(face, LinearLayout.LayoutParams(wrap, wrap))
+            val lab = Ui.text(c, RATING_LABELS[n - 1], 14f, Ui.MUTED_TINT, Ui.BOLD)
+            lab.gravity = Gravity.CENTER
+            tile.addView(lab, LinearLayout.LayoutParams(wrap, wrap).also { it.topMargin = Ui.dp(c, 6) })
+            tile.setOnClickListener {
+                rating = n
+                if (Engine.lastDate.isNotEmpty()) LocalExtras.setRating(Engine.lastDate, n)
+                paintRating()
+            }
+            rateTiles.add(tile)
+            rateLabels.add(lab)
+            val lp = LinearLayout.LayoutParams(0, wrap, 1f)
+            if (n > 1) lp.leftMargin = Ui.dp(c, 10)
+            rateRow.addView(tile, lp)
+        }
+        rateCard.addTo(rateRow, 16)
+        paintRating()
+        val rateLp = LinearLayout.LayoutParams(match, wrap)
+        rateLp.setMargins(Ui.dp(c, 16), 0, Ui.dp(c, 16), Ui.dp(c, 12))
+        content.addView(rateCard, rateLp)
+
         val again = Ui.pill(c, "Train again", Ui.BLUE_SOFT, Ui.BLUE)
         again.setOnClickListener { trainAgain() }
         val againLp = LinearLayout.LayoutParams(match, wrap)
@@ -275,6 +343,7 @@ class SummaryActivity : AppCompatActivity() {
     }
 
     private fun fill() {
+        rateCard.visibility = if (Engine.lastDate.isNotEmpty()) View.VISIBLE else View.GONE
         vals[0].text = Engine.lastQuestions.toString()
         vals[1].text = StatsStore.formatTime(Engine.lastSeconds.toLong())
         modeText.text = modeLabel(Engine.lastModeKey)

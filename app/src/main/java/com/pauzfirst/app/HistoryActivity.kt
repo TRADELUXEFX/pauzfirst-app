@@ -27,6 +27,9 @@ class HistoryActivity : AppCompatActivity() {
     private var history: JSONArray? = null
     private var historyLoaded = false
     private var filter: String? = null   // null = All, otherwise one training mode
+    private var practiceMonthView = false // Your practice card: false = Week, true = Month
+    private var practiceMonthOffset = 0   // 0 = this month, -1 = last month, ...
+    private var rangeIdx = 0              // Training History range switch: 0 = 7 days, 1 = 30 days, 2 = All time
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -175,7 +178,7 @@ class HistoryActivity : AppCompatActivity() {
         ), 10)
 
         body.addTo(tileRow(metric("Total training time", StatsStore.formatDuration(s.optLong("lifetimeTime", 0L)))), 10)
-        body.addTo(weekCard(), 10)
+        body.addTo(practiceCard(), 10)
 
         if (s.optString("lastPracticeDate", "") == StatsStore.today()) {
             body.addTo(Ui.note(c, "Great job! You practiced today."), 12)
@@ -188,21 +191,172 @@ class HistoryActivity : AppCompatActivity() {
         return (secs / 3600L).toString() + "h" + ((secs % 3600L) / 60L).toString() + "m"
     }
 
-    /** Last 7 days: one bar per day (today on the right), height = time trained that day. */
-    private fun weekCard(): LinearLayout {
+    /** "Your practice": one card with a Week | Month switch. Week = 7-day bars, Month = calendar heat map. */
+    private fun practiceCard(): LinearLayout {
+        val card = Ui.card(this, Ui.CARD_TINT)
+        fillPractice(card)
+        return card
+    }
+
+    private fun fillPractice(card: LinearLayout) {
+        val c = this
+        card.removeAllViews()
+        val head = LinearLayout(c)
+        head.orientation = LinearLayout.HORIZONTAL
+        head.gravity = Gravity.CENTER_VERTICAL
+        val title = Ui.text(c, "YOUR PRACTICE", 12f, Ui.MUTED_TINT, Ui.BOLD)
+        title.letterSpacing = 0.1f
+        head.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+
+        val pill = LinearLayout(c)
+        pill.orientation = LinearLayout.HORIZONTAL
+        pill.background = Ui.rounded(c, Ui.c("#C4DCFB", "#26426B"), 12)
+        pill.setPadding(Ui.dp(c, 3), Ui.dp(c, 3), Ui.dp(c, 3), Ui.dp(c, 3))
+        for ((label, isMonth) in listOf("Week" to false, "Month" to true)) {
+            val on = practiceMonthView == isMonth
+            val t = Ui.text(c, label, 13f, if (on) Ui.WHITE else Ui.c("#3F5F8F", "#94A3B8"), Ui.BOLD)
+            t.gravity = Gravity.CENTER
+            t.setPadding(Ui.dp(c, 14), Ui.dp(c, 7), Ui.dp(c, 14), Ui.dp(c, 7))
+            if (on) t.background = Ui.rounded(c, Ui.BLUE, 10)
+            t.setOnClickListener {
+                if (practiceMonthView != isMonth) {
+                    practiceMonthView = isMonth
+                    if (isMonth) practiceMonthOffset = 0
+                    fillPractice(card)
+                }
+            }
+            pill.addView(t)
+        }
+        head.addView(pill)
+        card.addTo(head)
+        if (practiceMonthView) monthContent(card) else weekContent(card)
+    }
+
+    /** Month view: calendar for one month, days shaded by minutes trained, today outlined. */
+    private fun monthContent(card: LinearLayout) {
+        val c = this
+        val shown = Calendar.getInstance()
+        shown.set(Calendar.DAY_OF_MONTH, 1)
+        shown.add(Calendar.MONTH, practiceMonthOffset)
+        val year = shown.get(Calendar.YEAR)
+        val month = shown.get(Calendar.MONTH)
+        val secs = HistoryStore.monthSeconds(year, month)
+
+        // month name with back / forward arrows
+        val nav = LinearLayout(c)
+        nav.orientation = LinearLayout.HORIZONTAL
+        nav.gravity = Gravity.CENTER_VERTICAL
+        val canForward = practiceMonthOffset < 0
+        val back = Ui.text(c, "\u2039", 26f, Ui.MUTED_TINT, Ui.BOLD)
+        back.gravity = Gravity.CENTER
+        back.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0)
+        back.setOnClickListener { practiceMonthOffset--; fillPractice(card) }
+        val fwd = Ui.text(c, "\u203A", 26f, if (canForward) Ui.MUTED_TINT else Ui.c("#B7D5FA", "#2F5F9E"), Ui.BOLD)
+        fwd.gravity = Gravity.CENTER
+        fwd.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0)
+        if (canForward) fwd.setOnClickListener { practiceMonthOffset++; fillPractice(card) }
+        val name = Ui.text(c, SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(shown.time), 16f, Ui.TEXT, Ui.BOLD)
+        name.gravity = Gravity.CENTER
+        nav.addView(back)
+        nav.addView(name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        nav.addView(fwd)
+        card.addTo(nav, 10)
+
+        // weekday letters, starting on the locale's first day of the week
+        val firstDow = Calendar.getInstance().firstDayOfWeek
+        val letters = SimpleDateFormat("EEEEE", Locale.getDefault())
+        val labelRow = LinearLayout(c)
+        labelRow.orientation = LinearLayout.HORIZONTAL
+        for (i in 0 until 7) {
+            val d = Calendar.getInstance()
+            d.set(Calendar.DAY_OF_WEEK, ((firstDow - 1 + i) % 7) + 1)
+            val t = Ui.text(c, letters.format(d.time), 12f, Ui.MUTED_TINT, Ui.MED)
+            t.gravity = Gravity.CENTER
+            labelRow.addView(t, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        card.addTo(labelRow, 12)
+
+        // day grid
+        val first = Calendar.getInstance()
+        first.clear()
+        first.set(year, month, 1)
+        val offset = (first.get(Calendar.DAY_OF_WEEK) - firstDow + 7) % 7
+        val now = Calendar.getInstance()
+        val isThisMonth = now.get(Calendar.YEAR) == year && now.get(Calendar.MONTH) == month
+        val todayDay = if (isThisMonth) now.get(Calendar.DAY_OF_MONTH) else -1
+        val inFuture = practiceMonthOffset > 0
+        var practiced = 0
+        val cell = Ui.dp(c, 38)
+        val rows = (offset + secs.size + 6) / 7
+        for (r in 0 until rows) {
+            val row = LinearLayout(c)
+            row.orientation = LinearLayout.HORIZONTAL
+            for (col in 0 until 7) {
+                val day = r * 7 + col - offset + 1
+                val holder = FrameLayoutCell(c)
+                if (day in 1..secs.size) {
+                    val v = secs[day - 1]
+                    val future = inFuture || (isThisMonth && day > todayDay)
+                    val shade = if (v <= 0L) 0 else if (v < 300L) 1 else if (v < 600L) 2 else 3
+                    if (shade > 0) practiced++
+                    val bg = when (shade) {
+                        1 -> Ui.c("#B7D5FA", "#2F5F9E")
+                        2 -> Ui.c("#7DB8FF", "#3F7FD0")
+                        3 -> Ui.BLUE
+                        else -> 0
+                    }
+                    val fg = when {
+                        shade >= 2 -> Ui.WHITE
+                        shade == 1 -> Ui.c("#0B3B7A", "#F1F5F9")
+                        future -> Ui.c("#94A3B8", "#64748B")
+                        else -> Ui.MUTED_TINT
+                    }
+                    val t = Ui.text(c, day.toString(), 13f, fg, if (shade > 0 || day == todayDay) Ui.BOLD else Ui.MED)
+                    t.gravity = Gravity.CENTER
+                    val isToday = day == todayDay
+                    if (bg != 0 || isToday) {
+                        t.background = Ui.rounded(c, if (bg != 0) bg else 0x00000000, 19,
+                            if (isToday) Ui.c("#0B5FD1", "#8FC1FF") else 0, if (isToday) 2 else 0)
+                    }
+                    holder.addView(t, android.widget.FrameLayout.LayoutParams(cell, cell, Gravity.CENTER))
+                }
+                row.addView(holder, LinearLayout.LayoutParams(0, Ui.dp(c, 44), 1f))
+            }
+            card.addTo(row, if (r == 0) 4 else 0)
+        }
+
+        // legend + count
+        val legend = LinearLayout(c)
+        legend.orientation = LinearLayout.HORIZONTAL
+        legend.gravity = Gravity.CENTER_VERTICAL or Gravity.END
+        legend.addView(Ui.text(c, "Less", 12f, Ui.MUTED_TINT, Ui.MED))
+        for (col in listOf(Ui.c("#B7D5FA", "#2F5F9E"), Ui.c("#7DB8FF", "#3F7FD0"), Ui.BLUE)) {
+            val sw = View(c)
+            sw.background = Ui.rounded(c, col, 4)
+            val lp = LinearLayout.LayoutParams(Ui.dp(c, 14), Ui.dp(c, 14))
+            lp.leftMargin = Ui.dp(c, 6)
+            legend.addView(sw, lp)
+        }
+        val more = Ui.text(c, "More", 12f, Ui.MUTED_TINT, Ui.MED)
+        val moreLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        moreLp.leftMargin = Ui.dp(c, 6)
+        legend.addView(more, moreLp)
+        card.addTo(legend, 6)
+
+        val count = Ui.text(c, if (practiced == 1) "1 day practiced this month" else "$practiced days practiced this month", 13f, Ui.MUTED_TINT, Ui.MED)
+        card.addTo(count, 6)
+    }
+
+    private fun FrameLayoutCell(c: android.content.Context) = android.widget.FrameLayout(c)
+
+    /** Week view: one bar per day for the last 7 days (today on the right), height = time trained that day. */
+    private fun weekContent(card: LinearLayout) {
         val c = this
         val secs = HistoryStore.dailySeconds(7)
         var max = 1L
         var total = 0L
         for (v in secs) { total += v; if (v > max) max = v }
-        val card = Ui.card(c, Ui.CARD_TINT)
-
-        val head = LinearLayout(c)
-        head.orientation = LinearLayout.HORIZONTAL
-        head.gravity = Gravity.CENTER_VERTICAL
-        head.addView(Ui.sectionTitle(c, "Last 7 days"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        head.addView(Ui.text(c, StatsStore.formatDuration(total) + " total", 12f, Ui.MUTED_TINT, Ui.MED))
-        card.addTo(head)
+        card.addTo(Ui.text(c, StatsStore.formatDuration(total) + " this week", 13f, Ui.MUTED_TINT, Ui.MED), 10)
 
         val dayFmt = SimpleDateFormat("EEEEE", Locale.getDefault())
         val barArea = Ui.dp(c, 96)
@@ -238,10 +392,33 @@ class HistoryActivity : AppCompatActivity() {
             cols.addView(col, LinearLayout.LayoutParams(0, Ui.dp(c, 136), 1f))
         }
         card.addTo(cols, 8)
-        return card
     }
 
     /** Row of tap-to-filter chips: All + each training mode that exists in the history. */
+    /** Segmented switch under the mode chips: 7 days | 30 days | All time. Same look as the Week | Month switch. */
+    private fun rangeSwitch(): LinearLayout {
+        val c = this
+        val pill = LinearLayout(c)
+        pill.orientation = LinearLayout.HORIZONTAL
+        pill.background = Ui.rounded(c, Ui.c("#C4DCFB", "#26426B"), 14)
+        pill.setPadding(Ui.dp(c, 3), Ui.dp(c, 3), Ui.dp(c, 3), Ui.dp(c, 3))
+        for ((i, label) in listOf("7 days", "30 days", "All time").withIndex()) {
+            val on = rangeIdx == i
+            val t = Ui.text(c, label, 13f, if (on) Ui.WHITE else Ui.c("#3F5F8F", "#94A3B8"), Ui.BOLD)
+            t.gravity = Gravity.CENTER
+            t.setPadding(Ui.dp(c, 8), Ui.dp(c, 9), Ui.dp(c, 8), Ui.dp(c, 9))
+            if (on) t.background = Ui.rounded(c, Ui.BLUE, 11)
+            t.setOnClickListener {
+                if (rangeIdx != i) {
+                    rangeIdx = i
+                    render(history)
+                }
+            }
+            pill.addView(t, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        return pill
+    }
+
     private fun filterRow(modes: List<String>): HorizontalScrollView {
         val c = this
         val sv = HorizontalScrollView(c)
@@ -340,26 +517,34 @@ class HistoryActivity : AppCompatActivity() {
         if (filter != null && !present.contains(filter)) filter = null
         if (present.size > 1) body.addTo(filterRow(present), 10)
 
+        // visible range switch: 7 days | 30 days | All time (filters the list and the numbers)
+        body.addTo(rangeSwitch(), 10)
+        val rangeDays = when (rangeIdx) { 0 -> 7; 1 -> 30; else -> null }
+        val rangeCutoff = if (rangeDays != null) cutoffMillis(rangeDays) else 0L
+
         val items = ArrayList<JSONObject>()
         for (i in 0 until h.length()) {
             val o = h.optJSONObject(i) ?: continue
-            if (filter == null || o.optString("mode", "") == filter) items.add(o)
+            if (filter != null && o.optString("mode", "") != filter) continue
+            if (rangeDays != null && parse(o.optString("date", "")) < rangeCutoff) continue
+            items.add(o)
         }
         if (items.isEmpty()) {
-            body.addTo(Ui.note(c, "No trainings in this mode yet."), 8)
+            val msg = when (rangeIdx) { 0 -> "No trainings in the last 7 days."; 1 -> "No trainings in the last 30 days."; else -> "No trainings in this mode yet." }
+            body.addTo(Ui.note(c, msg), 8)
             return
         }
 
-        val weekAgo = System.currentTimeMillis() - 7L * 24L * 3600L * 1000L
+        val weekCutoff = cutoffMillis(7)
         var week = 0
         var totalSecs = 0L
         for (o in items) {
             totalSecs += o.optInt("time", 0)
-            if (parse(o.optString("date", "")) >= weekAgo) week++
+            if (parse(o.optString("date", "")) >= weekCutoff) week++
         }
         val avg = totalSecs / items.size
 
-        // the three numbers follow the filter, so "Mirror" shows only Mirror totals
+        // the three numbers follow the mode filter and the range switch
         body.addTo(tileRow(
             metric("Trainings", items.size.toString()),
             metric("Last 7 days", week.toString()),
@@ -369,6 +554,8 @@ class HistoryActivity : AppCompatActivity() {
 
         val df = SimpleDateFormat("EEE d MMM, h:mm a", Locale.getDefault())
         val tf = SimpleDateFormat("h:mm a", Locale.getDefault())
+        val recs = LocalExtras.recordings()
+        val ratings = LocalExtras.allRatings()
         for (o in items) {
             val ms = parse(o.optString("date", ""))
             val whenText = when {
@@ -381,23 +568,310 @@ class HistoryActivity : AppCompatActivity() {
             var sub = q.toString() + (if (q == 1) " question" else " questions") +
                 "  •  " + StatsStore.formatDuration(o.optInt("time", 0).toLong())
             if (o.optBoolean("deepPause", false)) sub += "  •  Deep Pause"
+            val rated = ratings.optInt(o.optString("date", ""), 0)
+            if (rated in 1..3) sub += "  •  " + SummaryActivity.RATING_FACES[rated - 1]
 
             val row = LinearLayout(c)
             row.orientation = LinearLayout.HORIZONTAL
-            row.gravity = Gravity.CENTER_VERTICAL
+            row.gravity = Gravity.TOP
             val col = LinearLayout(c)
             col.orientation = LinearLayout.VERTICAL
             col.addView(Ui.text(c, whenText, 14f, Ui.TEXT, Ui.MED))
             col.addView(Ui.text(c, sub, 12f, Ui.MUTED_TINT, Ui.REG), Ui.lp(c, 3))
             row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+
+            // right side: the mode tag, with a Play video / Play audio container under it when this training was recorded
+            val right = LinearLayout(c)
+            right.orientation = LinearLayout.VERTICAL
+            right.gravity = Gravity.END
             val mode = o.optString("mode", "")
             val tag = Ui.chip(c, modeLabel(mode), Ui.c("#0B4FB3", "#FFFFFF"), Ui.c("#B7D5FA", "#2F5F9E"))
             tag.textSize = 11f
             tag.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
-            row.addView(tag, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            right.addView(tag, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            val rec = LocalExtras.recordingFor(recs, ms, o.optInt("time", 0))
+            if (rec != null && LocalExtras.exists(c, rec.uri)) {
+                val play = LinearLayout(c)
+                play.orientation = LinearLayout.HORIZONTAL
+                play.gravity = Gravity.CENTER_VERTICAL
+                play.background = Ui.rounded(c, Ui.BLUE, 14)
+                play.setPadding(Ui.dp(c, 9), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
+                val label = if (rec.video) "Play video" else "Play audio"
+                play.contentDescription = label
+                val ic = FsIconView(c, if (rec.video) Icons.VIDEO else Icons.HEADPHONES, Ui.WHITE)
+                val icLp = LinearLayout.LayoutParams(Ui.dp(c, 16), Ui.dp(c, 16))
+                icLp.rightMargin = Ui.dp(c, 6)
+                play.addView(ic, icLp)
+                play.addView(Ui.text(c, label, 12f, Ui.WHITE, Ui.BOLD))
+                play.setOnClickListener {
+                    val i = android.content.Intent(c, PlayerActivity::class.java)
+                    i.putExtra("uri", rec.uri)
+                    i.putExtra("video", rec.video)
+                    startActivity(i)
+                }
+                val plp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                plp.topMargin = Ui.dp(c, 6)
+                right.addView(play, plp)
+            }
+            row.addView(right, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             val entry = Ui.card(c, Ui.CARD_TINT)
             entry.addTo(row)
             body.addTo(entry, 10)
+        }
+
+        val export = Ui.pill(c, "Export history", Ui.BLUE_SOFT, Ui.BLUE)
+        export.setOnClickListener { chooseExportRange() }
+        body.addTo(export, 16)
+    }
+
+    private fun csv(v: String): String = "\"" + v.replace("\"", "\"\"") + "\""
+
+    /** Like a bank statement: pick how far back the export should go. */
+    private fun chooseExportRange() {
+        val h = history
+        if (h == null || h.length() == 0) {
+            android.widget.Toast.makeText(this, "No history to export yet", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        AppDialog.show(
+            this,
+            "Export history",
+            message = "Which trainings do you want in the file?",
+            buttons = listOf(
+                AppDialog.Btn("Last 7 days", AppDialog.Kind.SOFT) { chooseExportFormat(7) },
+                AppDialog.Btn("Last 30 days", AppDialog.Kind.SOFT) { chooseExportFormat(30) },
+                AppDialog.Btn("All time", AppDialog.Kind.PRIMARY) { chooseExportFormat(null) }
+            )
+        )
+    }
+
+    /** Start of the day [days] - 1 days ago, so "7 days" means today plus the 6 days before it. */
+    private fun cutoffMillis(days: Int): Long {
+        val c = Calendar.getInstance()
+        c.set(Calendar.HOUR_OF_DAY, 0)
+        c.set(Calendar.MINUTE, 0)
+        c.set(Calendar.SECOND, 0)
+        c.set(Calendar.MILLISECOND, 0)
+        c.add(Calendar.DAY_OF_YEAR, -(days - 1))
+        return c.timeInMillis
+    }
+
+    /**
+     * Saves trainings from the chosen range ([days] = null means all time) as a CSV spreadsheet
+     * (copy in Downloads on newer phones) and opens the share sheet.
+     */
+    private fun exportCsv(days: Int?) {
+        val h = history
+        if (h == null || h.length() == 0) {
+            android.widget.Toast.makeText(this, "No history to export yet", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val cutoff = if (days != null) cutoffMillis(days) else 0L
+            val ratings = LocalExtras.allRatings()
+            val f = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val sb = StringBuilder("\uFEFF")
+            sb.append("Date,Mode,Questions,Duration (seconds),Duration,Deep Pause,Felt\n")
+            var rows = 0
+            for (i in 0 until h.length()) {
+                val o = h.optJSONObject(i) ?: continue
+                val ms = parse(o.optString("date", ""))
+                if (days != null && ms < cutoff) continue
+                rows++
+                val secs = o.optInt("time", 0)
+                val r = ratings.optInt(o.optString("date", ""), 0)
+                sb.append(csv(if (ms > 0L) f.format(Date(ms)) else o.optString("date", ""))).append(',')
+                    .append(csv(modeLabel(o.optString("mode", "")))).append(',')
+                    .append(o.optInt("questions", 0)).append(',')
+                    .append(secs).append(',')
+                    .append(csv(StatsStore.formatDuration(secs.toLong()))).append(',')
+                    .append(if (o.optBoolean("deepPause", false)) "Yes" else "No").append(',')
+                    .append(if (r in 1..3) SummaryActivity.RATING_LABELS[r - 1] else "").append('\n')
+            }
+            if (rows == 0) {
+                android.widget.Toast.makeText(this, "No trainings in the last $days days", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+            val range = if (days == null) "all" else "${days}days"
+            val name = "pauzfirst-history-" + range + "-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".csv"
+            val dir = java.io.File(cacheDir, "shared")
+            dir.mkdirs()
+            val file = java.io.File(dir, name)
+            file.writeText(sb.toString(), Charsets.UTF_8)
+
+            deliver(file, name, "text/csv")
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(this, "Couldn't export the history", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** Second step of the export: PDF summary (like a statement) or the CSV spreadsheet. */
+    private fun chooseExportFormat(days: Int?) {
+        AppDialog.show(
+            this,
+            "Export as",
+            message = "A PDF summary is easy to read and share. A CSV opens in Excel or Sheets.",
+            buttons = listOf(
+                AppDialog.Btn("PDF summary", AppDialog.Kind.PRIMARY) { exportPdf(days) },
+                AppDialog.Btn("CSV file", AppDialog.Kind.SOFT) { exportCsv(days) }
+            )
+        )
+    }
+
+    /** Saves a copy in Downloads on newer phones and opens the share sheet. */
+    private fun deliver(file: java.io.File, name: String, mime: String) {
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            try {
+                val v = android.content.ContentValues()
+                v.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
+                v.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
+                v.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                val u = contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v)
+                if (u != null) {
+                    contentResolver.openOutputStream(u)?.use { it.write(file.readBytes()) }
+                    android.widget.Toast.makeText(this, "Saved to Downloads", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) { }
+        }
+        val uri = androidx.core.content.FileProvider.getUriForFile(this, packageName + ".fileprovider", file)
+        val i = android.content.Intent(android.content.Intent.ACTION_SEND)
+        i.type = mime
+        i.putExtra(android.content.Intent.EXTRA_STREAM, uri)
+        i.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        startActivity(android.content.Intent.createChooser(i, "Export history"))
+    }
+
+    /** One bar per day (7 or 30 days) or per month (all time, last 12 months). */
+    private fun buildBars(rows: List<JSONObject>, days: Int?): Pair<String, List<PdfReport.Bar>> {
+        val bars = ArrayList<PdfReport.Bar>()
+        if (days != null) {
+            val starts = LongArray(days)
+            val c = Calendar.getInstance()
+            c.timeInMillis = cutoffMillis(days)
+            for (i in 0 until days) {
+                starts[i] = c.timeInMillis
+                c.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            val secs = LongArray(days)
+            for (o in rows) {
+                val ms = parse(o.optString("date", ""))
+                if (ms < starts[0]) continue
+                var idx = days - 1
+                while (idx > 0 && starts[idx] > ms) idx--
+                secs[idx] += o.optInt("time", 0).toLong()
+            }
+            val lf = SimpleDateFormat(if (days <= 7) "EEE" else "d", Locale.getDefault())
+            for (i in 0 until days) bars.add(PdfReport.Bar(lf.format(Date(starts[i])), secs[i]))
+            return Pair("Time trained per day (minutes)", bars)
+        }
+        val byMonth = java.util.TreeMap<Int, Long>()
+        val cal = Calendar.getInstance()
+        for (o in rows) {
+            val ms = parse(o.optString("date", ""))
+            if (ms <= 0L) continue
+            cal.timeInMillis = ms
+            val key = cal.get(Calendar.YEAR) * 12 + cal.get(Calendar.MONTH)
+            byMonth[key] = (byMonth[key] ?: 0L) + o.optInt("time", 0).toLong()
+        }
+        if (byMonth.isEmpty()) return Pair("", bars)
+        val last = byMonth.lastKey()
+        val first = maxOf(byMonth.firstKey(), last - 11)
+        val mf = SimpleDateFormat("MMM", Locale.getDefault())
+        for (k in first..last) {
+            cal.clear()
+            cal.set(k / 12, k % 12, 1)
+            bars.add(PdfReport.Bar(mf.format(cal.time), byMonth[k] ?: 0L))
+        }
+        return Pair("Time trained per month (minutes)", bars)
+    }
+
+    /** Builds the PDF summary for the chosen range ([days] = null means all time) and opens the share sheet. */
+    private fun exportPdf(days: Int?) {
+        val h = history
+        if (h == null || h.length() == 0) {
+            android.widget.Toast.makeText(this, "No history to export yet", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val cutoff = if (days != null) cutoffMillis(days) else 0L
+            val rows = ArrayList<JSONObject>()
+            for (i in 0 until h.length()) {
+                val o = h.optJSONObject(i) ?: continue
+                if (days != null && parse(o.optString("date", "")) < cutoff) continue
+                rows.add(o)
+            }
+            if (rows.isEmpty()) {
+                android.widget.Toast.makeText(this, "No trainings in the last $days days", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val ratings = LocalExtras.allRatings()
+            val df = SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault())
+            val dayFmt = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+            var totalSecs = 0L
+            var deepCount = 0
+            var oldest = Long.MAX_VALUE
+            var newest = 0L
+            val modeCounts = HashMap<String, Int>()
+            val feel = IntArray(4)   // Hard, Okay, Great, Not rated
+            val pdfRows = ArrayList<PdfReport.Row>()
+            for (o in rows) {
+                val ms = parse(o.optString("date", ""))
+                val secs = o.optInt("time", 0)
+                val mode = o.optString("mode", "")
+                val r = ratings.optInt(o.optString("date", ""), 0)
+                totalSecs += secs
+                if (o.optBoolean("deepPause", false)) deepCount++
+                if (ms > 0L) {
+                    if (ms < oldest) oldest = ms
+                    if (ms > newest) newest = ms
+                }
+                modeCounts[mode] = (modeCounts[mode] ?: 0) + 1
+                feel[if (r in 1..3) r - 1 else 3]++
+                pdfRows.add(PdfReport.Row(
+                    if (ms > 0L) df.format(Date(ms)) else o.optString("date", ""),
+                    modeLabel(mode),
+                    o.optInt("questions", 0),
+                    StatsStore.formatDuration(secs.toLong()),
+                    o.optBoolean("deepPause", false),
+                    if (r in 1..3) SummaryActivity.RATING_LABELS[r - 1] else "-"
+                ))
+            }
+
+            val modes = ArrayList<Pair<String, Int>>()
+            for (m in listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")) {
+                val n = modeCounts[m] ?: 0
+                if (n > 0) modes.add(Pair(modeLabel(m), n))
+            }
+            val feelList = ArrayList<Pair<String, Int>>()
+            for (i in 0..2) if (feel[i] > 0) feelList.add(Pair(SummaryActivity.RATING_LABELS[i], feel[i]))
+            if (feel[3] > 0) feelList.add(Pair("Not rated", feel[3]))
+
+            val totals = listOf(
+                Pair("Trainings", rows.size.toString()),
+                Pair("Total time", StatsStore.formatDuration(totalSecs)),
+                Pair("Avg. length", StatsStore.formatDuration(totalSecs / rows.size)),
+                Pair("Deep Pause", deepCount.toString())
+            )
+
+            val rangeLabel = if (days == null) "All time" else "Last $days days"
+            val period = if (days != null) {
+                dayFmt.format(Date(cutoff)) + " - " + dayFmt.format(Date())
+            } else if (oldest != Long.MAX_VALUE) {
+                dayFmt.format(Date(oldest)) + " - " + dayFmt.format(Date(newest))
+            } else ""
+            val generated = "Generated " + df.format(Date())
+            val bar = buildBars(rows, days)
+
+            val range = if (days == null) "all" else "${days}days"
+            val name = "pauzfirst-summary-" + range + "-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".pdf"
+            val dir = java.io.File(cacheDir, "shared")
+            dir.mkdirs()
+            val file = java.io.File(dir, name)
+            PdfReport.write(file, rangeLabel, period, generated, totals, modes, feelList, bar.first, bar.second, pdfRows)
+            deliver(file, name, "application/pdf")
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(this, "Couldn't create the PDF", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }

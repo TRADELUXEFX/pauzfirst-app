@@ -13,6 +13,8 @@ object Icons {
     const val DOWNLOAD = "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3"
     const val CLOSE = "M18 6L6 18 M6 6l12 12"
     const val NEXT = "M9 18l6-6-6-6"
+    const val VIDEO = "M23 7l-7 5 7 5V7z M3 5h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"
+    const val HEADPHONES = "M3 18v-6a9 9 0 0 1 18 0v6 M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"
     const val STOP = "M6 6h12v12H6z"
     const val EYE = "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"
     const val PLAY = "M7 4l13 8-13 8z"

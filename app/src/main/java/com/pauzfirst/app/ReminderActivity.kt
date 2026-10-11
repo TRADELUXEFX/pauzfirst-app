@@ -112,6 +112,7 @@ class ReminderActivity : AppCompatActivity() {
         })
         streakCard.addTo(streakTimeRow, 14)
         body.addTo(streakCard, 12)
+        body.addTo(buildSurpriseCard(is24), 12)
         body.addTo(Ui.note(c, "No reminder on days you've already practiced."), 12)
 
         val scroll = ScrollView(c)
@@ -120,5 +121,83 @@ class ReminderActivity : AppCompatActivity() {
         Ui.padInsets(body, bottom = true)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(page)
+    }
+
+    /** Sends the user to the "Alarms & reminders" screen once, so surprises can start by voice in the background. */
+    private fun askExactAlarm() {
+        if (SurprisePause.canRunInBackground(this)) return
+        Toast.makeText(this, "Allow \"Alarms & reminders\" for PAUZFIRST so surprise pauses can speak in the background.", Toast.LENGTH_LONG).show()
+        try {
+            startActivity(
+                android.content.Intent(
+                    android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    android.net.Uri.parse("package:" + packageName)
+                )
+            )
+        } catch (e: Exception) {
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // coming back from the permission screen: schedule again, now with exact timing if it was allowed
+        if (SurprisePause.enabled) SurprisePause.schedule(this)
+    }
+
+    /** Surprise Pauses: a few random one-question nudges per day inside a window. */
+    private fun buildSurpriseCard(is24: Boolean): LinearLayout {
+        val c = this
+        fun timeRow(label: String, get: () -> Int, set: (Int) -> Boolean): LinearLayout {
+            val value = Ui.text(c, SurprisePause.clockText(get(), is24), 15f, Ui.BLUE, Ui.BOLD)
+            val row = LinearLayout(c)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = Gravity.CENTER_VERTICAL
+            row.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
+            row.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
+            val l = Ui.text(c, label, 15f, Ui.TEXT, Ui.MED)
+            l.gravity = Gravity.CENTER_VERTICAL
+            row.addView(l, LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f))
+            row.addView(value, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            row.setOnClickListener {
+                val cur = get()
+                TimePickerDialog(this, { _, hh, mm ->
+                    if (set(hh * 60 + mm)) {
+                        value.text = SurprisePause.clockText(get(), is24)
+                        SurprisePause.schedule(this)
+                    } else {
+                        Toast.makeText(this, "Leave at least 30 minutes between start and end.", Toast.LENGTH_SHORT).show()
+                    }
+                }, cur / 60, cur % 60, is24).show()
+            }
+            return row
+        }
+
+        val options = LinearLayout(c)
+        options.orientation = LinearLayout.VERTICAL
+        options.addTo(timeRow("From", { SurprisePause.startMin }) { v ->
+            if (SurprisePause.windowOk(v, SurprisePause.endMin)) { SurprisePause.startMin = v; true } else false
+        })
+        options.addTo(timeRow("Until", { SurprisePause.endMin }) { v ->
+            if (SurprisePause.windowOk(SurprisePause.startMin, v)) { SurprisePause.endMin = v; true } else false
+        }, 10)
+        options.addTo(Ui.stepper(c, "Surprises per day", { SurprisePause.perDay }, {
+            SurprisePause.perDay = it
+            SurprisePause.schedule(this)
+        }, 1, 5, 1) { it.toString() }, 14)
+        options.visibility = if (SurprisePause.enabled) View.VISIBLE else View.GONE
+
+        val card = Ui.card(c)
+        card.addTo(Ui.switchRow(c, "Surprise pauses", "A few random spoken questions while you use your phone", SurprisePause.enabled) { on ->
+            SurprisePause.enabled = on
+            options.visibility = if (on) View.VISIBLE else View.GONE
+            if (on) {
+                SurprisePause.schedule(this)
+                askExactAlarm()
+            } else {
+                SurprisePause.cancel(this)
+            }
+        })
+        card.addTo(options, 14)
+        return card
     }
 }

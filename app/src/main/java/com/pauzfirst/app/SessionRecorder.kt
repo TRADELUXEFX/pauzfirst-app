@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.Environment
@@ -29,6 +30,8 @@ object SessionRecorder {
     private var audio: MediaRecorder? = null
     private var audioFile: File? = null
     @Volatile var serviceOn = false
+    /** When the current recording began; used to match the saved file to its history entry. */
+    @Volatile var startedMs = 0L
 
     fun stamp(): String = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
 
@@ -39,6 +42,7 @@ object SessionRecorder {
     fun startAudioIfWanted(ctx: Context) {
         if (!Settings.recordAudio || serviceOn || audio != null || !hasMic(ctx)) return
         try {
+            startedMs = System.currentTimeMillis()
             val f = File(ctx.cacheDir, "pauzfirst_" + stamp() + ".m4a")
             val r = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(ctx) else @Suppress("DEPRECATION") MediaRecorder()
             r.setAudioSource(MediaRecorder.AudioSource.MIC)
@@ -66,6 +70,7 @@ object SessionRecorder {
             i.putExtra("data", data)
             i.putExtra("video", video)
             serviceOn = true
+            startedMs = System.currentTimeMillis()
             ContextCompat.startForegroundService(ctx, i)
         } catch (e: Exception) {
             serviceOn = false
@@ -94,6 +99,7 @@ object SessionRecorder {
     fun save(ctx: Context, src: File, mime: String, video: Boolean) {
         val app = ctx.applicationContext
         var where = ""
+        var savedUri = ""
         try {
             val name = src.name
             if (Build.VERSION.SDK_INT >= 29) {
@@ -107,6 +113,7 @@ object SessionRecorder {
                 if (uri != null) {
                     app.contentResolver.openOutputStream(uri)?.use { out -> FileInputStream(src).use { it.copyTo(out) } }
                     where = base + "/Pauzfirst"
+                    savedUri = uri.toString()
                 }
             } else {
                 // older phones: kept in the app's own folder (no storage permission needed)
@@ -115,12 +122,16 @@ object SessionRecorder {
                     val dest = File(dir, name)
                     FileInputStream(src).use { i -> dest.outputStream().use { o -> i.copyTo(o) } }
                     where = "this app's files folder"
+                    savedUri = Uri.fromFile(dest).toString()
                 }
             }
         } catch (e: Exception) {
             where = ""
         }
         try { src.delete() } catch (e: Exception) { }
+        if (savedUri.isNotEmpty()) {
+            try { LocalExtras.addRecording(savedUri, video, startedMs) } catch (e: Exception) { }
+        }
         val msg = if (where.isNotEmpty()) "Training recording saved in " + where else "Couldn't save the training recording."
         Handler(Looper.getMainLooper()).post { Toast.makeText(app, msg, Toast.LENGTH_LONG).show() }
     }

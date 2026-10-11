@@ -648,6 +648,7 @@ class HomeActivity : AppCompatActivity() {
         updateSyncNote()
         checkVoice()
         Reminder.schedule(this)
+        SurprisePause.schedule(this)
         Engine.onSaved = { loadRemote(); updateSyncNote() }
         loadRemote()
     }

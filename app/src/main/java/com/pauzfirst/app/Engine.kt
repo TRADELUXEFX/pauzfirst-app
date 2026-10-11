@@ -69,6 +69,8 @@ object Engine {
     var lastSeconds = 0
         private set
     var lastModeKey = ""
+    /** History date (ISO) of the training that just finished; the rating is saved against it. */
+    @Volatile var lastDate = ""
         private set
     @Volatile var lastStreak = -1
         private set
@@ -234,7 +236,8 @@ object Engine {
     // ---- public controls ----
     fun isActive(): Boolean = phase != Phase.IDLE && phase != Phase.DONE
 
-    fun start(ctx: Context, qs: List<String>, bucket: String = "default", pool: List<String> = qs) {
+    /** headless = Surprise Pause: voice only, no screen, no recording, no waiting for a tap. */
+    fun start(ctx: Context, qs: List<String>, bucket: String = "default", pool: List<String> = qs, headless: Boolean = false) {
         val a = ctx.applicationContext
         app = a
         starting = true
@@ -247,6 +250,12 @@ object Engine {
         threeWhy = Settings.threeWhy
         tip = Settings.tip
         tipInt = Settings.tipInterval
+        if (headless) {
+            // nobody is tapping Next: keep it to question, pause, answer time, and always speak
+            deep = false
+            threeWhy = false
+            voice = true
+        }
         mode = Settings.recordMode
         modeKey = Settings.mode
         questions = qs
@@ -257,7 +266,7 @@ object Engine {
         answered = 0
         startedAt = SystemClock.elapsedRealtime()
         ensureTts()
-        SessionRecorder.startAudioIfWanted(a)
+        if (!headless) SessionRecorder.startAudioIfWanted(a)
         try {
             ContextCompat.startForegroundService(a, Intent(a, TrainingService::class.java))
         } catch (e: Exception) {
@@ -465,6 +474,8 @@ object Engine {
         lastQuestions = q
         lastSeconds = secs
         lastModeKey = modeKey
+        val entryDate = HistoryStore.isoNow()
+        lastDate = if (q > 0) entryDate else ""
         lastStreak = -1
         lastBest = -1
         lastStreakUp = false
@@ -488,7 +499,7 @@ object Engine {
                 // progress stays in the local copy
             }
             try {
-                HistoryStore.record(q, secs, m, deep)
+                HistoryStore.record(q, secs, m, deep, entryDate)
                 HistoryStore.flush()
             } catch (e: Exception) {
                 // the session stays waiting on the phone and is sent next time
