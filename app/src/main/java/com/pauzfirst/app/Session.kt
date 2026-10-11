@@ -77,7 +77,7 @@ object Settings {
         get() = getInt("s_tip_int", 30)
         set(v) = putInt("s_tip_int", v)
 
-    /** Training mode: "eyes-closed", "eyes-open" or "mirror" (one choice, like the website). */
+    /** Training mode: "eyes-closed", "eyes-open", "mirror" or "animated-eyes" (one choice). */
     var mode: String
         get() {
             val m = Session.prefs.getString("s_mode", null)
@@ -89,20 +89,16 @@ object Settings {
 
     val eyesOpen: Boolean get() = mode == "eyes-open"
 
-    /** Mirror mode always shows the front camera. */
-    val mirror: Boolean get() = mode == "mirror"
+    /** Animated eyes: full screen, dark screen with a face. No camera image. */
+    val animatedEyes: Boolean get() = mode == "animated-eyes"
 
-    /** Mirror only: start with the camera view enlarged. */
-    var fullCamera: Boolean
-        get() = getBool("s_full_cam", false)
-        set(v) = putBool("s_full_cam", v)
+    /** Mirror and Animated eyes both run on the full screen training view. */
+    val mirror: Boolean get() = mode == "mirror" || mode == "animated-eyes"
 
-    /** Mirror only: dark screen with animated eyes in full camera view (the website's "animated eyes"). */
-    var animatedEyes: Boolean
-        get() = getBool("s_eyes_anim", false)
-        set(v) = putBool("s_eyes_anim", v)
+    /** Mode name saved to history and stats (Animated eyes counts as Mirror, like the website). */
+    val recordMode: String get() = if (mode == "animated-eyes") "mirror" else mode
 
-    /** Mirror only (not with Deep Pause): show the phase and timer pill on the camera. */
+    /** Mirror and Animated eyes (not with Deep Pause): show Listen / Pause / Respond on screen. */
     var phaseGuide: Boolean
         get() = getBool("s_phase_guide", true)
         set(v) = putBool("s_phase_guide", v)

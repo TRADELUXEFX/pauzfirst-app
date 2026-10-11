@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -23,6 +24,7 @@ class ListsActivity : AppCompatActivity() {
     private lateinit var holder: LinearLayout
     private var raw: Map<String, JSONArray> = emptyMap()
     private var loadedOnce = false
+    private var expanded: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,6 +73,7 @@ class ListsActivity : AppCompatActivity() {
 
         val scroll = ScrollView(c)
         scroll.addView(holder)
+        Ui.noClip(holder, scroll)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val bar = LinearLayout(c)
@@ -103,6 +106,8 @@ class ListsActivity : AppCompatActivity() {
     private fun load() {
         Thread {
             val r = Api.fetchListsRaw()
+            val ru = Api.fetchUsed()
+            if (ru != null) UsedStore.saveLocal(ru)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (r == null) {
@@ -133,21 +138,146 @@ class ListsActivity : AppCompatActivity() {
         }
     }
 
+    private fun listTexts(name: String): List<String> {
+        val a = raw[name] ?: return emptyList()
+        val out = ArrayList<String>()
+        for (i in 0 until a.length()) {
+            val t = Api.questionText(a.opt(i))
+            if (t.isNotBlank()) out.add(t)
+        }
+        return out.distinct()
+    }
+
+    /** Small rounded action button: optional icon + label, or icon only. */
+    private fun actionBtn(label: String?, icon: String, bg: Int, fg: Int, showIcon: Boolean): LinearLayout {
+        val c = this
+        val b = LinearLayout(c)
+        b.orientation = LinearLayout.HORIZONTAL
+        b.gravity = Gravity.CENTER
+        b.background = Ui.rounded(c, bg, 12)
+        if (showIcon) {
+            val ic = FsIconView(c, icon, fg)
+            b.addView(ic, LinearLayout.LayoutParams(Ui.dp(c, 17), Ui.dp(c, 17)))
+        }
+        if (label != null) {
+            val t = Ui.text(c, label, 13f, fg, Ui.BOLD)
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            if (showIcon) lp.leftMargin = Ui.dp(c, 5)
+            b.addView(t, lp)
+        }
+        return b
+    }
+
     private fun listCard(name: String): LinearLayout {
         val c = this
         val card = Ui.card(c)
+        val open = expanded == name
+        if (open) card.background = Ui.rounded(c, Ui.WHITE, 22, Ui.BLUE, 2)
+        val texts = listTexts(name)
+        val total = texts.size
 
+        // ---- collapsed row: name, "In use", question count
         val top = LinearLayout(c)
         top.orientation = LinearLayout.HORIZONTAL
         top.gravity = Gravity.CENTER_VERTICAL
-        val col = LinearLayout(c)
-        col.orientation = LinearLayout.VERTICAL
-        col.addView(Ui.text(c, name, 16f, Ui.TEXT, Ui.BOLD))
-        val n = raw[name]?.length() ?: 0
-        col.addView(Ui.text(c, n.toString() + (if (n == 1) " question" else " questions"), 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
-        top.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val pinned = Settings.isPinned(name)
-        val pin = Ui.chip(c, if (pinned) "★ Pinned" else "☆ Pin", if (pinned) Ui.AMBER else Ui.MUTED, Ui.SOFT)
+        val title = Ui.text(c, (if (Settings.isPinned(name)) "★  " else "") + name, 15f, Ui.TEXT, Ui.BOLD)
+        title.maxLines = 1
+        title.ellipsize = android.text.TextUtils.TruncateAt.END
+        top.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        if (Settings.source == name) {
+            val tag = Ui.text(c, "In use", 11f, Ui.WHITE, Ui.BOLD)
+            tag.background = Ui.rounded(c, Ui.BLUE, 10)
+            tag.setPadding(Ui.dp(c, 8), Ui.dp(c, 3), Ui.dp(c, 8), Ui.dp(c, 3))
+            val tl = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            tl.leftMargin = Ui.dp(c, 8)
+            top.addView(tag, tl)
+        }
+        val cnt = Ui.text(c, total.toString() + (if (total == 1) " question" else " questions"), 12f, Ui.MUTED, Ui.REG)
+        val cl = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        cl.leftMargin = Ui.dp(c, 10)
+        top.addView(cnt, cl)
+        card.addTo(top)
+        card.setOnClickListener {
+            expanded = if (open) null else name
+            render()
+        }
+        if (!open) return card
+
+        // ---- opened: progress + buttons
+        val used = UsedStore.used("saved")
+        val done = texts.count { used.contains(it) }
+        val left = total - done
+        val pc = if (total == 0) 0 else Math.round(done * 100f / total)
+
+        val ex = LinearLayout(c)
+        ex.orientation = LinearLayout.VERTICAL
+        ex.setOnClickListener { }
+
+        val pg = LinearLayout(c)
+        pg.orientation = LinearLayout.VERTICAL
+        pg.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 14, Ui.LINE, 1)
+        pg.setPadding(Ui.dp(c, 12), Ui.dp(c, 10), Ui.dp(c, 12), Ui.dp(c, 10))
+        val r1 = LinearLayout(c)
+        r1.orientation = LinearLayout.HORIZONTAL
+        r1.addView(Ui.text(c, total.toString() + " questions total", 12f, Ui.MUTED, Ui.MED), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        r1.addView(Ui.text(c, done.toString() + " done · " + left + " left", 12f, Ui.MUTED, Ui.MED))
+        pg.addView(r1, Ui.lp(c))
+        val track = LinearLayout(c)
+        track.orientation = LinearLayout.HORIZONTAL
+        track.background = Ui.rounded(c, Ui.LINE, 3)
+        track.clipToOutline = true
+        val fill = View(c)
+        fill.setBackgroundColor(Ui.BLUE)
+        track.addView(fill, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, pc.toFloat()))
+        track.addView(View(c), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, (100 - pc).toFloat()))
+        val tlp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 6))
+        tlp.topMargin = Ui.dp(c, 8)
+        pg.addView(track, tlp)
+        val r2 = LinearLayout(c)
+        r2.orientation = LinearLayout.HORIZONTAL
+        r2.addView(Ui.text(c, pc.toString() + "% complete", 12f, Ui.BLUE, Ui.BOLD), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        if (done > 0) {
+            val reset = Ui.text(c, "Reset progress", 12f, Ui.RED, Ui.BOLD)
+            reset.setOnClickListener { confirmReset(name, texts) }
+            r2.addView(reset)
+        }
+        pg.addView(r2, Ui.lp(c, 6))
+        ex.addTo(pg)
+
+        // buttons: View, Use, Edit, Pin, Share, Delete. Always one row, nothing cut off.
+        val narrow = resources.configuration.screenWidthDp < 400
+        val iconSize = Ui.dp(c, if (narrow) 36 else 40)
+        val h = Ui.dp(c, 40)
+        val gap = Ui.dp(c, if (narrow) 5 else 6)
+        val row = LinearLayout(c)
+        row.orientation = LinearLayout.HORIZONTAL
+        val view = actionBtn("View", Icons.EYE, Ui.BLUE_SOFT, Color.parseColor("#1E6FD0"), !narrow)
+        val use = actionBtn("Use", Icons.PLAY, Ui.BLUE, Ui.WHITE, !narrow)
+        val edit = actionBtn(null, Icons.EDIT, Color.parseColor("#FEF3C7"), Color.parseColor("#B45309"), true)
+        val pin = actionBtn(null, Icons.PIN, Color.parseColor("#DCFCE7"), Color.parseColor("#15803D"), true)
+        val share = actionBtn(null, Icons.SHARE, Ui.BLUE_SOFT, Color.parseColor("#1E6FD0"), true)
+        val del = actionBtn(null, Icons.TRASH, Color.parseColor("#FEE2E2"), Ui.RED, true)
+        row.addView(view, LinearLayout.LayoutParams(0, h, 1f))
+        val ul = LinearLayout.LayoutParams(0, h, 1f)
+        ul.leftMargin = gap
+        row.addView(use, ul)
+        for (b in listOf(edit, pin, share, del)) {
+            val lp = LinearLayout.LayoutParams(iconSize, h)
+            lp.leftMargin = gap
+            row.addView(b, lp)
+        }
+        ex.addTo(row, 12)
+        card.addTo(ex, 12)
+
+        view.setOnClickListener { showQuestions(name, texts) }
+        use.setOnClickListener {
+            Settings.source = name
+            Toast.makeText(this, "Using \"" + name + "\"", Toast.LENGTH_SHORT).show()
+            finish()
+        }
+        edit.setOnClickListener {
+            startActivity(Intent(this, ListEditActivity::class.java).putExtra("name", name))
+        }
         pin.setOnClickListener {
             val on = !Settings.isPinned(name)
             Settings.setPin(name, on)
@@ -164,29 +294,39 @@ class ListsActivity : AppCompatActivity() {
                 }
             }.start()
         }
-        top.addView(pin, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        card.addTo(top)
-
-        val actions = LinearLayout(c)
-        actions.orientation = LinearLayout.HORIZONTAL
-        val edit = Ui.chip(c, "Edit", Ui.BLUE, Ui.BLUE_SOFT)
-        val share = Ui.chip(c, "Share", Ui.BLUE, Ui.BLUE_SOFT)
-        val del = Ui.chip(c, "Delete", Ui.RED, Ui.SOFT)
-        actions.addView(edit, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val mid = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        mid.leftMargin = Ui.dp(c, 8)
-        actions.addView(share, mid)
-        val last = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        last.leftMargin = Ui.dp(c, 8)
-        actions.addView(del, last)
-        card.addTo(actions, 14)
-
-        edit.setOnClickListener {
-            startActivity(Intent(this, ListEditActivity::class.java).putExtra("name", name))
-        }
         share.setOnClickListener { doShare(name) }
         del.setOnClickListener { confirmDelete(name) }
         return card
+    }
+
+    private fun showQuestions(name: String, texts: List<String>) {
+        val c = this
+        val tv = Ui.text(c, texts.mapIndexed { i, q -> (i + 1).toString() + ".  " + q }.joinToString("\n\n"), 14f, Ui.TEXT, Ui.REG)
+        tv.setLineSpacing(0f, 1.15f)
+        tv.setPadding(Ui.dp(c, 22), Ui.dp(c, 8), Ui.dp(c, 22), Ui.dp(c, 8))
+        val sv = ScrollView(c)
+        sv.addView(tv)
+        AlertDialog.Builder(this)
+            .setTitle(name)
+            .setView(sv)
+            .setPositiveButton("Close", null)
+            .show()
+    }
+
+    private fun confirmReset(name: String, texts: List<String>) {
+        AlertDialog.Builder(this)
+            .setTitle("Reset progress?")
+            .setMessage("Every question in \"" + name + "\" counts as unused again.")
+            .setPositiveButton("Reset") { _, _ ->
+                Thread {
+                    UsedStore.clear(texts, "saved")
+                    runOnUiThread {
+                        if (!isFinishing && !isDestroyed) render()
+                    }
+                }.start()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     // ---------- delete ----------
@@ -241,7 +381,7 @@ class ListsActivity : AppCompatActivity() {
     }
 
     private fun showCode(name: String, code: String) {
-        val msg = "Try my PauzFirst list \"" + name + "\". In the app open Manage lists > Import by code and enter: " + code
+        val msg = "Try my PauzFirst list \"" + name + "\". In the app open Question lists > Import by code and enter: " + code
         AlertDialog.Builder(this)
             .setTitle("Share code: " + code)
             .setMessage("Anyone with this code can import a copy of \"" + name + "\".")

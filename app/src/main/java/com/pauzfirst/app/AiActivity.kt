@@ -99,6 +99,7 @@ class AiActivity : AppCompatActivity() {
 
         scroll = ScrollView(c)
         scroll.addView(body)
+        Ui.noClip(body, scroll)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         bar = LinearLayout(c)

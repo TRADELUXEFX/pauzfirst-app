@@ -9,13 +9,9 @@ import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -29,7 +25,7 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var tileQuestions: TextView
     private lateinit var tileStreak: TextView
     private lateinit var extraStats: TextView
-    private lateinit var spinner: Spinner
+    private lateinit var sourceText: TextView
     private lateinit var resumeBtn: Button
     private var lists: Map<String, List<String>> = emptyMap()
     private var sourceNames: List<String> = listOf(Settings.DEFAULT_SOURCE)
@@ -148,18 +144,27 @@ class HomeActivity : AppCompatActivity() {
         // ---------- questions source ----------
         val pad = Ui.dp(c, 16)
         val srcCard = Ui.card(c)
-        srcCard.addTo(Ui.sectionTitle(c, "Questions from"))
-        spinner = Spinner(c)
+        val srcHead = LinearLayout(c)
+        srcHead.orientation = LinearLayout.HORIZONTAL
+        srcHead.gravity = Gravity.CENTER_VERTICAL
+        srcHead.addView(Ui.sectionTitle(c, "Questions from"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val listsLink = Ui.text(c, "Question lists  ›", 13f, Ui.BLUE, Ui.BOLD)
+        listsLink.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java)) }
+        srcHead.addView(listsLink, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        srcCard.addTo(srcHead)
         val spinWrap = LinearLayout(c)
+        spinWrap.orientation = LinearLayout.HORIZONTAL
+        spinWrap.gravity = Gravity.CENTER_VERTICAL
         spinWrap.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
-        spinWrap.setPadding(Ui.dp(c, 8), Ui.dp(c, 2), Ui.dp(c, 8), Ui.dp(c, 2))
-        spinWrap.addView(spinner, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 48)))
+        spinWrap.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
+        sourceText = Ui.text(c, Settings.source, 15f, Ui.TEXT, Ui.MED)
+        sourceText.maxLines = 1
+        sourceText.ellipsize = android.text.TextUtils.TruncateAt.END
+        spinWrap.addView(sourceText, LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f))
+        val chevron = Ui.text(c, "▾", 16f, Ui.MUTED, Ui.BOLD)
+        spinWrap.addView(chevron, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        spinWrap.setOnClickListener { openSourcePicker() }
         srcCard.addTo(spinWrap, 10)
-        val manage = Ui.text(c, "Manage lists  ›", 13f, Ui.BLUE, Ui.BOLD)
-        manage.gravity = Gravity.END
-        manage.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 6))
-        manage.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java)) }
-        srcCard.addTo(manage)
         val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         srcLp.setMargins(pad, Ui.dp(c, 18), pad, 0)
         body.addView(srcCard, srcLp)
@@ -169,31 +174,38 @@ class HomeActivity : AppCompatActivity() {
         // ---------- training mode ----------
         val modeCard = Ui.card(c)
         modeCard.addTo(Ui.sectionTitle(c, "Training mode"))
-        val modeKeys = listOf("eyes-closed", "eyes-open", "mirror")
-        val modeNames = listOf("Eyes Closed", "Eyes Open", "Mirror")
+        val modeKeys = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")
+        val modeNames = listOf("Eyes Closed", "Eyes Open", "Mirror", "Animated Eyes")
         val modeDescs = listOf(
             "Eyes closed. Read, pause, and answer aloud. Standard mode.",
             "Eyes open. Read the question on screen and respond aloud. Focused mode.",
-            "Practice in front of the camera. Watch your expressions and body language. Advanced mode."
+            "Practice in front of the camera, full screen. Watch your expressions and body language. Advanced mode.",
+            "Full screen with a face that blinks and keeps eye contact while you practice. Advanced mode."
         )
-        val chipRow = LinearLayout(c)
-        chipRow.orientation = LinearLayout.HORIZONTAL
         val chips = ArrayList<TextView>()
         val modeDesc = Ui.text(c, "", 12f, Ui.MUTED, Ui.REG)
-        for (i in modeKeys.indices) {
-            val chip = Ui.text(c, modeNames[i], 13f, Ui.TEXT, Ui.BOLD)
-            chip.gravity = Gravity.CENTER
-            chip.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 12))
-            val clp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            if (i > 0) clp.leftMargin = Ui.dp(c, 8)
-            chipRow.addView(chip, clp)
-            chips.add(chip)
-            chip.setOnClickListener {
-                Settings.mode = modeKeys[i]
-                refresh()
+        val modeGrid = LinearLayout(c)
+        modeGrid.orientation = LinearLayout.VERTICAL
+        for (rowStart in 0 until modeKeys.size step 2) {
+            val chipRow = LinearLayout(c)
+            chipRow.orientation = LinearLayout.HORIZONTAL
+            for (j in 0..1) {
+                val i = rowStart + j
+                val chip = Ui.text(c, modeNames[i], 13f, Ui.TEXT, Ui.BOLD)
+                chip.gravity = Gravity.CENTER
+                chip.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 12))
+                val clp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                if (j > 0) clp.leftMargin = Ui.dp(c, 8)
+                chipRow.addView(chip, clp)
+                chips.add(chip)
+                chip.setOnClickListener {
+                    Settings.mode = modeKeys[i]
+                    refresh()
+                }
             }
+            modeGrid.addTo(chipRow, if (rowStart == 0) 0 else 8)
         }
-        modeCard.addTo(chipRow, 12)
+        modeCard.addTo(modeGrid, 12)
         modeCard.addTo(modeDesc, 10)
         modeCard.addTo(Ui.switchRow(c, "Deep Pause", "No time limit. Tap Next when ready", Settings.deepPause) {
             Settings.deepPause = it
@@ -221,14 +233,9 @@ class HomeActivity : AppCompatActivity() {
         val opts = Ui.card(c)
         opts.addTo(Ui.sectionTitle(c, "Options"))
         opts.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 14)
-        // camera options: Mirror mode only
-        val camBox = LinearLayout(c)
-        camBox.orientation = LinearLayout.VERTICAL
-        camBox.addTo(Ui.switchRow(c, "Full camera view", "Starts the camera full screen", Settings.fullCamera) { Settings.fullCamera = it }, 14)
-        val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the camera", Settings.phaseGuide) { Settings.phaseGuide = it }
-        camBox.addTo(guideRow, 14)
-        camBox.addTo(Ui.switchRow(c, "Animated eyes", "Dark screen with a face that blinks and keeps eye contact (full screen only)", Settings.animatedEyes) { Settings.animatedEyes = it }, 14)
-        opts.addTo(camBox)
+        // Mirror and Animated eyes only
+        val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the screen", Settings.phaseGuide) { Settings.phaseGuide = it }
+        opts.addTo(guideRow, 14)
         // Deep Pause options
         val deepBox = LinearLayout(c)
         deepBox.orientation = LinearLayout.VERTICAL
@@ -250,8 +257,7 @@ class HomeActivity : AppCompatActivity() {
             }
             modeDesc.text = modeDescs[Math.max(0, modeKeys.indexOf(m))]
             timeBox.visibility = if (deep) View.GONE else View.VISIBLE
-            camBox.visibility = if (m == "mirror") View.VISIBLE else View.GONE
-            guideRow.visibility = if (deep) View.GONE else View.VISIBLE
+            guideRow.visibility = if (Settings.mirror && !deep) View.VISIBLE else View.GONE
             deepBox.visibility = if (deep) View.VISIBLE else View.GONE
         }
         refresh()
@@ -260,6 +266,7 @@ class HomeActivity : AppCompatActivity() {
         scroll.isFillViewport = false
         scroll.clipToPadding = false
         scroll.addView(body)
+        Ui.noClip(body, scroll)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         // ---------- sticky start bar ----------
@@ -285,19 +292,11 @@ class HomeActivity : AppCompatActivity() {
             startActivity(Intent(this, TrainingActivity::class.java))
         }
         start.setOnClickListener { startTraining() }
-        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (position >= 0 && position < sourceNames.size) Settings.source = sourceNames[position]
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
     }
 
-    private fun styleSpinnerText(v: View?) {
-        val t = v as? TextView ?: return
-        Ui.setFont(this, t, Ui.MED)
-        t.setTextColor(Ui.TEXT)
-        t.textSize = 15f
+    private fun showSource() {
+        val src = Settings.source
+        sourceText.text = if (src != Settings.DEFAULT_SOURCE && Settings.isPinned(src)) "★  " + src else src
     }
 
     private fun refreshSpinner() {
@@ -305,24 +304,22 @@ class HomeActivity : AppCompatActivity() {
         names.add(Settings.DEFAULT_SOURCE)
         names.addAll(Settings.order(lists.keys))
         sourceNames = names
-        val shown = names.map { if (Settings.isPinned(it)) "★  " + it else it }
-        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, shown) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val v = super.getView(position, convertView, parent)
-                styleSpinnerText(v)
-                return v
-            }
+        showSource()
+    }
 
-            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
-                val v = super.getDropDownView(position, convertView, parent)
-                styleSpinnerText(v)
-                return v
+    private fun openSourcePicker() {
+        PickerDialog.show(
+            this,
+            "Choose questions",
+            sourceNames,
+            sourceNames.map { it != Settings.DEFAULT_SOURCE && Settings.isPinned(it) },
+            sourceNames.indexOf(Settings.source)
+        ) { index ->
+            if (index >= 0 && index < sourceNames.size) {
+                Settings.source = sourceNames[index]
+                showSource()
             }
         }
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinner.adapter = adapter
-        val idx = names.indexOf(Settings.source)
-        spinner.setSelection(if (idx >= 0) idx else 0)
     }
 
     override fun onResume() {
@@ -330,6 +327,7 @@ class HomeActivity : AppCompatActivity() {
         if (!Session.loggedIn()) return
         if (!::tileSessions.isInitialized) return
         resumeBtn.visibility = if (Engine.isActive()) View.VISIBLE else View.GONE
+        showSource()
         showStats(StatsStore.local())
         Engine.onSaved = { loadRemote() }
         loadRemote()
@@ -358,6 +356,10 @@ class HomeActivity : AppCompatActivity() {
                 if (remoteLists != null) {
                     lists = remoteLists
                     refreshSpinner()
+                    if (!sourceNames.contains(Settings.source)) {
+                        Settings.source = Settings.DEFAULT_SOURCE
+                        showSource()
+                    }
                 }
                 if (merged != null) showStats(merged)
             }

@@ -9,13 +9,13 @@ import android.view.View
 import androidx.core.graphics.PathParser
 
 /** A white line icon (24 x 24 outline path) for the full-screen buttons. */
-class FsIconView(ctx: Context, d: String) : View(ctx) {
+class FsIconView(ctx: Context, d: String, color: Int = Color.WHITE) : View(ctx) {
     private val path = PathParser.createPathFromPathData(d)
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
 
     init {
         p.style = Paint.Style.STROKE
-        p.color = Color.WHITE
+        p.color = color
         p.strokeWidth = 2.2f
         p.strokeCap = Paint.Cap.ROUND
         p.strokeJoin = Paint.Join.ROUND

@@ -33,6 +33,23 @@ object UsedStore {
         return out
     }
 
+    /** Questions already practiced in a bucket ("default" or "saved"). */
+    fun used(bucket: String): Set<String> = HashSet<String>(bucketList(local(), bucket))
+
+    /** Forgets progress for these questions, so they count as unused again. */
+    fun clear(items: Collection<String>, bucket: String) {
+        val remote = Api.fetchUsed()
+        val base = remote ?: local()
+        val set = LinkedHashSet<String>(bucketList(base, bucket))
+        set.removeAll(items.toSet())
+        val arr = JSONArray()
+        for (s in set) arr.put(s)
+        val out = JSONObject(base.toString())
+        out.put(bucket, arr)
+        saveLocal(out)
+        if (remote != null) Api.saveUsed(out)
+    }
+
     /** Picks n questions from the pool, unused ones first. */
     fun pick(pool: List<String>, n: Int, bucket: String): List<String> {
         val used = HashSet<String>(bucketList(local(), bucket))

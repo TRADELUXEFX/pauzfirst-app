@@ -17,7 +17,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -55,9 +54,6 @@ class TrainingActivity : AppCompatActivity() {
     private var segCount = 0
     private lateinit var ringBox: FrameLayout
     private lateinit var spacer: View
-    private var camBox: FrameLayout? = null
-    private var camView: PreviewView? = null
-    private var camTimer: TextView? = null
     private var camOn = false
 
     // camera
@@ -87,10 +83,6 @@ class TrainingActivity : AppCompatActivity() {
     private var counting = false
     private val uiH = Handler(Looper.getMainLooper())
 
-    private val backCb = object : OnBackPressedCallback(false) {
-        override fun handleOnBackPressed() { closeFs() }
-    }
-
     private val camPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) startCamera() else hideCamera()
     }
@@ -109,6 +101,7 @@ class TrainingActivity : AppCompatActivity() {
         root.orientation = LinearLayout.VERTICAL
         root.gravity = Gravity.CENTER_HORIZONTAL
         root.setPadding(Ui.dp(c, 20), Ui.dp(c, 16), Ui.dp(c, 20), Ui.dp(c, 20))
+        Ui.noClip(root)
 
         // top row: "2 of 5" + Stop
         val top = LinearLayout(c)
@@ -154,32 +147,6 @@ class TrainingActivity : AppCompatActivity() {
         ringLp.topMargin = Ui.dp(c, 22)
         root.addView(ringBox, ringLp)
 
-        if (Settings.mirror) {
-            val box = FrameLayout(c)
-            box.background = Ui.rounded(c, Color.BLACK, 20)
-            box.clipToOutline = true
-            val pv = PreviewView(c)
-            pv.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-            pv.scaleType = PreviewView.ScaleType.FILL_CENTER
-            box.addView(pv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-            val ct = Ui.text(c, "", 15f, Ui.WHITE, Ui.BOLD)
-            ct.gravity = Gravity.CENTER
-            ct.background = Ui.rounded(c, Color.parseColor("#99000000"), 20)
-            ct.setPadding(Ui.dp(c, 16), Ui.dp(c, 7), Ui.dp(c, 16), Ui.dp(c, 7))
-            val ctLp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
-            ctLp.topMargin = Ui.dp(c, 12)
-            box.addView(ct, ctLp)
-            val boxLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
-            boxLp.topMargin = Ui.dp(c, 16)
-            root.addView(box, boxLp)
-            camBox = box
-            camView = pv
-            camTimer = ct
-            camOn = true
-            ringBox.visibility = View.GONE
-            box.setOnClickListener { openFs() }
-        }
-
         hint = Ui.text(c, "", 13f, Ui.MUTED, Ui.MED)
         hint.gravity = Gravity.CENTER
         root.addTo(hint, 16)
@@ -209,17 +176,17 @@ class TrainingActivity : AppCompatActivity() {
         buildFs(c)
         buildCountdown(c)
         setContentView(container)
-        onBackPressedDispatcher.addCallback(this, backCb)
 
-        if (camOn) {
-            spacer.visibility = View.GONE
-            camTimer?.visibility = if (Settings.deepPause || Settings.phaseGuide) View.VISIBLE else View.GONE
-            // "Full camera view" decides whether the session starts in full screen
-            if (Settings.fullCamera) openFs()
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                startCamera()
-            } else {
-                camPerm.launch(Manifest.permission.CAMERA)
+        // Mirror and Animated eyes always run full screen. Animated eyes needs no camera.
+        if (Settings.mirror) {
+            openFs()
+            if (!Settings.animatedEyes) {
+                camOn = true
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    startCamera()
+                } else {
+                    camPerm.launch(Manifest.permission.CAMERA)
+                }
             }
         }
         if (counting) startCountdown()
@@ -345,16 +312,16 @@ class TrainingActivity : AppCompatActivity() {
 
         fsOverlay.addView(View(c), LinearLayout.LayoutParams(1, 0, 1f))
 
-        // bottom row: Flip, Close, End, Next (all transparent, like the website)
+        // bottom row: Flip, End, Next (all transparent, like the website)
         val btns = LinearLayout(c)
         btns.orientation = LinearLayout.HORIZONTAL
         btns.gravity = Gravity.CENTER
         val flip = fsIconButton(c, Icons.FLIP, "Flip")
-        val close = fsIconButton(c, Icons.CLOSE, "Close")
         fsEnd = fsIconButton(c, Icons.STOP, "End")
         fsNext = fsIconButton(c, Icons.NEXT, "Next")
         fsNext.visibility = View.GONE
-        val btnViews = arrayOf<View>(flip, close, fsEnd, fsNext)
+        if (Settings.animatedEyes) flip.visibility = View.GONE
+        val btnViews = arrayOf<View>(flip, fsEnd, fsNext)
         for (i in btnViews.indices) {
             val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             if (i > 0) lp.leftMargin = Ui.dp(c, 10)
@@ -364,7 +331,6 @@ class TrainingActivity : AppCompatActivity() {
         btnsLp.bottomMargin = Ui.dp(c, 16)
         fsOverlay.addView(btns, btnsLp)
         flip.setOnClickListener { flipCamera() }
-        close.setOnClickListener { closeFs() }
         fsEnd.setOnClickListener { endSession() }
         fsNext.setOnClickListener { Engine.nextTapped() }
 
@@ -431,24 +397,22 @@ class TrainingActivity : AppCompatActivity() {
     }
 
     private fun openFs() {
-        if (fsOn || !camOn) return
+        if (fsOn) return
         fsOn = true
         fs.visibility = View.VISIBLE
         fsEyes?.visibility = View.VISIBLE
         preview?.setSurfaceProvider(fsPv.surfaceProvider)
         applyImmersive(true)
-        backCb.isEnabled = true
         render()
     }
 
+    /** Only used when training is complete: leave full screen and show the finish screen. */
     private fun closeFs() {
         if (!fsOn) return
         fsOn = false
         fsEyes?.visibility = View.GONE
         fs.visibility = View.GONE
-        camView?.let { preview?.setSurfaceProvider(it.surfaceProvider) }
         applyImmersive(false)
-        backCb.isEnabled = false
         render()
     }
 
@@ -463,16 +427,13 @@ class TrainingActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- camera
 
-    private fun activePv(): PreviewView? = if (fsOn) fsPv else camView
-
     private fun startCamera() {
-        val first = activePv() ?: return
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener(Runnable {
             try {
                 val provider = future.get()
                 val p = Preview.Builder().build()
-                p.setSurfaceProvider((activePv() ?: first).surfaceProvider)
+                p.setSurfaceProvider(fsPv.surfaceProvider)
                 provider.unbindAll()
                 val sel = if (lensFront) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
                 provider.bindToLifecycle(this, sel, p)
@@ -495,11 +456,22 @@ class TrainingActivity : AppCompatActivity() {
 
     /** No permission or no front camera: fall back to the normal ring screen, the session keeps running. */
     private fun hideCamera() {
-        if (fsOn) closeFs()
         camOn = false
-        camBox?.visibility = View.GONE
-        ringBox.visibility = View.VISIBLE
-        spacer.visibility = View.VISIBLE
+        if (fsOn) closeFs()
+    }
+
+    private fun releaseCamera() {
+        preview = null
+        try {
+            val future = ProcessCameraProvider.getInstance(this)
+            future.addListener(Runnable {
+                try {
+                    future.get().unbindAll()
+                } catch (e: Exception) {
+                }
+            }, ContextCompat.getMainExecutor(this))
+        } catch (e: Exception) {
+        }
     }
 
     override fun onResume() {
@@ -594,7 +566,6 @@ class TrainingActivity : AppCompatActivity() {
         ring.ringColor = accent
         ring.fraction = fraction
         timer.text = timerText
-        camTimer?.text = (label + "  " + timerText).trim()
         fsEyes?.setPhase(when (p) {
             Engine.Phase.LISTEN -> "listen"
             Engine.Phase.PAUSE, Engine.Phase.DEEP -> "pause"
@@ -641,6 +612,12 @@ class TrainingActivity : AppCompatActivity() {
         fsNext.visibility = if (showNext) View.VISIBLE else View.GONE
         (fsNext.getChildAt(1) as TextView).text = Engine.nextLabel()
         (fsEnd.getChildAt(1) as TextView).text = if (p == Engine.Phase.DONE) "Done" else "End"
+
+        // training finished and not in full screen: no camera box, no live preview of the user
+        if (p == Engine.Phase.DONE && !fsOn && camOn) {
+            camOn = false
+            releaseCamera()
+        }
 
         // after "Training complete!" the full screen closes by itself (website: 3.5 s)
         if (p == Engine.Phase.DONE) {

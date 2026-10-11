@@ -50,6 +50,7 @@ class HistoryActivity : AppCompatActivity() {
 
         val scroll = ScrollView(c)
         scroll.addView(body)
+        Ui.noClip(body, scroll)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(page)
     }

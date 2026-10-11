@@ -6,6 +6,7 @@ import android.graphics.drawable.GradientDrawable
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -30,6 +31,14 @@ object Ui {
     const val REG = 0
     const val MED = 1
     const val BOLD = 2
+
+    /** Let card shadows draw into the padding instead of being cut off at the edges. */
+    fun noClip(vararg groups: ViewGroup) {
+        for (g in groups) {
+            g.clipToPadding = false
+            g.clipChildren = false
+        }
+    }
 
     fun dp(c: Context, v: Int): Int = (v * c.resources.displayMetrics.density + 0.5f).toInt()
 

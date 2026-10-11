@@ -187,7 +187,7 @@ object Engine {
         threeWhy = Settings.threeWhy
         tip = Settings.tip
         tipInt = Settings.tipInterval
-        mode = Settings.mode
+        mode = Settings.recordMode
         questions = qs
         usedBucket = bucket
         usedPool = pool

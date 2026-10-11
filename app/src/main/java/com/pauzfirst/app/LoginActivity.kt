@@ -98,6 +98,7 @@ class LoginActivity : AppCompatActivity() {
         scroll.isFillViewport = true
         scroll.setBackgroundColor(Ui.BG)
         scroll.addView(root)
+        Ui.noClip(root, scroll)
         setContentView(scroll)
     }
 
