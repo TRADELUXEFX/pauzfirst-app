@@ -31,6 +31,7 @@ class AiActivity : AppCompatActivity() {
     private lateinit var qInput: EditText
     private lateinit var countText: TextView
     private lateinit var bar: LinearLayout
+    private lateinit var loadingCard: LinearLayout
     private lateinit var saveBtn: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,8 +40,7 @@ class AiActivity : AppCompatActivity() {
             finish()
             return
         }
-        window.statusBarColor = Ui.BLUE
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+        Ui.edgeToEdge(this)
         buildUi()
         Thread {
             val r = Api.fetchListsRaw()
@@ -94,6 +94,9 @@ class AiActivity : AppCompatActivity() {
         resultCard.addTo(qInput, 10)
         countText = Ui.text(c, "0 questions", 12f, Ui.MUTED, Ui.MED)
         resultCard.addTo(countText, 10)
+        loadingCard = Loading.aiCard(c)
+        loadingCard.visibility = View.GONE
+        body.addView(loadingCard, Ui.lp(c, 14))
         val rl = Ui.lp(c, 14)
         body.addView(resultCard, rl)
 
@@ -107,6 +110,7 @@ class AiActivity : AppCompatActivity() {
         bar.setBackgroundColor(Ui.WHITE)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        Ui.padInsets(bar, bottom = true)
         saveBtn = Ui.pill(c, "Save list")
         saveBtn.textSize = 17f
         bar.addTo(saveBtn)
@@ -130,7 +134,13 @@ class AiActivity : AppCompatActivity() {
     private fun setBusy(busy: Boolean) {
         genBtn.isEnabled = !busy
         genBtn.alpha = if (busy) 0.6f else 1f
-        genBtn.text = if (busy) "Generating…" else (if (resultCard.visibility == View.VISIBLE) "Generate again" else "Generate questions")
+        genBtn.text = if (resultCard.visibility == View.VISIBLE) "Generate again" else "Generate questions"
+        loadingCard.visibility = if (busy) View.VISIBLE else View.GONE
+        if (busy) {
+            resultCard.visibility = View.GONE
+            bar.visibility = View.GONE
+            scroll.post { scroll.smoothScrollTo(0, loadingCard.top) }
+        }
     }
 
     private fun generate() {

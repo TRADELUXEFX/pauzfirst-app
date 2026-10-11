@@ -25,8 +25,7 @@ class HistoryActivity : AppCompatActivity() {
             finish()
             return
         }
-        window.statusBarColor = Ui.BLUE
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+        Ui.edgeToEdge(this)
         buildUi()
         Thread {
             val h = HistoryStore.load()
@@ -46,11 +45,12 @@ class HistoryActivity : AppCompatActivity() {
         body = LinearLayout(c)
         body.orientation = LinearLayout.VERTICAL
         body.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 24))
-        body.addView(Ui.text(c, "Loading…", 14f, Ui.MUTED, Ui.MED))
+        body.addView(Loading.skeletonCards(c, 5))
 
         val scroll = ScrollView(c)
         scroll.addView(body)
         Ui.noClip(body, scroll)
+        Ui.padInsets(body, bottom = true)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(page)
     }
@@ -94,11 +94,11 @@ class HistoryActivity : AppCompatActivity() {
         val c = this
         body.removeAllViews()
         if (h == null) {
-            body.addView(Ui.text(c, "Couldn't load your history. Check your connection and reopen this screen.", 14f, Ui.MUTED, Ui.MED))
+            body.addView(Ui.note(c, "Couldn't load your history. Check your connection and reopen this screen."))
             return
         }
         if (h.length() == 0) {
-            body.addView(Ui.text(c, "No sessions yet. Finish a training session and it shows up here.", 14f, Ui.MUTED, Ui.MED))
+            body.addView(Ui.note(c, "No sessions yet. Finish a training session and it shows up here."))
             return
         }
 

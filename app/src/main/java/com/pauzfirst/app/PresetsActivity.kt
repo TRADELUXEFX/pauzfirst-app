@@ -23,8 +23,7 @@ class PresetsActivity : AppCompatActivity() {
             finish()
             return
         }
-        window.statusBarColor = Ui.BLUE
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+        Ui.edgeToEdge(this)
         buildUi()
         render()
     }
@@ -43,6 +42,7 @@ class PresetsActivity : AppCompatActivity() {
         val scroll = ScrollView(c)
         scroll.addView(holder)
         Ui.noClip(holder, scroll)
+        Ui.padInsets(holder, bottom = true)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(page)
     }

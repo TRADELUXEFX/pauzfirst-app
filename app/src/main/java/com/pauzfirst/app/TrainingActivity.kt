@@ -50,6 +50,7 @@ class TrainingActivity : AppCompatActivity() {
     private lateinit var phasePill: TextView
     private lateinit var ring: RingView
     private lateinit var timer: TextView
+    private lateinit var dots: PopDotsView
     private lateinit var hint: TextView
     private lateinit var question: TextView
     private lateinit var nextBtn: Button
@@ -159,13 +160,12 @@ class TrainingActivity : AppCompatActivity() {
         timer = Ui.text(c, "", 52f, Ui.TEXT, Ui.BOLD)
         timer.gravity = Gravity.CENTER
         ringBox.addView(timer, FrameLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220)))
+        dots = PopDotsView(c, Ui.TEXT, 12)
+        dots.visibility = View.GONE
+        ringBox.addView(dots, FrameLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220)))
         val ringLp = LinearLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220))
         ringLp.topMargin = Ui.dp(c, 22)
         root.addView(ringBox, ringLp)
-
-        hint = Ui.text(c, "", 13f, Ui.MUTED, Ui.MED)
-        hint.gravity = Gravity.CENTER
-        root.addTo(hint, 16)
 
         // question card
         question = Ui.text(c, "", 22f, Ui.TEXT, Ui.MED)
@@ -176,7 +176,13 @@ class TrainingActivity : AppCompatActivity() {
         qCard.setPadding(Ui.dp(c, 22), Ui.dp(c, 26), Ui.dp(c, 22), Ui.dp(c, 26))
         qCard.minimumHeight = Ui.dp(c, 130)
         qCard.addTo(question)
-        root.addTo(qCard, 18)
+        root.addTo(qCard, 22)
+
+        // tip sits right under the question card
+        hint = Ui.text(c, "", 13f, Ui.MUTED, Ui.MED)
+        hint.gravity = Gravity.CENTER
+        hint.setLineSpacing(0f, 1.2f)
+        root.addTo(hint, 14)
 
         spacer = View(c)
         root.addView(spacer, LinearLayout.LayoutParams(1, 0, 1f))
@@ -271,6 +277,7 @@ class TrainingActivity : AppCompatActivity() {
         tip.setPadding(Ui.dp(c, 14), Ui.dp(c, 8), Ui.dp(c, 14), Ui.dp(c, 8))
         val tipLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         tipLp.topMargin = Ui.dp(c, 8)
+        tipLp.gravity = Gravity.CENTER_HORIZONTAL
         fsOverlay.addView(tip, tipLp)
 
         // question card with the logo on its top edge
@@ -663,7 +670,9 @@ class TrainingActivity : AppCompatActivity() {
         phasePill.background = Ui.rounded(this, accent, 20)
         ring.ringColor = accent
         ring.fraction = fraction
-        timer.text = timerText
+        val dotsOn = timerText == "•••"
+        timer.text = if (dotsOn) "" else timerText
+        dots.visibility = if (dotsOn) View.VISIBLE else View.GONE
         fsEyes?.setPhase(when (p) {
             Engine.Phase.LISTEN -> "listen"
             Engine.Phase.PAUSE, Engine.Phase.DEEP -> "pause"
@@ -672,6 +681,7 @@ class TrainingActivity : AppCompatActivity() {
         })
         timer.setTextColor(if (p == Engine.Phase.DONE) Ui.GREEN else Ui.TEXT)
         hint.text = hintText
+        hint.visibility = if (hintText.isEmpty()) View.GONE else View.VISIBLE
         question.text = questionText
 
         val showNext = !counting && Engine.showNext

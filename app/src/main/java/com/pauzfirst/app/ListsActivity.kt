@@ -27,14 +27,22 @@ class ListsActivity : AppCompatActivity() {
     private var loadedOnce = false
     private var expanded: String? = null
 
+    // multi-select (bulk delete)
+    private var selectMode = false
+    private val selected = LinkedHashSet<String>()
+    private lateinit var selectRow: LinearLayout
+    private lateinit var selLabel: TextView
+    private lateinit var allChip: TextView
+    private lateinit var cancelChip: TextView
+    private lateinit var mainChip: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (!Session.loggedIn()) {
             finish()
             return
         }
-        window.statusBarColor = Ui.BLUE
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+        Ui.edgeToEdge(this)
         buildUi()
     }
 
@@ -67,10 +75,36 @@ class ListsActivity : AppCompatActivity() {
         aiLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 4))
         page.addView(aiCard, aiLp)
 
+        selectRow = LinearLayout(c)
+        selectRow.orientation = LinearLayout.HORIZONTAL
+        selectRow.gravity = Gravity.CENTER_VERTICAL
+        selectRow.setPadding(Ui.dp(c, 20), Ui.dp(c, 10), Ui.dp(c, 16), Ui.dp(c, 2))
+        selectRow.visibility = View.GONE
+        selLabel = Ui.sectionTitle(c, "Your lists")
+        selectRow.addView(selLabel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        allChip = Ui.chip(c, "All", Ui.BLUE, Ui.BLUE_SOFT)
+        cancelChip = Ui.chip(c, "Cancel", Ui.MUTED, Ui.SOFT)
+        mainChip = Ui.chip(c, "Select", Ui.BLUE, Ui.BLUE_SOFT)
+        for (chip in listOf(allChip, cancelChip, mainChip)) {
+            chip.setPadding(Ui.dp(c, 14), Ui.dp(c, 8), Ui.dp(c, 14), Ui.dp(c, 8))
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.leftMargin = Ui.dp(c, 8)
+            selectRow.addView(chip, lp)
+        }
+        allChip.setOnClickListener {
+            if (selected.size == raw.size) selected.clear() else selected.addAll(raw.keys)
+            render()
+        }
+        cancelChip.setOnClickListener { setSelectMode(false) }
+        mainChip.setOnClickListener {
+            if (!selectMode) setSelectMode(true) else confirmDeleteSelected()
+        }
+        page.addView(selectRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
         holder.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 20))
-        holder.addView(Ui.text(c, "Loading…", 14f, Ui.MUTED, Ui.MED))
+        holder.addView(Loading.skeletonCards(c, 4))
 
         val scroll = ScrollView(c)
         scroll.addView(holder)
@@ -82,6 +116,7 @@ class ListsActivity : AppCompatActivity() {
         bar.setBackgroundColor(Ui.WHITE)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        Ui.padInsets(bar, bottom = true)
         val newBtn = Ui.pill(c, "New list")
         newBtn.textSize = 15f
         val importBtn = Ui.pill(c, "Import by code", Ui.BLUE_SOFT, Ui.BLUE)
@@ -114,7 +149,7 @@ class ListsActivity : AppCompatActivity() {
                 if (r == null) {
                     if (!loadedOnce) {
                         holder.removeAllViews()
-                        holder.addView(Ui.text(this, "Couldn't load your lists. Check your connection and reopen this screen.", 14f, Ui.MUTED, Ui.MED))
+                        holder.addView(Ui.note(this, "Couldn't load your lists. Check your connection and reopen this screen."))
                     } else {
                         Toast.makeText(this, "Couldn't refresh your lists.", Toast.LENGTH_SHORT).show()
                     }
@@ -130,13 +165,52 @@ class ListsActivity : AppCompatActivity() {
     private fun render() {
         val c = this
         holder.removeAllViews()
+        selected.retainAll(raw.keys)
         if (raw.isEmpty()) {
-            holder.addView(Ui.text(c, "No saved lists yet. Tap New list to write your own, or Import by code.", 14f, Ui.MUTED, Ui.MED))
+            selectMode = false
+            holder.addView(Ui.note(c, "No saved lists yet. Tap New list to write your own, or Import by code."))
+            updateSelectBar()
             return
         }
         for (name in Settings.order(raw.keys)) {
             holder.addTo(listCard(name), 12)
         }
+        updateSelectBar()
+    }
+
+    private fun setSelectMode(on: Boolean) {
+        selectMode = on
+        selected.clear()
+        expanded = null
+        render()
+    }
+
+    /** "Select" turns into a red "Delete" while picking; the label shows how many are ticked. */
+    private fun updateSelectBar() {
+        val c = this
+        selectRow.visibility = if (raw.isNotEmpty() || selectMode) View.VISIBLE else View.GONE
+        if (selectMode) {
+            selLabel.text = (if (selected.isEmpty()) "TAP LISTS TO SELECT" else selected.size.toString() + " SELECTED")
+            allChip.visibility = View.VISIBLE
+            allChip.text = if (selected.size == raw.size && raw.isNotEmpty()) "None" else "All"
+            cancelChip.visibility = View.VISIBLE
+            mainChip.text = "Delete"
+            mainChip.setTextColor(Ui.WHITE)
+            mainChip.background = Ui.rounded(c, Ui.RED, 20)
+            mainChip.alpha = if (selected.isEmpty()) 0.45f else 1f
+        } else {
+            selLabel.text = "YOUR LISTS"
+            allChip.visibility = View.GONE
+            cancelChip.visibility = View.GONE
+            mainChip.text = "Select"
+            mainChip.setTextColor(Ui.BLUE)
+            mainChip.background = Ui.rounded(c, Ui.BLUE_SOFT, 20)
+            mainChip.alpha = 1f
+        }
+    }
+
+    override fun onBackPressed() {
+        if (selectMode) setSelectMode(false) else super.onBackPressed()
     }
 
     private fun listTexts(name: String): List<String> {
@@ -172,7 +246,7 @@ class ListsActivity : AppCompatActivity() {
     private fun listCard(name: String): LinearLayout {
         val c = this
         val card = Ui.card(c)
-        val open = expanded == name
+        val open = !selectMode && expanded == name
         if (open) card.background = Ui.rounded(c, Ui.WHITE, 22, Ui.BLUE, 2)
         val texts = listTexts(name)
         val total = texts.size
@@ -197,6 +271,25 @@ class ListsActivity : AppCompatActivity() {
         val cl = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         cl.leftMargin = Ui.dp(c, 10)
         top.addView(cnt, cl)
+        if (selectMode) {
+            val on = selected.contains(name)
+            val box = Ui.text(c, if (on) "✓" else "", 14f, Ui.WHITE, Ui.BOLD)
+            box.gravity = Gravity.CENTER
+            val g = android.graphics.drawable.GradientDrawable()
+            g.shape = android.graphics.drawable.GradientDrawable.OVAL
+            if (on) g.setColor(Ui.BLUE) else { g.setColor(Ui.WHITE); g.setStroke(Ui.dp(c, 2), Color.parseColor("#CBD5E1")) }
+            box.background = g
+            val bl = LinearLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26))
+            bl.rightMargin = Ui.dp(c, 12)
+            top.addView(box, 0, bl)
+            if (on) card.background = Ui.rounded(c, Ui.WHITE, 22, Ui.BLUE, 2)
+            card.addTo(top)
+            card.setOnClickListener {
+                if (!selected.add(name)) selected.remove(name)
+                render()
+            }
+            return card
+        }
         card.addTo(top)
         card.setOnClickListener {
             expanded = if (open) null else name
@@ -372,6 +465,44 @@ class ListsActivity : AppCompatActivity() {
                             } else {
                                 Toast.makeText(this, "Couldn't delete the list. Try again.", Toast.LENGTH_LONG).show()
                             }
+                        }
+                    }.start()
+                }
+            )
+        )
+    }
+
+    private fun confirmDeleteSelected() {
+        val names = selected.toList()
+        if (names.isEmpty()) {
+            Toast.makeText(this, "Tick the lists you want to delete first.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val title = if (names.size == 1) "Delete \"" + names[0] + "\"?" else "Delete " + names.size + " lists?"
+        AppDialog.show(
+            this,
+            title,
+            message = "This removes " + (if (names.size == 1) "the list" else "them") + " from your account, including on the website.",
+            buttons = listOf(
+                Btn("Cancel", Kind.SOFT),
+                Btn("Delete", Kind.DANGER) {
+                    mainChip.isEnabled = false
+                    Thread {
+                        val gone = ArrayList<String>()
+                        for (n in names) if (Api.deleteList(n)) gone.add(n)
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            mainChip.isEnabled = true
+                            for (n in gone) {
+                                Settings.removePin(n)
+                                if (Settings.source == n) Settings.source = Settings.DEFAULT_SOURCE
+                            }
+                            if (gone.size < names.size) {
+                                Toast.makeText(this, "Couldn't delete " + (names.size - gone.size) + " of the lists. Try again.", Toast.LENGTH_LONG).show()
+                            }
+                            selectMode = false
+                            selected.clear()
+                            load()
                         }
                     }.start()
                 }

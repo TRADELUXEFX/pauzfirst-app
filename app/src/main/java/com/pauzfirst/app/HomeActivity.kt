@@ -40,8 +40,7 @@ class HomeActivity : AppCompatActivity() {
             goLogin()
             return
         }
-        window.statusBarColor = Ui.BLUE
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+        Ui.edgeToEdge(this)
         buildUi()
         askNotificationPermission()
     }
@@ -94,6 +93,7 @@ class HomeActivity : AppCompatActivity() {
         bg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r)
         hero.background = bg
         hero.setPadding(Ui.dp(c, 20), Ui.dp(c, 12), Ui.dp(c, 20), Ui.dp(c, 24))
+        Ui.padInsets(hero, top = true)
 
         val top = LinearLayout(c)
         top.orientation = LinearLayout.HORIZONTAL
@@ -204,6 +204,8 @@ class HomeActivity : AppCompatActivity() {
         )
         val chips = ArrayList<TextView>()
         val modeDesc = Ui.text(c, "", 12f, Ui.MUTED, Ui.REG)
+        modeDesc.gravity = Gravity.CENTER
+        modeDesc.setLineSpacing(0f, 1.2f)
         val modeGrid = LinearLayout(c)
         modeGrid.orientation = LinearLayout.VERTICAL
         for (rowStart in 0 until modeKeys.size step 2) {
@@ -308,12 +310,20 @@ class HomeActivity : AppCompatActivity() {
         bar.setBackgroundColor(Ui.WHITE)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        Ui.padInsets(bar, bottom = true)
         val start = Ui.pill(c, "Start training")
         start.textSize = 17f
         bar.addTo(start)
         page.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        setContentView(page)
+        val scrim = Ui.statusScrim(c)
+        scroll.setOnScrollChangeListener { _, _, y, _, _ ->
+            scrim.alpha = Math.min(1f, y / Ui.dp(c, 60).toFloat())
+        }
+        val frame = android.widget.FrameLayout(c)
+        frame.addView(page, android.widget.FrameLayout.LayoutParams(-1, -1))
+        frame.addView(scrim)
+        setContentView(frame)
         refreshSpinner()
 
         logout.setOnClickListener {
@@ -407,7 +417,9 @@ class HomeActivity : AppCompatActivity() {
         }
         resumeBtn.visibility = if (Engine.isActive()) View.VISIBLE else View.GONE
         showSource()
-        showStats(StatsStore.local())
+        val local = StatsStore.local()
+        showStats(local)
+        if (local.optLong("lifetimeSessions", 0L) == 0L) startStatsPulse()
         Engine.onSaved = { loadRemote() }
         loadRemote()
     }
@@ -427,6 +439,7 @@ class HomeActivity : AppCompatActivity() {
                 if (remoteStats != null) StatsStore.merge(remoteStats, StatsStore.local()) else null
             if (merged != null) StatsStore.saveLocal(merged)
             runOnUiThread {
+                stopStatsPulse()
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (!Session.loggedIn()) {
                     goLogin()
@@ -443,6 +456,41 @@ class HomeActivity : AppCompatActivity() {
                 if (merged != null) showStats(merged)
             }
         }.start()
+    }
+
+    private var statsPulse: android.animation.ValueAnimator? = null
+
+    /** While the first stats are still coming back, the three tiles breathe instead of showing 0. */
+    private fun startStatsPulse() {
+        if (statsPulse != null) return
+        val a = android.animation.ValueAnimator.ofFloat(0.35f, 1f)
+        a.duration = 750
+        a.repeatMode = android.animation.ValueAnimator.REVERSE
+        a.repeatCount = android.animation.ValueAnimator.INFINITE
+        a.addUpdateListener {
+            val v = it.animatedValue as Float
+            (tileSessions.parent as View).alpha = v
+            (tileQuestions.parent as View).alpha = v
+            (tileStreak.parent as View).alpha = v
+            extraStats.alpha = v
+        }
+        a.start()
+        statsPulse = a
+    }
+
+    private fun stopStatsPulse() {
+        statsPulse?.cancel()
+        statsPulse = null
+        if (!::tileSessions.isInitialized) return
+        (tileSessions.parent as View).alpha = 1f
+        (tileQuestions.parent as View).alpha = 1f
+        (tileStreak.parent as View).alpha = 1f
+        extraStats.alpha = 1f
+    }
+
+    override fun onDestroy() {
+        statsPulse?.cancel()
+        super.onDestroy()
     }
 
     private fun showStats(s: JSONObject) {

@@ -1,6 +1,11 @@
 package com.pauzfirst.app
 
+import android.app.Activity
 import android.content.Context
+import android.os.Build
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.InputType
@@ -39,6 +44,47 @@ object Ui {
             g.clipToPadding = false
             g.clipChildren = false
         }
+    }
+
+
+    /** Draw behind the status + navigation bars so the app's blue flows up under the clock/battery. */
+    fun edgeToEdge(a: Activity) {
+        val w = a.window
+        WindowCompat.setDecorFitsSystemWindows(w, false)
+        w.statusBarColor = Color.TRANSPARENT
+        w.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= 29) {
+            w.isStatusBarContrastEnforced = false
+            w.isNavigationBarContrastEnforced = false
+        }
+        val ic = WindowCompat.getInsetsController(w, w.decorView)
+        ic.isAppearanceLightStatusBars = false      // white icons on the blue
+        ic.isAppearanceLightNavigationBars = true   // dark icons on the light bottom
+    }
+
+    /** Adds the system-bar (and optionally keyboard) size on top of the view's own padding. */
+    fun padInsets(v: View, top: Boolean = false, bottom: Boolean = false, ime: Boolean = false) {
+        val l = v.paddingLeft; val t = v.paddingTop; val r = v.paddingRight; val b = v.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(v) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val kb = if (ime) insets.getInsets(WindowInsetsCompat.Type.ime()).bottom else 0
+            view.setPadding(l, t + (if (top) bars.top else 0), r, b + (if (bottom) Math.max(bars.bottom, kb) else 0))
+            insets
+        }
+        ViewCompat.requestApplyInsets(v)
+    }
+
+    /** Solid blue strip over the status bar that fades in as content scrolls under it. */
+    fun statusScrim(c: Context): View {
+        val v = View(c)
+        v.setBackgroundColor(BLUE)
+        v.alpha = 0f
+        ViewCompat.setOnApplyWindowInsetsListener(v) { view, insets ->
+            val h = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()).top
+            view.layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h)
+            insets
+        }
+        return v
     }
 
     fun dp(c: Context, v: Int): Int = (v * c.resources.displayMetrics.density + 0.5f).toInt()
@@ -101,6 +147,15 @@ object Ui {
     fun sectionTitle(c: Context, s: String): TextView {
         val t = text(c, s.uppercase(), 11f, MUTED, BOLD)
         t.letterSpacing = 0.12f
+        return t
+    }
+
+    /** Centered helper message (empty states, errors, tips). */
+    fun note(c: Context, s: String): TextView {
+        val t = text(c, s, 14f, MUTED, MED)
+        t.gravity = Gravity.CENTER
+        t.setLineSpacing(0f, 1.25f)
+        t.setPadding(dp(c, 24), dp(c, 32), dp(c, 24), dp(c, 32))
         return t
     }
 
@@ -209,6 +264,7 @@ object Ui {
         bg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r)
         h.background = bg
         h.setPadding(dp(c, 16), dp(c, 12), dp(c, 16), dp(c, 18))
+        padInsets(h, top = true)
 
         val size = dp(c, 40)
         val back = FrameLayout(c)

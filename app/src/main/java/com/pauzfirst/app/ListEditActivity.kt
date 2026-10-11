@@ -33,8 +33,7 @@ class ListEditActivity : AppCompatActivity() {
             return
         }
         oldName = intent.getStringExtra("name")
-        window.statusBarColor = Ui.BLUE
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+        Ui.edgeToEdge(this)
         buildUi()
         load()
     }
@@ -84,6 +83,7 @@ class ListEditActivity : AppCompatActivity() {
         bar.setBackgroundColor(Ui.WHITE)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        Ui.padInsets(bar, bottom = true)
         save = Ui.pill(c, "Save list")
         save.textSize = 17f
         save.isEnabled = false

@@ -29,17 +29,24 @@ class TrainingService : Service() {
             this, 0, Intent(this, TrainingActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        val stopIntent = PendingIntent.getService(
+            this, 1, Intent(this, TrainingService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, channelId)
         } else {
             Notification.Builder(this)
         }
         val notification = builder
-            .setContentTitle("PAUZFIRST")
-            .setContentText("Training session running")
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentTitle("Training session running")
+            .setContentText("Tap to return to your session")
+            .setSmallIcon(R.drawable.ic_stat_pauzfirst)
+            .setColor(Ui.BLUE)
             .setContentIntent(open)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .addAction(Notification.Action.Builder(null, "Stop", stopIntent).build())
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -56,7 +63,18 @@ class TrainingService : Service() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_NOT_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            // "Stop" in the notification: end the session (saves what was answered) and close this service
+            Engine.stop()
+            stopSelf()
+        }
+        return START_NOT_STICKY
+    }
+
+    companion object {
+        const val ACTION_STOP = "com.pauzfirst.app.STOP_TRAINING"
+    }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         Engine.stop()
