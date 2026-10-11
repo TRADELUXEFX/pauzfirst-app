@@ -38,6 +38,8 @@ import java.util.Locale
 class SummaryActivity : AppCompatActivity() {
     private lateinit var shareArea: LinearLayout
     private lateinit var vals: Array<TextView>
+    private lateinit var modeChip: LinearLayout
+    private lateinit var modeText: TextView
     private lateinit var streakChip: LinearLayout
     private lateinit var streakText: TextView
     private lateinit var checkCircle: FrameLayout
@@ -85,6 +87,11 @@ class SummaryActivity : AppCompatActivity() {
         brand.addView(name)
         hero.addView(brand, LinearLayout.LayoutParams(wrap, wrap))
 
+        val sub = Ui.text(c, "Trained to pause and think before responding", 13f, Color.parseColor("#CCE4FF"), Ui.REG)
+        sub.gravity = Gravity.CENTER
+        sub.setLineSpacing(0f, 1.2f)
+        hero.addTo(sub, 6)
+
         val circle = FrameLayout(c)
         val circleBg = GradientDrawable()
         circleBg.shape = GradientDrawable.OVAL
@@ -96,18 +103,29 @@ class SummaryActivity : AppCompatActivity() {
         circleLp.topMargin = Ui.dp(c, 24)
         hero.addView(circle, circleLp)
 
-        val title = Ui.text(c, "Session complete", 24f, Ui.WHITE, Ui.BOLD)
+        val title = Ui.text(c, "Training complete", 24f, Ui.WHITE, Ui.BOLD)
         title.gravity = Gravity.CENTER
         hero.addTo(title, 14)
 
-        val sub = Ui.text(c, "Training to pause and think before responding", 13f, Color.parseColor("#CCE4FF"), Ui.REG)
-        sub.gravity = Gravity.CENTER
-        sub.setLineSpacing(0f, 1.2f)
-        hero.addTo(sub, 6)
+        // mode gets its own box, right above the date and time
+        modeChip = LinearLayout(c)
+        modeChip.orientation = LinearLayout.HORIZONTAL
+        modeChip.gravity = Gravity.CENTER
+        modeChip.background = Ui.rounded(c, Color.parseColor("#26FFFFFF"), 20)
+        modeChip.setPadding(Ui.dp(c, 14), Ui.dp(c, 7), Ui.dp(c, 16), Ui.dp(c, 7))
+        val modeIcon = FsIconView(c, Icons.EYE, Ui.WHITE)
+        val modeIconLp = LinearLayout.LayoutParams(Ui.dp(c, 16), Ui.dp(c, 16))
+        modeIconLp.rightMargin = Ui.dp(c, 6)
+        modeChip.addView(modeIcon, modeIconLp)
+        modeText = Ui.text(c, "", 12f, Ui.WHITE, Ui.BOLD)
+        modeChip.addView(modeText)
+        val modeLp = LinearLayout.LayoutParams(wrap, wrap)
+        modeLp.topMargin = Ui.dp(c, 12)
+        hero.addView(modeChip, modeLp)
 
-        val date = Ui.text(c, SimpleDateFormat("MMMM d, yyyy", Locale.getDefault()).format(Date()), 12f, Color.parseColor("#CCE4FF"), Ui.MED)
+        val date = Ui.text(c, SimpleDateFormat("MMMM d, yyyy  \u00B7  h:mm a", Locale.getDefault()).format(Date()), 12f, Color.parseColor("#CCE4FF"), Ui.MED)
         date.gravity = Gravity.CENTER
-        hero.addTo(date, 4)
+        hero.addTo(date, 8)
 
         // streak milestone badge (3, 7, 14, 30, 100 ... days), shown once the streak is known
         milestone = LinearLayout(c)
@@ -136,10 +154,10 @@ class SummaryActivity : AppCompatActivity() {
 
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
-        val labels = arrayOf("Questions", "Time", "Mode")
-        val icons = arrayOf(Icons.HELP, Icons.CLOCK, Icons.EYE)
-        vals = Array(3) { Ui.text(c, "", 20f, Ui.TEXT, Ui.BOLD) }
-        for (i in 0 until 3) {
+        val labels = arrayOf("Questions", "Time")
+        val icons = arrayOf(Icons.HELP, Icons.CLOCK)
+        vals = Array(2) { Ui.text(c, "", 20f, Ui.TEXT, Ui.BOLD) }
+        for (i in 0 until 2) {
             val cell = LinearLayout(c)
             cell.orientation = LinearLayout.VERTICAL
             cell.gravity = Gravity.CENTER_HORIZONTAL
@@ -259,7 +277,7 @@ class SummaryActivity : AppCompatActivity() {
     private fun fill() {
         vals[0].text = Engine.lastQuestions.toString()
         vals[1].text = StatsStore.formatTime(Engine.lastSeconds.toLong())
-        vals[2].text = modeLabel(Engine.lastModeKey)
+        modeText.text = modeLabel(Engine.lastModeKey)
         val s = Engine.lastStreak
         if (s >= 0) {
             streakText.text = s.toString() + " day streak  \u00B7  Best streak " + Engine.lastBest
@@ -321,7 +339,7 @@ class SummaryActivity : AppCompatActivity() {
             val i = Intent(Intent.ACTION_SEND)
             i.type = "image/png"
             i.putExtra(Intent.EXTRA_STREAM, uri)
-            i.putExtra(Intent.EXTRA_TEXT, "I just finished a Pauzfirst session. Training to pause and think before responding.")
+            i.putExtra(Intent.EXTRA_TEXT, "I just finished a Pauzfirst session. Trained to pause and think before responding.")
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             startActivity(Intent.createChooser(i, "Share your session"))
         } catch (e: Exception) {
