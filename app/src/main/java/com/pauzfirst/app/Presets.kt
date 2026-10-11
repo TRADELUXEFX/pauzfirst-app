@@ -89,6 +89,19 @@ object Presets {
             a.put(o)
         }
         Session.prefs.edit().putString(KEY, a.toString()).apply()
+        ExtrasSync.changed()
+    }
+
+    /** The saved setups exactly as stored, for the account sync. */
+    fun rawArray(): JSONArray = try {
+        JSONArray(Session.prefs.getString(KEY, "[]") ?: "[]")
+    } catch (e: Exception) {
+        JSONArray()
+    }
+
+    /** Used by the sync when the account's copy is newer. Does not trigger another upload. */
+    fun replaceRaw(a: JSONArray) {
+        Session.prefs.edit().putString(KEY, a.toString()).apply()
     }
 
     fun exists(name: String): Boolean = load().any { it.name.equals(name.trim(), ignoreCase = true) }
