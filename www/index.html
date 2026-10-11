@@ -5456,7 +5456,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 const iosTTSUnlock = () => {
                     const u = new SpeechSynthesisUtterance('');
                     u.volume = 0;
-                    NativeTTSBridge.speak(u.text, {rate: u.rate, pitch: u.pitch});
+                    NativeTTSBridge.speak(u);
                     speech.cancel();
                     initVoices();
                 };
@@ -6201,9 +6201,9 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
 
             const doSpeak = () => {
                 if (/iP(hone|ad|od)/.test(navigator.userAgent)) {
-                    requestAnimationFrame(() => NativeTTSBridge.speak(utterance.text, {rate: utterance.rate, pitch: utterance.pitch}));
+                    requestAnimationFrame(() => NativeTTSBridge.speak(utterance));
                 } else {
-                    NativeTTSBridge.speak(utterance.text, {rate: utterance.rate, pitch: utterance.pitch});
+                    NativeTTSBridge.speak(utterance);
                 }
             };
 
@@ -6283,8 +6283,9 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 if (onend) onend();
             };
             if (/iP(hone|ad|od)/.test(navigator.userAgent)) {
+                requestAnimationFrame(() => NativeTTSBridge.speak(utterance));
             } else {
-                NativeTTSBridge.speak(utterance.text, {rate: utterance.rate, pitch: utterance.pitch});
+                NativeTTSBridge.speak(utterance);
             }
         }
         
@@ -6765,9 +6766,9 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                     if (selectedVoice) u.voice = selectedVoice;
                     u.rate = 0.9; u.pitch = 1.0; u.volume = 1.0;
                     if (/iP(hone|ad|od)/.test(navigator.userAgent)) {
-                        requestAnimationFrame(() => NativeTTSBridge.speak(u.text, {rate: u.rate, pitch: u.pitch}));
+                        requestAnimationFrame(() => NativeTTSBridge.speak(u));
                     } else {
-                        NativeTTSBridge.speak(u.text, {rate: u.rate, pitch: u.pitch});
+                        NativeTTSBridge.speak(u);
                     }
                 }
 
@@ -6814,9 +6815,9 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                     };
                     u.onerror = () => { if (!isTrainingActive) return; if (window._startMicCapture) window._startMicCapture(); };
                     if (/iP(hone|ad|od)/.test(navigator.userAgent)) {
-                        requestAnimationFrame(() => NativeTTSBridge.speak(u.text, {rate: u.rate, pitch: u.pitch}));
+                        requestAnimationFrame(() => NativeTTSBridge.speak(u));
                     } else {
-                        NativeTTSBridge.speak(u.text, {rate: u.rate, pitch: u.pitch});
+                        NativeTTSBridge.speak(u);
                     }
                 } else {
                     if (window._startMicCapture) window._startMicCapture();
@@ -6974,9 +6975,9 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                     u.onend = () => { if (isTrainingActive && window._startMicCapture) window._startMicCapture(); };
                     u.onerror = () => { if (isTrainingActive && window._startMicCapture) window._startMicCapture(); };
                     if (/iP(hone|ad|od)/.test(navigator.userAgent)) {
-                        requestAnimationFrame(() => NativeTTSBridge.speak(u.text, {rate: u.rate, pitch: u.pitch}));
+                        requestAnimationFrame(() => NativeTTSBridge.speak(u));
                     } else {
-                        NativeTTSBridge.speak(u.text, {rate: u.rate, pitch: u.pitch});
+                        NativeTTSBridge.speak(u);
                     }
                 };
                 if (speech.speaking || speech.pending) {

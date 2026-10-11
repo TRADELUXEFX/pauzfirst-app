@@ -67,7 +67,7 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
     @PluginMethod
     public void speak(PluginCall call) {
         String text = call.getString("text", "");
-        if (text.isEmpty()) {
+        if (text == null || text.isEmpty()) {
             call.reject("Empty text");
             return;
         }
@@ -84,12 +84,18 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
     }
 
     private void doSpeak(PluginCall call) {
+        call.setKeepAlive(false);
+        final String reqId = call.getString("id", "");
         String text = call.getString("text", "");
         Double rateD = call.getDouble("rate", 1.0);
         Double pitchD = call.getDouble("pitch", 1.0);
         float rate = rateD.floatValue();
         float pitch = pitchD.floatValue();
 
+        tts.setAudioAttributes(new android.media.AudioAttributes.Builder()
+            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build());
         tts.setSpeechRate(rate);
         tts.setPitch(pitch);
 
@@ -100,6 +106,7 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
             public void onStart(String id) {
                 JSObject ret = new JSObject();
                 ret.put("event", "start");
+                ret.put("id", reqId);
                 notifyListeners("speechEvent", ret);
             }
 
@@ -107,6 +114,7 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
             public void onDone(String id) {
                 JSObject ret = new JSObject();
                 ret.put("event", "done");
+                ret.put("id", reqId);
                 notifyListeners("speechEvent", ret);
             }
 
@@ -114,7 +122,13 @@ public class NativeTTSPlugin extends Plugin implements TextToSpeech.OnInitListen
             public void onError(String id) {
                 JSObject ret = new JSObject();
                 ret.put("event", "error");
+                ret.put("id", reqId);
                 notifyListeners("speechEvent", ret);
+            }
+
+            @Override
+            public void onError(String id, int errorCode) {
+                onError(id);
             }
         });
 

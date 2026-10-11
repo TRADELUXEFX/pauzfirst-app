@@ -18,3 +18,11 @@
     android:name="com.pauzfirst.app.TtsForegroundService"
     android:foregroundServiceType="mediaPlayback"
     android:exported="false" />
+
+<!-- Android 11+ package visibility: without this the app cannot see the
+     device's TTS engine and TextToSpeech init fails silently. -->
+<queries>
+    <intent>
+        <action android:name="android.intent.action.TTS_SERVICE" />
+    </intent>
+</queries>

@@ -33,7 +33,12 @@ public class TtsForegroundService extends Service {
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .build();
 
-        startForeground(NOTIF_ID, notification);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+        } else {
+            startForeground(NOTIF_ID, notification);
+        }
     }
 
     @Override
