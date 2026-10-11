@@ -44,7 +44,7 @@ object StatsStore {
             out.put(k, Math.max(x.optLong(k, 0L), y.optLong(k, 0L)))
         }
         val ms = JSONObject()
-        for (m in listOf("eyes-closed", "eyes-open", "mirror")) {
+        for (m in listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")) {
             val xm = x.optJSONObject("modeSessions")
             val ym = y.optJSONObject("modeSessions")
             ms.put(m, Math.max(xm?.optInt(m, 0) ?: 0, ym?.optInt(m, 0) ?: 0))

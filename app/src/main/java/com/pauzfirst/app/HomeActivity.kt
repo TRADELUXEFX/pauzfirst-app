@@ -322,6 +322,7 @@ class HomeActivity : AppCompatActivity() {
         modeHead.addView(Ui.sectionTitle(c, "Training mode"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         modeHead.addView(Ui.text(c, "Deep Pause", 13f, Ui.TEXT, Ui.BOLD), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         val deepSwitch = androidx.appcompat.widget.SwitchCompat(c)
+        Ui.styleSwitch(deepSwitch)
         deepSwitch.isChecked = Settings.deepPause
         deepSwitch.setOnCheckedChangeListener { _, checked ->
             Settings.deepPause = checked
@@ -397,8 +398,8 @@ class HomeActivity : AppCompatActivity() {
 
         // ---------- recording ----------
         val recCard = Ui.card(c)
-        // recording: two boxes side by side. Tap one to pick it, tap it again to turn recording off.
-        // Video includes the sound, so picking video also counts as audio.
+        // recording: a switch first. Only when it is on do the two boxes (audio / video) appear.
+        // Video includes the sound, so picking video also counts as audio. Turning the switch off stops recording.
         val recRow = LinearLayout(c)
         recRow.orientation = LinearLayout.HORIZONTAL
         val recAudioChip = Ui.text(c, "Record audio", 13f, Ui.TEXT, Ui.BOLD)
@@ -416,15 +417,13 @@ class HomeActivity : AppCompatActivity() {
             chip.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12))
         }
         recAudioChip.setOnClickListener {
-            val wasOn = Settings.recordAudio && !Settings.recordScreen
-            Settings.recordAudio = !wasOn
+            Settings.recordAudio = true
             Settings.recordScreen = false
             paintRec()
         }
         recVideoChip.setOnClickListener {
-            val wasOn = Settings.recordScreen
-            Settings.recordScreen = !wasOn
-            Settings.recordAudio = !wasOn
+            Settings.recordScreen = true
+            Settings.recordAudio = true
             paintRec()
         }
         recRow.addView(recAudioChip, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -432,7 +431,22 @@ class HomeActivity : AppCompatActivity() {
         recLp.leftMargin = Ui.dp(c, 8)
         recRow.addView(recVideoChip, recLp)
         paintRec()
-        recCard.addTo(recRow, 0)
+
+        val recOn = Settings.recordAudio || Settings.recordScreen
+        recRow.visibility = if (recOn) View.VISIBLE else View.GONE
+        recCard.addTo(Ui.switchRow(c, "Record training", "Save your session as audio or video", recOn) { on ->
+            if (on) {
+                // start with audio; the person can pick video in the boxes
+                Settings.recordAudio = true
+                Settings.recordScreen = false
+            } else {
+                Settings.recordAudio = false
+                Settings.recordScreen = false
+            }
+            paintRec()
+            recRow.visibility = if (on) View.VISIBLE else View.GONE
+        }, 0)
+        recCard.addTo(recRow, 14)
         val recCardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         recCardLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
         body.addView(groupLabel("Recording"))

@@ -16,7 +16,9 @@ class Preset(
     val tipInterval: Int,
     val threeWhy: Boolean,
     val phaseGuide: Boolean,
-    val source: String
+    val source: String,
+    val recordAudio: Boolean = false,
+    val recordScreen: Boolean = false
 )
 
 /** Saved settings, kept on the phone (like the website's Settings List). */
@@ -55,7 +57,9 @@ object Presets {
                         o.optInt("tipInterval", 30),
                         o.optBoolean("threeWhy", false),
                         o.optBoolean("phaseGuide", true),
-                        o.optString("source", Settings.DEFAULT_SOURCE)
+                        o.optString("source", Settings.DEFAULT_SOURCE),
+                        o.optBoolean("recordAudio", false),
+                        o.optBoolean("recordScreen", false)
                     )
                 )
             }
@@ -80,6 +84,8 @@ object Presets {
             o.put("threeWhy", p.threeWhy)
             o.put("phaseGuide", p.phaseGuide)
             o.put("source", p.source)
+            o.put("recordAudio", p.recordAudio)
+            o.put("recordScreen", p.recordScreen)
             a.put(o)
         }
         Session.prefs.edit().putString(KEY, a.toString()).apply()
@@ -96,7 +102,8 @@ object Presets {
             Preset(
                 clean, Settings.mode, Settings.deepPause, Settings.total, Settings.pauseTime,
                 Settings.answerTime, Settings.voice, Settings.tip, Settings.tipInterval,
-                Settings.threeWhy, Settings.phaseGuide, Settings.source
+                Settings.threeWhy, Settings.phaseGuide, Settings.source,
+                Settings.recordAudio, Settings.recordScreen
             )
         )
         write(list)
@@ -117,6 +124,9 @@ object Presets {
         Settings.tipInterval = p.tipInterval
         Settings.threeWhy = p.threeWhy
         Settings.phaseGuide = p.phaseGuide
+        // recording is part of the saved setup (off when the setup was saved without it)
+        Settings.recordAudio = p.recordAudio
+        Settings.recordScreen = p.recordScreen
         // if this list was deleted since, the main screen falls back to the default questions
         Settings.source = p.source
         justApplied = true
@@ -129,6 +139,7 @@ object Presets {
         parts.add(p.total.toString() + "Q")
         if (p.deep) parts.add("Deep Pause")
         if (p.deep && p.threeWhy) parts.add("3-Why")
+        if (p.recordScreen) parts.add("Video rec") else if (p.recordAudio) parts.add("Audio rec")
         return parts.joinToString("  ·  ")
     }
 }

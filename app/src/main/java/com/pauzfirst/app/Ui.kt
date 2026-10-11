@@ -146,10 +146,16 @@ object Ui {
         b.background = rounded(c, bg, 28)
     }
 
-    fun card(c: Context): LinearLayout {
+    /** Light-blue card fill (Training History), so cards stand out from the near-white page. */
+    val CARD_TINT: Int get() = c("#D6E8FF", "#1B3558")
+
+    /** Grey-blue text that stays readable on the light-blue cards. */
+    val MUTED_TINT: Int get() = c("#475569", "#94A3B8")
+
+    fun card(c: Context, fill: Int = SURFACE): LinearLayout {
         val l = LinearLayout(c)
         l.orientation = LinearLayout.VERTICAL
-        l.background = rounded(c, SURFACE, 22)
+        l.background = rounded(c, fill, 22)
         l.elevation = dp(c, 2).toFloat()
         l.setPadding(dp(c, 18), dp(c, 16), dp(c, 18), dp(c, 16))
         return l
@@ -256,6 +262,13 @@ object Ui {
         return row
     }
 
+    /** Switch colors that stay visible: blue knob on a light-blue track when on, grey knob on a pale track when off. */
+    fun styleSwitch(sw: SwitchCompat) {
+        val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+        sw.thumbTintList = android.content.res.ColorStateList(states, intArrayOf(BLUE, c("#94A3B8", "#94A3B8")))
+        sw.trackTintList = android.content.res.ColorStateList(states, intArrayOf(c("#B3D7FF", "#2F5F9E"), c("#D5DEEA", "#3A4A63")))
+    }
+
     /** "Label + small description            [switch]" */
     fun switchRow(c: Context, label: String, sub: String?, initial: Boolean, onChange: (Boolean) -> Unit): LinearLayout {
         val row = LinearLayout(c)
@@ -270,6 +283,7 @@ object Ui {
         }
         row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         val sw = SwitchCompat(c)
+        styleSwitch(sw)
         sw.isChecked = initial
         sw.setOnCheckedChangeListener { _, checked -> onChange(checked) }
         row.addView(sw, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))

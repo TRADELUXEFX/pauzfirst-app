@@ -3016,6 +3016,10 @@
                         <div class="stat-value" id="modeMirrorCount">0</div>
                         <div class="stat-label">Mirror</div>
                     </div>
+                    <div class="stat-card stat-card-full">
+                        <div class="stat-value" id="modeAnimatedEyesCount">0</div>
+                        <div class="stat-label">Animated Eyes</div>
+                    </div>
                     <div class="stat-card stat-card-full" style="padding:0;background:none;border:none;box-shadow:none;">
                         <div class="stats-grid-2">
                             <div class="stat-card">
@@ -3313,7 +3317,7 @@
             lifetimeStreak: 0,
             dailyStreak: 0,
             lastPracticeDate: null,
-            modeSessions: { 'eyes-closed': 0, 'eyes-open': 0, 'mirror': 0 }
+            modeSessions: { 'eyes-closed': 0, 'eyes-open': 0, 'mirror': 0, 'animated-eyes': 0 }
         };
         
         let sessionQuestions = 0;
@@ -5002,7 +5006,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 if (!d2) return d1;
                 return new Date(d1) >= new Date(d2) ? d1 : d2;
             };
-            const modes = ['eyes-closed', 'eyes-open', 'mirror'];
+            const modes = ['eyes-closed', 'eyes-open', 'mirror', 'animated-eyes'];
             const am = a.modeSessions || {};
             const bm = b.modeSessions || {};
             const mergedModes = {};
@@ -5150,6 +5154,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
             document.getElementById('modeEyesClosedCount').textContent = ms['eyes-closed'] || 0;
             document.getElementById('modeEyesOpenCount').textContent = ms['eyes-open'] || 0;
             document.getElementById('modeMirrorCount').textContent = ms['mirror'] || 0;
+            document.getElementById('modeAnimatedEyesCount').textContent = ms['animated-eyes'] || 0;
             updateStreakMessage();
             // brand-new account: friendly box instead of a page of zeros
             const zero = !stats.lifetimeSessions;
@@ -5516,7 +5521,8 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 stats.lifetimeSessions++;
                 stats.lifetimeQuestions += sessionQuestions;
                 stats.lifetimeTime += sessionTime;
-                stats.modeSessions[trainingMode] = (stats.modeSessions[trainingMode] || 0) + 1;
+                const recMode = (trainingMode === 'mirror' && mirrorEyesMode) ? 'animated-eyes' : trainingMode;
+                stats.modeSessions[recMode] = (stats.modeSessions[recMode] || 0) + 1;
                 await updateStreaks();
                 await saveStats(); // always save session stats regardless of streak change
                 updateProgressDisplay();
@@ -5524,7 +5530,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 // Save to session history
                 await saveSessionHistory({
                     date: new Date().toISOString(),
-                    mode: trainingMode,
+                    mode: recMode,
                     deepPause: deepPauseMode,
                     questions: sessionQuestions,
                     time: sessionTime

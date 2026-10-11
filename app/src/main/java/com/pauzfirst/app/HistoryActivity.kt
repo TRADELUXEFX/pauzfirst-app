@@ -74,7 +74,7 @@ class HistoryActivity : AppCompatActivity() {
         // the two-way toggle: Training Stats | Training History
         val toggle = LinearLayout(c)
         toggle.orientation = LinearLayout.HORIZONTAL
-        toggle.background = Ui.rounded(c, Ui.SOFT, 14)
+        toggle.background = Ui.rounded(c, Ui.CARD_TINT, 14)
         toggle.setPadding(Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4))
         tabStats = toggleTab("Training Stats") { showTab(0) }
         tabHistory = toggleTab("Training History") { showTab(1) }
@@ -110,7 +110,7 @@ class HistoryActivity : AppCompatActivity() {
             t.setTextColor(Ui.WHITE)
         } else {
             t.background = null
-            t.setTextColor(Ui.MUTED)
+            t.setTextColor(Ui.c("#3F5F8F", "#94A3B8"))
         }
     }
 
@@ -128,11 +128,11 @@ class HistoryActivity : AppCompatActivity() {
         }
     }
 
-    private fun tileRow(vararg items: LinearLayout): LinearLayout {
+    private fun tileRow(vararg items: LinearLayout, tint: Boolean = true): LinearLayout {
         val row = LinearLayout(this)
         row.orientation = LinearLayout.HORIZONTAL
         for ((i, v) in items.withIndex()) {
-            val box = Ui.card(this)
+            val box = if (tint) Ui.card(this, Ui.CARD_TINT) else Ui.card(this)
             box.setPadding(Ui.dp(this, 10), Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 16))
             box.gravity = Gravity.CENTER
             box.addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -156,9 +156,13 @@ class HistoryActivity : AppCompatActivity() {
 
         body.addTo(tileRow(
             metric("Eyes closed", (modes?.optInt("eyes-closed", 0) ?: 0).toString()),
-            metric("Eyes open", (modes?.optInt("eyes-open", 0) ?: 0).toString()),
-            metric("Mirror", (modes?.optInt("mirror", 0) ?: 0).toString())
+            metric("Eyes open", (modes?.optInt("eyes-open", 0) ?: 0).toString())
         ), 8)
+
+        body.addTo(tileRow(
+            metric("Mirror", (modes?.optInt("mirror", 0) ?: 0).toString()),
+            metric("Animated eyes", (modes?.optInt("animated-eyes", 0) ?: 0).toString())
+        ), 10)
 
         body.addTo(tileRow(
             metric("Total trainings", s.optLong("lifetimeSessions", 0L).toString()),
@@ -191,13 +195,13 @@ class HistoryActivity : AppCompatActivity() {
         var max = 1L
         var total = 0L
         for (v in secs) { total += v; if (v > max) max = v }
-        val card = Ui.card(c)
+        val card = Ui.card(c, Ui.CARD_TINT)
 
         val head = LinearLayout(c)
         head.orientation = LinearLayout.HORIZONTAL
         head.gravity = Gravity.CENTER_VERTICAL
         head.addView(Ui.sectionTitle(c, "Last 7 days"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        head.addView(Ui.text(c, StatsStore.formatDuration(total) + " total", 12f, Ui.MUTED, Ui.MED))
+        head.addView(Ui.text(c, StatsStore.formatDuration(total) + " total", 12f, Ui.MUTED_TINT, Ui.MED))
         card.addTo(head)
 
         val dayFmt = SimpleDateFormat("EEEEE", Locale.getDefault())
@@ -211,13 +215,13 @@ class HistoryActivity : AppCompatActivity() {
             val v = secs[i]
             val isToday = i == 6
 
-            val value = Ui.text(c, if (v == 0L) "" else shortTime(v), 10f, Ui.MUTED, Ui.MED)
+            val value = Ui.text(c, if (v == 0L) "" else shortTime(v), 10f, Ui.MUTED_TINT, Ui.MED)
             value.gravity = Gravity.CENTER
             col.addView(value)
 
             val barH = if (v == 0L) Ui.dp(c, 4) else Math.max(Ui.dp(c, 8), (barArea * v / max).toInt())
             val bar = View(c)
-            val barColor = if (isToday) Ui.BLUE else if (v == 0L) Ui.SOFT else android.graphics.Color.argb(120, 30, 144, 255)
+            val barColor = if (isToday) Ui.BLUE else if (v == 0L) Ui.c("#B7D5FA", "#2F5F9E") else android.graphics.Color.argb(150, 30, 144, 255)
             bar.background = Ui.rounded(c, barColor, 6)
             val barLp = LinearLayout.LayoutParams(Ui.dp(c, 18), barH)
             barLp.topMargin = Ui.dp(c, 4)
@@ -225,7 +229,7 @@ class HistoryActivity : AppCompatActivity() {
 
             val day = Calendar.getInstance()
             day.add(Calendar.DAY_OF_YEAR, -(6 - i))
-            val label = Ui.text(c, dayFmt.format(day.time), 11f, if (isToday) Ui.TEXT else Ui.MUTED, if (isToday) Ui.BOLD else Ui.MED)
+            val label = Ui.text(c, dayFmt.format(day.time), 11f, if (isToday) Ui.TEXT else Ui.MUTED_TINT, if (isToday) Ui.BOLD else Ui.MED)
             label.gravity = Gravity.CENTER
             val labLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             labLp.topMargin = Ui.dp(c, 6)
@@ -301,7 +305,7 @@ class HistoryActivity : AppCompatActivity() {
         col.gravity = Gravity.CENTER
         val v = Ui.text(c, value, 20f, Ui.TEXT, Ui.BOLD)
         v.gravity = Gravity.CENTER
-        val l = Ui.text(c, label, 11f, Ui.MUTED, Ui.MED)
+        val l = Ui.text(c, label, 11f, Ui.MUTED_TINT, Ui.MED)
         l.gravity = Gravity.CENTER
         col.addView(v)
         col.addView(l, Ui.lp(c, 3))
@@ -359,7 +363,8 @@ class HistoryActivity : AppCompatActivity() {
         body.addTo(tileRow(
             metric("Trainings", items.size.toString()),
             metric("Last 7 days", week.toString()),
-            metric("Avg. length", StatsStore.formatDuration(avg))
+            metric("Avg. length", StatsStore.formatDuration(avg)),
+            tint = true
         ), 10)
 
         val df = SimpleDateFormat("EEE d MMM, h:mm a", Locale.getDefault())
@@ -383,14 +388,14 @@ class HistoryActivity : AppCompatActivity() {
             val col = LinearLayout(c)
             col.orientation = LinearLayout.VERTICAL
             col.addView(Ui.text(c, whenText, 14f, Ui.TEXT, Ui.MED))
-            col.addView(Ui.text(c, sub, 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
+            col.addView(Ui.text(c, sub, 12f, Ui.MUTED_TINT, Ui.REG), Ui.lp(c, 3))
             row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             val mode = o.optString("mode", "")
-            val tag = Ui.chip(c, modeLabel(mode), if (mode == "eyes-closed") Ui.BLUE else Ui.MUTED, if (mode == "eyes-closed") Ui.BLUE_SOFT else Ui.SOFT)
+            val tag = Ui.chip(c, modeLabel(mode), Ui.c("#0B4FB3", "#FFFFFF"), Ui.c("#B7D5FA", "#2F5F9E"))
             tag.textSize = 11f
             tag.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
             row.addView(tag, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            val entry = Ui.card(c)
+            val entry = Ui.card(c, Ui.CARD_TINT)
             entry.addTo(row)
             body.addTo(entry, 10)
         }

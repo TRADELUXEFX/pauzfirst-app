@@ -125,8 +125,8 @@ object Settings {
     /** Mirror and Animated eyes both run on the full screen training view. */
     val mirror: Boolean get() = mode == "mirror" || mode == "animated-eyes"
 
-    /** Mode name saved to history and stats (Animated eyes counts as Mirror, like the website). */
-    val recordMode: String get() = if (mode == "animated-eyes") "mirror" else mode
+    /** Mode name saved to history and stats (Animated eyes has its own entry, like the website). */
+    val recordMode: String get() = mode
 
     /** Mirror and Animated eyes (not with Deep Pause): show Listen / Pause / Respond on screen. */
     var phaseGuide: Boolean
