@@ -27,6 +27,7 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var password: EditText
     private lateinit var msg: TextView
     private lateinit var loginBtn: Button
+    private lateinit var loginSpin: SpinnerRingView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,7 +84,13 @@ class LoginActivity : AppCompatActivity() {
         loginBtn = Ui.pill(c, "Login")
         loginBtn.textSize = 17f
         loginBtn.elevation = Ui.dp(c, 3).toFloat()
-        card.addTo(loginBtn, 22)
+        // a loading ring sits on top of the button while signing in
+        loginSpin = SpinnerRingView(c, Ui.WHITE, android.graphics.Color.parseColor("#55FFFFFF"), 3)
+        loginSpin.visibility = android.view.View.GONE
+        val loginWrap = FrameLayout(c)
+        loginWrap.addView(loginBtn, FrameLayout.LayoutParams(-1, -2))
+        loginWrap.addView(loginSpin, FrameLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26), Gravity.CENTER))
+        card.addTo(loginWrap, 22)
         msg = Ui.text(c, "", 12f, Ui.RED, Ui.MED)
         msg.gravity = Gravity.CENTER
         card.addTo(msg, 12)
@@ -157,11 +164,15 @@ class LoginActivity : AppCompatActivity() {
             return
         }
         loginBtn.isEnabled = false
-        setMsg("Logging in…", true)
+        setMsg("", true)
+        loginBtn.text = ""
+        loginSpin.visibility = android.view.View.VISIBLE
         Thread {
             val r = Api.signIn(e, p)
             runOnUiThread {
                 loginBtn.isEnabled = true
+                loginBtn.text = "Login"
+                loginSpin.visibility = android.view.View.GONE
                 if (r.ok) {
                     goHome()
                 } else if (r.code == 0) {

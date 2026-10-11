@@ -8,6 +8,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import java.util.Locale
 
@@ -75,6 +76,15 @@ object Engine {
     private class Queued(val text: String, val rate: Float, val cb: (() -> Unit)?)
     private var queued: Queued? = null
 
+    private var voiceNoticeShown = false
+
+    private fun voiceNotice(msg: String) {
+        if (voiceNoticeShown) return
+        voiceNoticeShown = true
+        val ctx = app ?: return
+        try { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() } catch (e: Exception) { }
+    }
+
     private fun ensureTts() {
         if (tts != null) return
         val ctx = app ?: return
@@ -98,11 +108,23 @@ object Engine {
                         override fun onError(utteranceId: String?) { finishUtterance(utteranceId) }
                     })
                     ttsReady = true
+                    if (!NetWatch.online(ctx)) {
+                        // offline: use an installed voice that needs no internet
+                        try {
+                            val off = VoiceCheck.offlineVoices(t)
+                            val cur = t.voice
+                            if (off.isNotEmpty() && (cur == null || cur.isNetworkConnectionRequired)) t.setVoice(off[0])
+                        } catch (e: Exception) { }
+                    }
+                    if (voice && !NetWatch.online(ctx) && !VoiceCheck.hasOfflineVoice(t)) {
+                        voiceNotice("No offline voice on this phone, so questions won't be read aloud. Install one in Settings > Text-to-speech, or go online.")
+                    }
                     val q = queued
                     queued = null
                     if (q != null) speakNow(q.text, q.rate, q.cb)
                 } else {
                     ttsFailed = true
+                    if (voice) voiceNotice("Text-to-speech isn't available on this phone, so questions won't be read aloud.")
                     val q = queued
                     queued = null
                     if (q != null && q.cb != null) h.postDelayed({ q.cb.invoke() }, 2500L)
@@ -189,6 +211,7 @@ object Engine {
         tipInt = Settings.tipInterval
         mode = Settings.recordMode
         questions = qs
+        voiceNoticeShown = false
         usedBucket = bucket
         usedPool = pool
         index = 0

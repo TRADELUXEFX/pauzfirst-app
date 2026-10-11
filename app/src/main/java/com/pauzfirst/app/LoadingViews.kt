@@ -73,7 +73,12 @@ class PopDotsView(ctx: Context, private val color: Int = Ui.TEXT, private val do
 }
 
 /** Indeterminate ring: a blue arc that sweeps around a soft track. */
-class SpinnerRingView(ctx: Context, private val color: Int = Ui.BLUE) : LoopView(ctx, 1300) {
+class SpinnerRingView(
+    ctx: Context,
+    private val color: Int = Ui.BLUE,
+    private val trackColor: Int = Ui.SOFT,
+    private val strokeDp: Int = 7
+) : LoopView(ctx, 1300) {
     private val track = Paint(Paint.ANTI_ALIAS_FLAG)
     private val arc = Paint(Paint.ANTI_ALIAS_FLAG)
     private val box = RectF()
@@ -85,10 +90,10 @@ class SpinnerRingView(ctx: Context, private val color: Int = Ui.BLUE) : LoopView
     }
 
     override fun onDraw(canvas: Canvas) {
-        val stroke = Ui.dp(context, 7).toFloat()
+        val stroke = Ui.dp(context, strokeDp).toFloat()
         track.strokeWidth = stroke
         arc.strokeWidth = stroke
-        track.color = Ui.SOFT
+        track.color = trackColor
         arc.color = color
         val half = stroke / 2f + 1f
         box.set(half, half, width - half, height - half)

@@ -19,6 +19,24 @@ object UsedStore {
         }
     }
 
+    private fun dirtyKey(): String = "used_dirty_" + Session.userId
+
+    private fun setDirty(on: Boolean) {
+        Session.prefs.edit().putBoolean(dirtyKey(), on).apply()
+    }
+
+    /**
+     * Called with the server copy when the phone is online. If progress was made offline,
+     * the phone's copy wins and is uploaded; otherwise the server copy is stored.
+     */
+    fun syncFromRemote(remote: JSONObject) {
+        if (Session.prefs.getBoolean(dirtyKey(), false)) {
+            if (Api.saveUsed(local())) setDirty(false)
+        } else {
+            saveLocal(remote)
+        }
+    }
+
     fun saveLocal(o: JSONObject) {
         Session.prefs.edit().putString(key(), o.toString()).apply()
     }
@@ -47,7 +65,11 @@ object UsedStore {
         val out = JSONObject(base.toString())
         out.put(bucket, arr)
         saveLocal(out)
-        if (remote != null) Api.saveUsed(out)
+        if (remote != null) {
+            if (!Api.saveUsed(out)) setDirty(true)
+        } else {
+            setDirty(true)
+        }
     }
 
     /** Picks n questions from the pool, unused ones first. */
@@ -72,6 +94,10 @@ object UsedStore {
         val out = JSONObject(base.toString())
         out.put(bucket, arr)
         saveLocal(out)
-        if (remote != null) Api.saveUsed(out)
+        if (remote != null) {
+            if (!Api.saveUsed(out)) setDirty(true)
+        } else {
+            setDirty(true)
+        }
     }
 }

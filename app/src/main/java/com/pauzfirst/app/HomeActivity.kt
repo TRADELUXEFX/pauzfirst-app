@@ -30,6 +30,7 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var tileStreak: TextView
     private lateinit var extraStats: TextView
     private lateinit var offlineBanner: TextView
+    private lateinit var syncNote: TextView
     private var net: NetWatch? = null
     private var wasOffline = false
     private lateinit var sourceText: TextView
@@ -108,9 +109,20 @@ class HomeActivity : AppCompatActivity() {
         titleCol.addView(title)
         titleCol.addView(Ui.text(c, "Pause and think before you respond", 12f, Color.parseColor("#CCE4FF"), Ui.REG), Ui.lp(c, 3))
         top.addView(titleCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val logout = Ui.text(c, "Log out", 12f, Ui.WHITE, Ui.BOLD)
+        val logout = Ui.text(c, "Logout", 12f, Ui.WHITE, Ui.BOLD)
         logout.background = Ui.rounded(c, Ui.RED, 20)
         logout.setPadding(Ui.dp(c, 14), Ui.dp(c, 9), Ui.dp(c, 14), Ui.dp(c, 9))
+        val bell = android.widget.FrameLayout(c)
+        val bellBg = GradientDrawable()
+        bellBg.shape = GradientDrawable.OVAL
+        bellBg.setColor(Color.parseColor("#33FFFFFF"))
+        bell.background = bellBg
+        bell.contentDescription = "Daily reminder"
+        bell.addView(FsIconView(c, Icons.BELL, Ui.WHITE), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22), Gravity.CENTER))
+        bell.setOnClickListener { startActivity(Intent(this, ReminderActivity::class.java)) }
+        val bellLp = LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40))
+        bellLp.rightMargin = Ui.dp(c, 10)
+        top.addView(bell, bellLp)
         top.addView(logout, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         hero.addTo(top)
 
@@ -135,6 +147,11 @@ class HomeActivity : AppCompatActivity() {
         extraStats = Ui.text(c, "", 12f, Color.parseColor("#CCE4FF"), Ui.MED)
         extraStats.gravity = Gravity.CENTER
         hero.addTo(extraStats, 12)
+
+        syncNote = Ui.text(c, "", 12f, Color.parseColor("#CCE4FF"), Ui.MED)
+        syncNote.gravity = Gravity.CENTER
+        syncNote.visibility = View.GONE
+        hero.addTo(syncNote, 6)
 
         val historyChip = Ui.chip(c, "Session history  ›", Ui.WHITE, Color.parseColor("#33FFFFFF"))
         val hp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -335,9 +352,19 @@ class HomeActivity : AppCompatActivity() {
         refreshSpinner()
 
         logout.setOnClickListener {
-            Engine.stop()
-            Session.clear()
-            goLogin()
+            AppDialog.show(
+                this,
+                "Logout?",
+                message = "This stops any running session and signs you out.",
+                buttons = listOf(
+                    Btn("Cancel", Kind.SOFT),
+                    Btn("Logout", Kind.DANGER) {
+                        Engine.stop()
+                        Session.clear()
+                        goLogin()
+                    }
+                )
+            )
         }
         resumeBtn.setOnClickListener {
             startActivity(Intent(this, TrainingActivity::class.java))
@@ -436,7 +463,6 @@ class HomeActivity : AppCompatActivity() {
                 // back online: sync stats, lists and any sessions waiting on the phone
                 wasOffline = false
                 loadRemote()
-                Thread { try { HistoryStore.flush() } catch (e: Exception) { } }.start()
             }
         }
         net?.start()
@@ -444,8 +470,53 @@ class HomeActivity : AppCompatActivity() {
         val local = StatsStore.local()
         showStats(local)
         if (local.optLong("lifetimeSessions", 0L) == 0L) startStatsPulse()
-        Engine.onSaved = { loadRemote() }
+        updateSyncNote()
+        checkVoice()
+        Reminder.schedule(this)
+        Engine.onSaved = { loadRemote(); updateSyncNote() }
         loadRemote()
+    }
+
+    /** Online and voice guidance on: make sure an offline voice exists, otherwise offer to download one. */
+    private fun checkVoice() {
+        if (VoiceCheck.asked || !Settings.voice || !NetWatch.online(this)) return
+        VoiceCheck.asked = true
+        VoiceCheck.probe(this) { ok ->
+            if (ok || isFinishing || isDestroyed) return@probe
+            AppDialog.show(
+                this,
+                "Download a voice",
+                message = "To hear questions read aloud without internet, your phone needs an offline voice. Tap Download, pick your language and install it.",
+                buttons = listOf(
+                    Btn("Later", Kind.SOFT),
+                    Btn("Download", Kind.PRIMARY) { openVoiceInstall() }
+                )
+            )
+        }
+    }
+
+    private fun openVoiceInstall() {
+        try {
+            startActivity(Intent(android.speech.tts.TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA))
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+            } catch (e2: Exception) {
+                Toast.makeText(this, "Open Settings > Text-to-speech and download a voice.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /** "2 sessions waiting to sync" while finished sessions are still only on this phone. */
+    private fun updateSyncNote() {
+        if (!::syncNote.isInitialized) return
+        val n = HistoryStore.pendingCount()
+        if (n > 0) {
+            syncNote.text = if (n == 1) "1 session waiting to sync" else n.toString() + " sessions waiting to sync"
+            syncNote.visibility = View.VISIBLE
+        } else {
+            syncNote.visibility = View.GONE
+        }
     }
 
     override fun onPause() {
@@ -457,16 +528,34 @@ class HomeActivity : AppCompatActivity() {
 
     private fun loadRemote() {
         Thread {
+            val waiting = HistoryStore.pendingCount()
             val remoteLists = Api.fetchLists()
             val remoteStats = Api.fetchStats()
             val remoteUsed = Api.fetchUsed()
-            if (remoteUsed != null) UsedStore.saveLocal(remoteUsed)
+            val synced = try { waiting > 0 && HistoryStore.flush() } catch (e: Exception) { false }
+            if (remoteUsed != null) UsedStore.syncFromRemote(remoteUsed)
             val merged: JSONObject? =
                 if (remoteStats != null) StatsStore.merge(remoteStats, StatsStore.local()) else null
             if (merged != null) StatsStore.saveLocal(merged)
+            // training done offline: the phone is ahead of the server, so send it up now
+            if (merged != null && remoteStats != null &&
+                (merged.optLong("lifetimeSessions", 0L) > remoteStats.optLong("lifetimeSessions", 0L) ||
+                    merged.optLong("lifetimeQuestions", 0L) > remoteStats.optLong("lifetimeQuestions", 0L) ||
+                    merged.optLong("lifetimeTime", 0L) > remoteStats.optLong("lifetimeTime", 0L))
+            ) {
+                try { Api.saveStats(merged) } catch (e: Exception) { }
+            }
             runOnUiThread {
                 stopStatsPulse()
                 if (isFinishing || isDestroyed) return@runOnUiThread
+                updateSyncNote()
+                if (synced) {
+                    Toast.makeText(
+                        this,
+                        if (waiting == 1) "Back online. Your session is synced." else "Back online. " + waiting + " sessions synced.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
                 if (!Session.loggedIn()) {
                     goLogin()
                     return@runOnUiThread
@@ -532,7 +621,11 @@ class HomeActivity : AppCompatActivity() {
         val pool: List<String> =
             (if (src == Settings.DEFAULT_SOURCE) Defaults.load(this) else (lists[src] ?: emptyList())).distinct()
         if (pool.isEmpty()) {
-            Toast.makeText(this, "No questions found in \"" + src + "\".", Toast.LENGTH_LONG).show()
+            val msg = if (src != Settings.DEFAULT_SOURCE && lists.isEmpty())
+                "\"" + src + "\" isn't saved on this phone yet. Connect to the internet once to load it, or choose Default questions."
+            else
+                "No questions found in \"" + src + "\"."
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
             return
         }
         val n = Math.min(Settings.total, pool.size)

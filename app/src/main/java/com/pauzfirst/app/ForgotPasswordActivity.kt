@@ -21,6 +21,7 @@ class ForgotPasswordActivity : AppCompatActivity() {
     private lateinit var email: EditText
     private lateinit var msg: TextView
     private lateinit var sendBtn: Button
+    private lateinit var sendSpin: SpinnerRingView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -118,7 +119,12 @@ class ForgotPasswordActivity : AppCompatActivity() {
         sendBtn = Ui.pill(c, "Send reset link")
         sendBtn.textSize = 17f
         sendBtn.elevation = Ui.dp(c, 3).toFloat()
-        card.addTo(sendBtn, 20)
+        sendSpin = SpinnerRingView(c, Ui.WHITE, Color.parseColor("#55FFFFFF"), 3)
+        sendSpin.visibility = View.GONE
+        val sendWrap = FrameLayout(c)
+        sendWrap.addView(sendBtn, FrameLayout.LayoutParams(-1, -2))
+        sendWrap.addView(sendSpin, FrameLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26), Gravity.CENTER))
+        card.addTo(sendWrap, 20)
 
         msg = Ui.text(c, "", 12f, Ui.RED, Ui.MED)
         msg.gravity = Gravity.CENTER
@@ -167,14 +173,16 @@ class ForgotPasswordActivity : AppCompatActivity() {
         }
         msg.visibility = View.GONE
         sendBtn.isEnabled = false
-        sendBtn.alpha = 0.6f
+        sendBtn.text = ""
+        sendSpin.visibility = View.VISIBLE
         Thread {
             val r = Api.sendReset(e)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (r.code == 0) {
                     sendBtn.isEnabled = true
-                    sendBtn.alpha = 1f
+                    sendBtn.text = "Send reset link"
+                    sendSpin.visibility = View.GONE
                     msg.setTextColor(Ui.RED)
                     msg.text = "No internet connection. Please try again."
                     msg.visibility = View.VISIBLE

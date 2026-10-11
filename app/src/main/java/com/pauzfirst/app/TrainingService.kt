@@ -46,7 +46,11 @@ class TrainingService : Service() {
             .setContentIntent(open)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .addAction(Notification.Action.Builder(null, "Stop", stopIntent).build())
+            .addAction(Notification.Action.Builder(
+                android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_pauzfirst),
+                "Stop",
+                stopIntent
+            ).build())
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

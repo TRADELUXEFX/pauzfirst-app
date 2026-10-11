@@ -31,6 +31,19 @@ object HistoryStore {
         }
     }
 
+    private fun cacheKey(): String = "hist_cache_" + Session.userId
+
+    private fun cached(): JSONArray {
+        return try {
+            JSONArray(Session.prefs.getString(cacheKey(), "[]") ?: "[]")
+        } catch (e: Exception) {
+            JSONArray()
+        }
+    }
+
+    /** How many finished sessions are still waiting on the phone to be sent. */
+    fun pendingCount(): Int = pending().length()
+
     private fun savePending(a: JSONArray) {
         Session.prefs.edit().putString(key(), a.toString()).apply()
     }
@@ -92,7 +105,12 @@ object HistoryStore {
         flush()
         val remote = Api.fetchHistory()
         val pend = pending()
-        if (remote == null) return if (pend.length() > 0) merge(JSONArray(), pend) else null
-        return merge(remote, pend)
+        if (remote != null) {
+            try { Session.prefs.edit().putString(cacheKey(), remote.toString()).apply() } catch (e: Exception) { }
+            return merge(remote, pend)
+        }
+        // offline: show the last history that was loaded, plus anything still waiting on the phone
+        val old = cached()
+        return if (old.length() > 0 || pend.length() > 0) merge(old, pend) else null
     }
 }

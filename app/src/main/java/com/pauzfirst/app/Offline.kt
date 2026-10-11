@@ -6,6 +6,9 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
+import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
+import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -98,5 +101,50 @@ class NetWatch(private val ctx: Context, private val onChange: (Boolean) -> Unit
         try { cb?.let { cm.unregisterNetworkCallback(it) } } catch (e: Exception) { }
         cb = null
         last = null
+    }
+}
+
+/** Looks at the phone's text-to-speech voices: is there one that works without internet? */
+object VoiceCheck {
+    /** Set once the prompt was shown, so it does not come back every time Home opens. */
+    @Volatile
+    var asked = false
+
+    private fun lang(t: TextToSpeech): String = (t.voice?.locale ?: Locale.US).language
+
+    /** Voices of the user's language that are installed and need no internet. */
+    fun offlineVoices(t: TextToSpeech): List<Voice> {
+        return try {
+            val l = lang(t)
+            (t.voices ?: return emptyList()).filter {
+                it.locale.language == l &&
+                    !it.isNetworkConnectionRequired &&
+                    !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun hasOfflineVoice(t: TextToSpeech): Boolean {
+        return try {
+            if (t.voices == null) true else offlineVoices(t).isNotEmpty()
+        } catch (e: Exception) {
+            true
+        }
+    }
+
+    /** Starts the phone's TTS briefly, reports whether an offline voice exists (main thread), then shuts it down. */
+    fun probe(ctx: Context, done: (Boolean) -> Unit) {
+        val h = Handler(Looper.getMainLooper())
+        var engine: TextToSpeech? = null
+        engine = TextToSpeech(ctx.applicationContext) { status ->
+            h.post {
+                val t = engine
+                val ok = if (status == TextToSpeech.SUCCESS && t != null) hasOfflineVoice(t) else false
+                try { t?.shutdown() } catch (e: Exception) { }
+                done(ok)
+            }
+        }
     }
 }
