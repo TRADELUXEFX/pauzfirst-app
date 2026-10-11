@@ -21,14 +21,25 @@ import androidx.appcompat.widget.SwitchCompat
 
 /** Design kit: Poppins, soft cards, pill buttons. Every screen is built from these. */
 object Ui {
+    /** Dark mode switch. Set from Settings at app start and when the toggle changes. */
+    @JvmStatic var dark: Boolean = false
+
+    /** Pick a colour for the current theme: c("#light", "#dark"). */
+    fun c(light: String, darkHex: String): Int = Color.parseColor(if (dark) darkHex else light)
+
     val BLUE: Int = Color.parseColor("#1E90FF")
     val BLUE_DARK: Int = Color.parseColor("#0B5ED7")
-    val BLUE_SOFT: Int = Color.parseColor("#E6F1FF")
-    val BG: Int = Color.parseColor("#F4F7FB")
-    val TEXT: Int = Color.parseColor("#0F172A")
-    val MUTED: Int = Color.parseColor("#64748B")
-    val LINE: Int = Color.parseColor("#E2E8F0")
-    val SOFT: Int = Color.parseColor("#E8EEF6")
+    val BLUE_SOFT: Int get() = c("#E6F1FF", "#1B3558")
+    val BG: Int get() = c("#F4F7FB", "#0B1220")
+    /** Cards, dialogs and bottom bars. */
+    val SURFACE: Int get() = c("#FFFFFF", "#162032")
+    /** Text fields and tinted rows inside cards. */
+    val FIELD: Int get() = c("#F8FAFC", "#0F1A2B")
+    val TEXT: Int get() = c("#0F172A", "#F1F5F9")
+    val MUTED: Int get() = c("#64748B", "#94A3B8")
+    val LINE: Int get() = c("#E2E8F0", "#2A3A52")
+    val SOFT: Int get() = c("#E8EEF6", "#223049")
+    val CHECK_LINE: Int get() = c("#CBD5E1", "#475569")
     val RED: Int = Color.parseColor("#EF4444")
     val GREEN: Int = Color.parseColor("#16A34A")
     val AMBER: Int = Color.parseColor("#F59E0B")
@@ -59,7 +70,7 @@ object Ui {
         }
         val ic = WindowCompat.getInsetsController(w, w.decorView)
         ic.isAppearanceLightStatusBars = false      // white icons on the blue
-        ic.isAppearanceLightNavigationBars = true   // dark icons on the light bottom
+        ic.isAppearanceLightNavigationBars = !dark  // dark icons on the light bottom
     }
 
     /** Adds the system-bar (and optionally keyboard) size on top of the view's own padding. */
@@ -138,7 +149,7 @@ object Ui {
     fun card(c: Context): LinearLayout {
         val l = LinearLayout(c)
         l.orientation = LinearLayout.VERTICAL
-        l.background = rounded(c, WHITE, 22)
+        l.background = rounded(c, SURFACE, 22)
         l.elevation = dp(c, 2).toFloat()
         l.setPadding(dp(c, 18), dp(c, 16), dp(c, 18), dp(c, 16))
         return l
@@ -152,10 +163,10 @@ object Ui {
 
     /** Soft amber notice bar (hidden until needed). */
     fun banner(c: Context, s: String): TextView {
-        val t = text(c, s, 12f, Color.parseColor("#92400E"), MED)
+        val t = text(c, s, 12f, Ui.c("#92400E", "#FCD34D"), MED)
         t.gravity = Gravity.CENTER
         t.setLineSpacing(0f, 1.2f)
-        t.background = rounded(c, Color.parseColor("#FEF3C7"), 14)
+        t.background = rounded(c, Ui.c("#FEF3C7", "#3A2F10"), 14)
         t.setPadding(dp(c, 14), dp(c, 10), dp(c, 14), dp(c, 10))
         t.visibility = View.GONE
         return t
@@ -199,7 +210,7 @@ object Ui {
         } else {
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
         }
-        e.background = rounded(c, Color.parseColor("#F8FAFC"), 16, LINE, 1)
+        e.background = rounded(c, Ui.FIELD, 16, LINE, 1)
         e.setPadding(dp(c, 18), dp(c, 15), dp(c, 18), dp(c, 15))
         return e
     }

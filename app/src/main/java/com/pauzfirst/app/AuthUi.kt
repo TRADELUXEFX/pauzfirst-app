@@ -45,8 +45,8 @@ object AuthUi {
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
-        val idle = Ui.rounded(c, android.graphics.Color.parseColor("#F8FAFC"), 18, Ui.LINE, 1)
-        val focus = Ui.rounded(c, Ui.WHITE, 18, Ui.BLUE, 2)
+        val idle = Ui.rounded(c, Ui.FIELD, 18, Ui.LINE, 1)
+        val focus = Ui.rounded(c, Ui.SURFACE, 18, Ui.BLUE, 2)
         row.background = idle
         row.setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 8), 0)
 

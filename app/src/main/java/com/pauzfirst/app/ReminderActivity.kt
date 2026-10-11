@@ -43,7 +43,7 @@ class ReminderActivity : AppCompatActivity() {
         val timeRow = LinearLayout(c)
         timeRow.orientation = LinearLayout.HORIZONTAL
         timeRow.gravity = Gravity.CENTER_VERTICAL
-        timeRow.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+        timeRow.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
         timeRow.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
         val label = Ui.text(c, "Remind me at", 15f, Ui.TEXT, Ui.MED)
         label.gravity = Gravity.CENTER_VERTICAL

@@ -106,13 +106,13 @@ class SpinnerRingView(
 }
 
 /** A grey rounded placeholder with a light band that sweeps across it. */
-class SkeletonView(ctx: Context, private val radiusDp: Int = 8, private val base: Int = Color.parseColor("#E6ECF4")) : LoopView(ctx, 1300) {
+class SkeletonView(ctx: Context, private val radiusDp: Int = 8, private val base: Int = Ui.c("#E6ECF4", "#243044")) : LoopView(ctx, 1300) {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val m = Matrix()
     private val box = RectF()
     private val band = LinearGradient(
         0f, 0f, 1f, 0f,
-        intArrayOf(Color.TRANSPARENT, Color.parseColor("#B3FFFFFF"), Color.TRANSPARENT),
+        intArrayOf(Color.TRANSPARENT, Ui.c("#B3FFFFFF", "#26FFFFFF"), Color.TRANSPARENT),
         floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP
     )
 

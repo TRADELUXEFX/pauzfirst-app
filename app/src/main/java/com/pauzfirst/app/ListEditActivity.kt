@@ -80,7 +80,7 @@ class ListEditActivity : AppCompatActivity() {
 
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.VERTICAL
-        bar.setBackgroundColor(Ui.WHITE)
+        bar.setBackgroundColor(Ui.SURFACE)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         Ui.padInsets(bar, bottom = true)

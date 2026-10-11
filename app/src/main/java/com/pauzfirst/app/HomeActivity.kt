@@ -102,27 +102,44 @@ class HomeActivity : AppCompatActivity() {
         val top = LinearLayout(c)
         top.orientation = LinearLayout.HORIZONTAL
         top.gravity = Gravity.CENTER_VERTICAL
-        val titleCol = LinearLayout(c)
-        titleCol.orientation = LinearLayout.VERTICAL
-        val title = Ui.text(c, "PAUZFIRST", 22f, Ui.WHITE, Ui.BOLD)
+        // app icon + name, no tagline
+        val titleRow = LinearLayout(c)
+        titleRow.orientation = LinearLayout.HORIZONTAL
+        titleRow.gravity = Gravity.CENTER_VERTICAL
+        val logoImg = android.widget.ImageView(c)
+        logoImg.setImageResource(R.drawable.logo_badge)
+        logoImg.scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+        val logoLp = LinearLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 30))
+        logoLp.rightMargin = Ui.dp(c, 8)
+        titleRow.addView(logoImg, logoLp)
+        val title = Ui.text(c, "PAUZFIRST", 20f, Ui.WHITE, Ui.BOLD)
         title.letterSpacing = 0.08f
-        titleCol.addView(title)
-        titleCol.addView(Ui.text(c, "Pause and think before you respond", 12f, Color.parseColor("#CCE4FF"), Ui.REG), Ui.lp(c, 3))
-        top.addView(titleCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        title.maxLines = 1
+        titleRow.addView(title)
+        top.addView(titleRow, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         val logout = Ui.text(c, "Logout", 12f, Ui.WHITE, Ui.BOLD)
         logout.background = Ui.rounded(c, Ui.RED, 20)
         logout.setPadding(Ui.dp(c, 14), Ui.dp(c, 9), Ui.dp(c, 14), Ui.dp(c, 9))
-        val bell = android.widget.FrameLayout(c)
-        val bellBg = GradientDrawable()
-        bellBg.shape = GradientDrawable.OVAL
-        bellBg.setColor(Color.parseColor("#33FFFFFF"))
-        bell.background = bellBg
-        bell.contentDescription = "Daily reminder"
-        bell.addView(FsIconView(c, Icons.BELL, Ui.WHITE), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22), Gravity.CENTER))
-        bell.setOnClickListener { startActivity(Intent(this, ReminderActivity::class.java)) }
-        val bellLp = LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40))
-        bellLp.rightMargin = Ui.dp(c, 10)
-        top.addView(bell, bellLp)
+
+        fun headerIcon(path: String, desc: String, onClick: () -> Unit) {
+            val box = android.widget.FrameLayout(c)
+            val bg = GradientDrawable()
+            bg.shape = GradientDrawable.OVAL
+            bg.setColor(Color.parseColor("#33FFFFFF"))
+            box.background = bg
+            box.contentDescription = desc
+            box.addView(FsIconView(c, path, Ui.WHITE), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 21), Ui.dp(c, 21), Gravity.CENTER))
+            box.setOnClickListener { onClick() }
+            val lp = LinearLayout.LayoutParams(Ui.dp(c, 38), Ui.dp(c, 38))
+            lp.rightMargin = Ui.dp(c, 8)
+            top.addView(box, lp)
+        }
+        headerIcon(if (Ui.dark) Icons.SUN else Icons.MOON, if (Ui.dark) "Switch to light mode" else "Switch to dark mode") {
+            Settings.darkMode = !Ui.dark
+            Ui.dark = Settings.darkMode
+            recreate()
+        }
+        headerIcon(Icons.BELL, "Daily reminder") { startActivity(Intent(this, ReminderActivity::class.java)) }
         top.addView(logout, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         hero.addTo(top)
 
@@ -184,7 +201,7 @@ class HomeActivity : AppCompatActivity() {
         val spinWrap = LinearLayout(c)
         spinWrap.orientation = LinearLayout.HORIZONTAL
         spinWrap.gravity = Gravity.CENTER_VERTICAL
-        spinWrap.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+        spinWrap.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
         spinWrap.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
         sourceText = Ui.text(c, Settings.source, 15f, Ui.TEXT, Ui.MED)
         sourceText.maxLines = 1
@@ -332,7 +349,7 @@ class HomeActivity : AppCompatActivity() {
         // ---------- sticky start bar ----------
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.VERTICAL
-        bar.setBackgroundColor(Ui.WHITE)
+        bar.setBackgroundColor(Ui.SURFACE)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         Ui.padInsets(bar, bottom = true)
@@ -382,7 +399,7 @@ class HomeActivity : AppCompatActivity() {
         input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         input.setSingleLine(true)
         Ui.setFont(c, input, Ui.MED)
-        input.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+        input.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
         input.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 14))
         val box = LinearLayout(c)
         box.orientation = LinearLayout.VERTICAL

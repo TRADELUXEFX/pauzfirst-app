@@ -63,7 +63,7 @@ class LoginActivity : AppCompatActivity() {
 
         // ---------- form card, overlapping the hero ----------
         val card = Ui.card(c)
-        card.background = Ui.rounded(c, Ui.WHITE, 28)
+        card.background = Ui.rounded(c, Ui.SURFACE, 28)
         card.elevation = Ui.dp(c, 6).toFloat()
         card.setPadding(Ui.dp(c, 22), Ui.dp(c, 24), Ui.dp(c, 22), Ui.dp(c, 20))
         val welcome = Ui.text(c, "Welcome back", 24f, Ui.TEXT, Ui.BOLD)

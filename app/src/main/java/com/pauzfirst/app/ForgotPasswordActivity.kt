@@ -65,7 +65,7 @@ class ForgotPasswordActivity : AppCompatActivity() {
 
         // ---------- card ----------
         card = Ui.card(c)
-        card.background = Ui.rounded(c, Ui.WHITE, 28)
+        card.background = Ui.rounded(c, Ui.SURFACE, 28)
         card.elevation = Ui.dp(c, 6).toFloat()
         card.setPadding(Ui.dp(c, 22), Ui.dp(c, 24), Ui.dp(c, 22), Ui.dp(c, 22))
         showForm(intent.getStringExtra("email") ?: "")

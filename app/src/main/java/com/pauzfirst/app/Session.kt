@@ -44,6 +44,10 @@ object Settings {
     private fun getBool(k: String, d: Boolean): Boolean = Session.prefs.getBoolean(k, d)
     private fun putBool(k: String, v: Boolean) { Session.prefs.edit().putBoolean(k, v).apply() }
 
+    var darkMode: Boolean
+        get() = getBool("s_dark", false)
+        set(v) = putBool("s_dark", v)
+
     var total: Int
         get() = getInt("s_total", 5)
         set(v) = putInt("s_total", v)

@@ -91,7 +91,7 @@ class PresetsActivity : AppCompatActivity() {
         val c = this
         val card = Ui.card(c)
         val open = expanded == p.name
-        if (open) card.background = Ui.rounded(c, Ui.WHITE, 22, Ui.BLUE, 2)
+        if (open) card.background = Ui.rounded(c, Ui.SURFACE, 22, Ui.BLUE, 2)
 
         val title = Ui.text(c, p.name, 15f, Ui.TEXT, Ui.BOLD)
         title.maxLines = 1
@@ -111,7 +111,7 @@ class PresetsActivity : AppCompatActivity() {
 
         val pg = LinearLayout(c)
         pg.orientation = LinearLayout.VERTICAL
-        pg.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 14, Ui.LINE, 1)
+        pg.background = Ui.rounded(c, Ui.FIELD, 14, Ui.LINE, 1)
         pg.setPadding(Ui.dp(c, 14), Ui.dp(c, 12), Ui.dp(c, 14), Ui.dp(c, 12))
         var first = true
         fun add(label: String, value: String) {
@@ -141,7 +141,7 @@ class PresetsActivity : AppCompatActivity() {
         row.orientation = LinearLayout.HORIZONTAL
         val h = Ui.dp(c, 44)
         val use = actionBtn("Use", Icons.PLAY, Ui.BLUE, Ui.WHITE)
-        val del = actionBtn(null, Icons.TRASH, Color.parseColor("#FEE2E2"), Ui.RED)
+        val del = actionBtn(null, Icons.TRASH, Ui.c("#FEE2E2", "#3D1818"), Ui.RED)
         row.addView(use, LinearLayout.LayoutParams(0, h, 1f))
         val dl = LinearLayout.LayoutParams(Ui.dp(c, 52), h)
         dl.leftMargin = Ui.dp(c, 8)

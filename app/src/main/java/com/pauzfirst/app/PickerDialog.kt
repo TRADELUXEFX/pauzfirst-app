@@ -42,7 +42,7 @@ object PickerDialog {
 
         val card = LinearLayout(c)
         card.orientation = LinearLayout.VERTICAL
-        card.background = Ui.rounded(c, Ui.WHITE, 28)
+        card.background = Ui.rounded(c, Ui.SURFACE, 28)
         card.setPadding(Ui.dp(c, 12), Ui.dp(c, 20), Ui.dp(c, 12), Ui.dp(c, 12))
 
         val heading = Ui.text(c, title, 18f, Ui.TEXT, Ui.BOLD)
@@ -68,7 +68,7 @@ object PickerDialog {
             row.background = if (on) {
                 Ui.rounded(c, Ui.BLUE_SOFT, 16, Ui.BLUE, 2)
             } else {
-                Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+                Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
             }
 
             // round marker on the left: empty ring = not chosen, blue tick = chosen
@@ -76,7 +76,7 @@ object PickerDialog {
             mark.gravity = Gravity.CENTER
             val g = android.graphics.drawable.GradientDrawable()
             g.shape = android.graphics.drawable.GradientDrawable.OVAL
-            if (on) g.setColor(Ui.BLUE) else { g.setColor(Ui.WHITE); g.setStroke(Ui.dp(c, 2), Color.parseColor("#CBD5E1")) }
+            if (on) g.setColor(Ui.BLUE) else { g.setColor(Ui.SURFACE); g.setStroke(Ui.dp(c, 2), Ui.CHECK_LINE) }
             mark.background = g
             val ml = LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24))
             ml.rightMargin = Ui.dp(c, 12)

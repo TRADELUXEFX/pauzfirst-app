@@ -113,7 +113,7 @@ class TrainingActivity : AppCompatActivity() {
             return
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !Ui.dark
         val c = this
         root = LinearLayout(c)
         root.orientation = LinearLayout.VERTICAL
@@ -610,11 +610,33 @@ class TrainingActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun tint(hex: String): Int = Color.parseColor(hex)
+    private fun tint(hex: String): Int {
+        if (!Ui.dark) return Color.parseColor(hex)
+        return Color.parseColor(when (hex) {
+            "#EAF4FF" -> "#0F1E33"
+            "#FFF7E6" -> "#2A2110"
+            "#E9F8EF" -> "#0F2418"
+            else -> "#151C2A"
+        })
+    }
+
+    private var summaryLaunched = false
+
+    /** Every mode ends on the same finish page. */
+    private fun goSummary() {
+        if (summaryLaunched) return
+        summaryLaunched = true
+        startActivity(android.content.Intent(this, SummaryActivity::class.java))
+        finish()
+    }
 
     private fun render() {
         if (!counting && Engine.phase == Engine.Phase.IDLE) {
             finish()
+            return
+        }
+        if (!counting && Engine.phase == Engine.Phase.DONE) {
+            goSummary()
             return
         }
         val p = if (counting) Engine.Phase.LISTEN else Engine.phase

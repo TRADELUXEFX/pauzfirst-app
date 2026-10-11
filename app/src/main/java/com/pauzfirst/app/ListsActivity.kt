@@ -142,7 +142,7 @@ class ListsActivity : AppCompatActivity() {
 
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.HORIZONTAL
-        bar.setBackgroundColor(Ui.WHITE)
+        bar.setBackgroundColor(Ui.SURFACE)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         Ui.padInsets(bar, bottom = true)
@@ -282,7 +282,7 @@ class ListsActivity : AppCompatActivity() {
         val c = this
         val card = Ui.card(c)
         val open = !selectMode && expanded == name
-        if (open) card.background = Ui.rounded(c, Ui.WHITE, 22, Ui.BLUE, 2)
+        if (open) card.background = Ui.rounded(c, Ui.SURFACE, 22, Ui.BLUE, 2)
         val texts = listTexts(name)
         val total = texts.size
 
@@ -312,12 +312,12 @@ class ListsActivity : AppCompatActivity() {
             box.gravity = Gravity.CENTER
             val g = android.graphics.drawable.GradientDrawable()
             g.shape = android.graphics.drawable.GradientDrawable.OVAL
-            if (on) g.setColor(Ui.BLUE) else { g.setColor(Ui.WHITE); g.setStroke(Ui.dp(c, 2), Color.parseColor("#CBD5E1")) }
+            if (on) g.setColor(Ui.BLUE) else { g.setColor(Ui.SURFACE); g.setStroke(Ui.dp(c, 2), Ui.CHECK_LINE) }
             box.background = g
             val bl = LinearLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26))
             bl.rightMargin = Ui.dp(c, 12)
             top.addView(box, 0, bl)
-            if (on) card.background = Ui.rounded(c, Ui.WHITE, 22, Ui.BLUE, 2)
+            if (on) card.background = Ui.rounded(c, Ui.SURFACE, 22, Ui.BLUE, 2)
             card.addTo(top)
             card.setOnClickListener {
                 if (!selected.add(name)) selected.remove(name)
@@ -344,7 +344,7 @@ class ListsActivity : AppCompatActivity() {
 
         val pg = LinearLayout(c)
         pg.orientation = LinearLayout.VERTICAL
-        pg.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 14, Ui.LINE, 1)
+        pg.background = Ui.rounded(c, Ui.FIELD, 14, Ui.LINE, 1)
         pg.setPadding(Ui.dp(c, 12), Ui.dp(c, 10), Ui.dp(c, 12), Ui.dp(c, 10))
         val r1 = LinearLayout(c)
         r1.orientation = LinearLayout.HORIZONTAL
@@ -380,12 +380,12 @@ class ListsActivity : AppCompatActivity() {
         val gap = Ui.dp(c, if (narrow) 5 else 6)
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
-        val view = actionBtn("View", Icons.EYE, Ui.BLUE_SOFT, Color.parseColor("#1E6FD0"), !narrow)
+        val view = actionBtn("View", Icons.EYE, Ui.BLUE_SOFT, Ui.c("#1E6FD0", "#7DB8FF"), !narrow)
         val use = actionBtn("Use", Icons.PLAY, Ui.BLUE, Ui.WHITE, !narrow)
-        val edit = actionBtn(null, Icons.EDIT, Color.parseColor("#FEF3C7"), Color.parseColor("#B45309"), true)
-        val pin = actionBtn(null, Icons.PIN, Color.parseColor("#DCFCE7"), Color.parseColor("#15803D"), true)
-        val share = actionBtn(null, Icons.SHARE, Ui.BLUE_SOFT, Color.parseColor("#1E6FD0"), true)
-        val del = actionBtn(null, Icons.TRASH, Color.parseColor("#FEE2E2"), Ui.RED, true)
+        val edit = actionBtn(null, Icons.EDIT, Ui.c("#FEF3C7", "#3A2F10"), Ui.c("#B45309", "#FBBF24"), true)
+        val pin = actionBtn(null, Icons.PIN, Ui.c("#DCFCE7", "#12301F"), Ui.c("#15803D", "#4ADE80"), true)
+        val share = actionBtn(null, Icons.SHARE, Ui.BLUE_SOFT, Ui.c("#1E6FD0", "#7DB8FF"), true)
+        val del = actionBtn(null, Icons.TRASH, Ui.c("#FEE2E2", "#3D1818"), Ui.RED, true)
         row.addView(view, LinearLayout.LayoutParams(0, h, 1f))
         val ul = LinearLayout.LayoutParams(0, h, 1f)
         ul.leftMargin = gap
@@ -437,7 +437,7 @@ class ListsActivity : AppCompatActivity() {
         for ((i, q) in texts.withIndex()) {
             val row = LinearLayout(c)
             row.orientation = LinearLayout.HORIZONTAL
-            row.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+            row.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
             row.setPadding(Ui.dp(c, 12), Ui.dp(c, 12), Ui.dp(c, 14), Ui.dp(c, 12))
             val num = Ui.text(c, (i + 1).toString(), 12f, Ui.BLUE, Ui.BOLD)
             num.gravity = Gravity.CENTER
@@ -609,7 +609,7 @@ class ListsActivity : AppCompatActivity() {
         input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         input.setSingleLine(true)
         Ui.setFont(c, input, Ui.MED)
-        input.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+        input.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
         input.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 14))
         val box = LinearLayout(c)
         box.orientation = LinearLayout.VERTICAL

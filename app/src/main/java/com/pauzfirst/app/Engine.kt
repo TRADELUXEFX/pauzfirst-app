@@ -61,6 +61,19 @@ object Engine {
     private var mode = "eyes-closed"
 
     private var answered = 0
+    private var modeKey = "eyes-closed"
+
+    // what the finish screen shows (set when the session is saved)
+    var lastQuestions = 0
+        private set
+    var lastSeconds = 0
+        private set
+    var lastModeKey = ""
+        private set
+    @Volatile var lastStreak = -1
+        private set
+    @Volatile var lastBest = -1
+        private set
     private var startedAt = 0L
     private var usedBucket = "default"
     private var usedPool: List<String> = emptyList()
@@ -210,6 +223,7 @@ object Engine {
         tip = Settings.tip
         tipInt = Settings.tipInterval
         mode = Settings.recordMode
+        modeKey = Settings.mode
         questions = qs
         voiceNoticeShown = false
         usedBucket = bucket
@@ -417,8 +431,13 @@ object Engine {
     private fun saveSession() {
         val q = answered
         answered = 0
-        if (q <= 0) return
         val secs = ((SystemClock.elapsedRealtime() - startedAt) / 1000L).toInt()
+        lastQuestions = q
+        lastSeconds = secs
+        lastModeKey = modeKey
+        lastStreak = -1
+        lastBest = -1
+        if (q <= 0) return
         val m = mode
         val doneQs = questions.take(q)
         val bucket = usedBucket
@@ -428,6 +447,9 @@ object Engine {
                 val remote = Api.fetchStats()
                 val base = StatsStore.merge(remote, StatsStore.local())
                 val updated = StatsStore.addSession(base, q, secs, m)
+                lastStreak = updated.optInt("dailyStreak", 0)
+                lastBest = updated.optInt("lifetimeStreak", 0)
+                h.post { notifyUi() }
                 StatsStore.saveLocal(updated)
                 Api.saveStats(updated)
             } catch (e: Exception) {

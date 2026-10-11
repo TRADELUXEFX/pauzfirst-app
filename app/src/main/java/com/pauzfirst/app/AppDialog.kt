@@ -77,7 +77,7 @@ object AppDialog {
 
         val card = LinearLayout(c)
         card.orientation = LinearLayout.VERTICAL
-        card.background = Ui.rounded(c, Ui.WHITE, 28)
+        card.background = Ui.rounded(c, Ui.SURFACE, 28)
         card.setPadding(Ui.dp(c, 22), Ui.dp(c, 24), Ui.dp(c, 22), Ui.dp(c, 18))
 
         card.addView(Ui.text(c, title, 18f, Ui.TEXT, Ui.BOLD), Ui.lp(c))
