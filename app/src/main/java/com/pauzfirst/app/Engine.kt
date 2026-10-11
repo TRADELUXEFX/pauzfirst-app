@@ -187,7 +187,7 @@ object Engine {
         threeWhy = Settings.threeWhy
         tip = Settings.tip
         tipInt = Settings.tipInterval
-        mode = if (Settings.eyesOpen) "eyes-open" else "eyes-closed"
+        mode = Settings.mode
         questions = qs
         usedBucket = bucket
         usedPool = pool

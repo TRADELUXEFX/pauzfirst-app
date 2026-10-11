@@ -164,12 +164,55 @@ class HomeActivity : AppCompatActivity() {
         srcLp.setMargins(pad, Ui.dp(c, 18), pad, 0)
         body.addView(srcCard, srcLp)
 
+        var refresh: () -> Unit = {}
+
+        // ---------- training mode ----------
+        val modeCard = Ui.card(c)
+        modeCard.addTo(Ui.sectionTitle(c, "Training mode"))
+        val modeKeys = listOf("eyes-closed", "eyes-open", "mirror")
+        val modeNames = listOf("Eyes Closed", "Eyes Open", "Mirror")
+        val modeDescs = listOf(
+            "Eyes closed. Read, pause, and answer aloud. Standard mode.",
+            "Eyes open. Read the question on screen and respond aloud. Focused mode.",
+            "Practice in front of the camera. Watch your expressions and body language. Advanced mode."
+        )
+        val chipRow = LinearLayout(c)
+        chipRow.orientation = LinearLayout.HORIZONTAL
+        val chips = ArrayList<TextView>()
+        val modeDesc = Ui.text(c, "", 12f, Ui.MUTED, Ui.REG)
+        for (i in modeKeys.indices) {
+            val chip = Ui.text(c, modeNames[i], 13f, Ui.TEXT, Ui.BOLD)
+            chip.gravity = Gravity.CENTER
+            chip.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 12))
+            val clp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            if (i > 0) clp.leftMargin = Ui.dp(c, 8)
+            chipRow.addView(chip, clp)
+            chips.add(chip)
+            chip.setOnClickListener {
+                Settings.mode = modeKeys[i]
+                refresh()
+            }
+        }
+        modeCard.addTo(chipRow, 12)
+        modeCard.addTo(modeDesc, 10)
+        modeCard.addTo(Ui.switchRow(c, "Deep Pause", "No time limit. Tap Next when ready", Settings.deepPause) {
+            Settings.deepPause = it
+            refresh()
+        }, 14)
+        val modeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        modeLp.setMargins(pad, Ui.dp(c, 14), pad, 0)
+        body.addView(modeCard, modeLp)
+
         // ---------- timing ----------
         val timing = Ui.card(c)
         timing.addTo(Ui.sectionTitle(c, "Timing"))
         timing.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it }, 1, 50, 1) { it.toString() }, 14)
-        timing.addTo(Ui.stepper(c, "Pause", { Settings.pauseTime }, { Settings.pauseTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
-        timing.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 0, 60, 1) { if (it == 0) "∞" else it.toString() + "s" }, 12)
+        // Pause and Respond times do not apply in Deep Pause (no time limit)
+        val timeBox = LinearLayout(c)
+        timeBox.orientation = LinearLayout.VERTICAL
+        timeBox.addTo(Ui.stepper(c, "Pause", { Settings.pauseTime }, { Settings.pauseTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
+        timeBox.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 0, 60, 1) { if (it == 0) "∞" else it.toString() + "s" }, 12)
+        timing.addTo(timeBox)
         val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         timingLp.setMargins(pad, Ui.dp(c, 14), pad, 0)
         body.addView(timing, timingLp)
@@ -178,14 +221,40 @@ class HomeActivity : AppCompatActivity() {
         val opts = Ui.card(c)
         opts.addTo(Ui.sectionTitle(c, "Options"))
         opts.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 14)
-        opts.addTo(Ui.switchRow(c, "Eyes open", "Count this session as eyes open", Settings.eyesOpen) { Settings.eyesOpen = it }, 14)
-        opts.addTo(Ui.switchRow(c, "Deep Pause", "No time limit. Tap Next when ready", Settings.deepPause) { Settings.deepPause = it }, 14)
-        opts.addTo(Ui.switchRow(c, "3 Why Challenge", "Asks \"Why did you say that?\" (Deep Pause only)", Settings.threeWhy) { Settings.threeWhy = it }, 14)
-        opts.addTo(Ui.switchRow(c, "Voice tip", "Says \"Answer when you feel ready\"", Settings.tip) { Settings.tip = it }, 14)
-        opts.addTo(Ui.stepper(c, "Tip repeats every", { Settings.tipInterval }, { Settings.tipInterval = it }, 0, 120, 5) { if (it == 0) "once" else it.toString() + "s" }, 14)
+        // camera options: Mirror mode only
+        val camBox = LinearLayout(c)
+        camBox.orientation = LinearLayout.VERTICAL
+        camBox.addTo(Ui.switchRow(c, "Full camera view", "Bigger camera, hides the progress bar and hints", Settings.fullCamera) { Settings.fullCamera = it }, 14)
+        val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the camera", Settings.phaseGuide) { Settings.phaseGuide = it }
+        camBox.addTo(guideRow, 14)
+        camBox.addTo(Ui.switchRow(c, "Animated eyes", "Dark screen with a face that blinks and keeps eye contact (shows in full camera view)", Settings.animatedEyes) { Settings.animatedEyes = it }, 14)
+        opts.addTo(camBox)
+        // Deep Pause options
+        val deepBox = LinearLayout(c)
+        deepBox.orientation = LinearLayout.VERTICAL
+        deepBox.addTo(Ui.switchRow(c, "Voice tip", "Says \"Answer when you feel ready\"", Settings.tip) { Settings.tip = it }, 14)
+        deepBox.addTo(Ui.stepper(c, "Tip repeats every", { Settings.tipInterval }, { Settings.tipInterval = it }, 0, 120, 5) { if (it == 0) "once" else it.toString() + "s" }, 14)
+        deepBox.addTo(Ui.switchRow(c, "3 Why Challenge", "Asks \"Why did you say that?\"", Settings.threeWhy) { Settings.threeWhy = it }, 14)
+        opts.addTo(deepBox)
         val optsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         optsLp.setMargins(pad, Ui.dp(c, 14), pad, Ui.dp(c, 20))
         body.addView(opts, optsLp)
+
+        refresh = {
+            val m = Settings.mode
+            val deep = Settings.deepPause
+            for (i in modeKeys.indices) {
+                val on = modeKeys[i] == m
+                chips[i].background = Ui.rounded(c, if (on) Ui.BLUE else Ui.SOFT, 14)
+                chips[i].setTextColor(if (on) Ui.WHITE else Ui.MUTED)
+            }
+            modeDesc.text = modeDescs[Math.max(0, modeKeys.indexOf(m))]
+            timeBox.visibility = if (deep) View.GONE else View.VISIBLE
+            camBox.visibility = if (m == "mirror") View.VISIBLE else View.GONE
+            guideRow.visibility = if (deep) View.GONE else View.VISIBLE
+            deepBox.visibility = if (deep) View.VISIBLE else View.GONE
+        }
+        refresh()
 
         val scroll = ScrollView(c)
         scroll.isFillViewport = false

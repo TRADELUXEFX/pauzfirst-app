@@ -77,9 +77,35 @@ object Settings {
         get() = getInt("s_tip_int", 30)
         set(v) = putInt("s_tip_int", v)
 
-    var eyesOpen: Boolean
-        get() = getBool("s_eyes_open", false)
-        set(v) = putBool("s_eyes_open", v)
+    /** Training mode: "eyes-closed", "eyes-open" or "mirror" (one choice, like the website). */
+    var mode: String
+        get() {
+            val m = Session.prefs.getString("s_mode", null)
+            if (m != null) return m
+            // older installs used two separate switches
+            return if (getBool("s_mirror", false)) "mirror" else if (getBool("s_eyes_open", false)) "eyes-open" else "eyes-closed"
+        }
+        set(v) { Session.prefs.edit().putString("s_mode", v).apply() }
+
+    val eyesOpen: Boolean get() = mode == "eyes-open"
+
+    /** Mirror mode always shows the front camera. */
+    val mirror: Boolean get() = mode == "mirror"
+
+    /** Mirror only: start with the camera view enlarged. */
+    var fullCamera: Boolean
+        get() = getBool("s_full_cam", false)
+        set(v) = putBool("s_full_cam", v)
+
+    /** Mirror only: dark screen with animated eyes in full camera view (the website's "animated eyes"). */
+    var animatedEyes: Boolean
+        get() = getBool("s_eyes_anim", false)
+        set(v) = putBool("s_eyes_anim", v)
+
+    /** Mirror only (not with Deep Pause): show the phase and timer pill on the camera. */
+    var phaseGuide: Boolean
+        get() = getBool("s_phase_guide", true)
+        set(v) = putBool("s_phase_guide", v)
 
     var source: String
         get() = Session.prefs.getString("s_source", DEFAULT_SOURCE) ?: DEFAULT_SOURCE

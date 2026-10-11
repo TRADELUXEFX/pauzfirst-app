@@ -1,5 +1,7 @@
 package com.pauzfirst.app
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
@@ -9,7 +11,13 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import com.pauzfirst.app.Ui.addTo
 
@@ -25,6 +33,18 @@ class TrainingActivity : AppCompatActivity() {
     private lateinit var nextBtn: Button
     private lateinit var stopBtn: TextView
     private var segCount = 0
+    private lateinit var ringBox: FrameLayout
+    private lateinit var spacer: View
+    private var camBox: FrameLayout? = null
+    private var camView: PreviewView? = null
+    private var camTimer: TextView? = null
+    private var eyes: EyesView? = null
+    private var camOn = false
+    private var fullCam = false
+
+    private val camPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) startCamera() else hideCamera()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +94,7 @@ class TrainingActivity : AppCompatActivity() {
         root.addView(phasePill, pillLp)
 
         // ring with the timer in the middle
-        val ringBox = FrameLayout(c)
+        ringBox = FrameLayout(c)
         ring = RingView(c)
         ringBox.addView(ring, FrameLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220)))
         timer = Ui.text(c, "", 52f, Ui.TEXT, Ui.BOLD)
@@ -83,6 +103,38 @@ class TrainingActivity : AppCompatActivity() {
         val ringLp = LinearLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220))
         ringLp.topMargin = Ui.dp(c, 22)
         root.addView(ringBox, ringLp)
+
+        if (Settings.mirror) {
+            val box = FrameLayout(c)
+            box.background = Ui.rounded(c, Color.BLACK, 20)
+            box.clipToOutline = true
+            val pv = PreviewView(c)
+            pv.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            pv.scaleType = PreviewView.ScaleType.FILL_CENTER
+            box.addView(pv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            if (Settings.animatedEyes) {
+                val ev = EyesView(c)
+                ev.visibility = View.GONE
+                box.addView(ev, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+                eyes = ev
+            }
+            val ct = Ui.text(c, "", 15f, Ui.WHITE, Ui.BOLD)
+            ct.gravity = Gravity.CENTER
+            ct.background = Ui.rounded(c, Color.parseColor("#99000000"), 20)
+            ct.setPadding(Ui.dp(c, 16), Ui.dp(c, 7), Ui.dp(c, 16), Ui.dp(c, 7))
+            val ctLp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
+            ctLp.topMargin = Ui.dp(c, 12)
+            box.addView(ct, ctLp)
+            val boxLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+            boxLp.topMargin = Ui.dp(c, 16)
+            root.addView(box, boxLp)
+            camBox = box
+            camView = pv
+            camTimer = ct
+            camOn = true
+            ringBox.visibility = View.GONE
+            box.setOnClickListener { setFullCam(!fullCam) }
+        }
 
         hint = Ui.text(c, "", 13f, Ui.MUTED, Ui.MED)
         hint.gravity = Gravity.CENTER
@@ -99,7 +151,7 @@ class TrainingActivity : AppCompatActivity() {
         qCard.addTo(question)
         root.addTo(qCard, 18)
 
-        val spacer = View(c)
+        spacer = View(c)
         root.addView(spacer, LinearLayout.LayoutParams(1, 0, 1f))
 
         nextBtn = Ui.pill(c, "Next", Ui.GREEN)
@@ -115,6 +167,52 @@ class TrainingActivity : AppCompatActivity() {
             finish()
         }
         setContentView(root)
+
+        if (camOn) {
+            spacer.visibility = View.GONE
+            setFullCam(Settings.fullCamera)
+            camTimer?.visibility = if (Settings.deepPause || Settings.phaseGuide) View.VISIBLE else View.GONE
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                startCamera()
+            } else {
+                camPerm.launch(Manifest.permission.CAMERA)
+            }
+        }
+    }
+
+    /** Full camera view hides the progress bar, phase pill and hint so the camera gets the room. */
+    private fun setFullCam(on: Boolean) {
+        fullCam = on
+        eyes?.visibility = if (on && camOn) View.VISIBLE else View.GONE
+        val v = if (on) View.GONE else View.VISIBLE
+        segments.visibility = v
+        phasePill.visibility = v
+        hint.visibility = v
+    }
+
+    private fun startCamera() {
+        val pv = camView ?: return
+        val future = ProcessCameraProvider.getInstance(this)
+        future.addListener(Runnable {
+            try {
+                val provider = future.get()
+                val preview = Preview.Builder().build()
+                preview.setSurfaceProvider(pv.surfaceProvider)
+                provider.unbindAll()
+                provider.bindToLifecycle(this, CameraSelector.DEFAULT_FRONT_CAMERA, preview)
+            } catch (e: Exception) {
+                hideCamera()
+            }
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    /** No permission or no front camera: fall back to the normal ring screen, the session keeps running. */
+    private fun hideCamera() {
+        camOn = false
+        camBox?.visibility = View.GONE
+        ringBox.visibility = View.VISIBLE
+        spacer.visibility = View.VISIBLE
+        setFullCam(false)
     }
 
     override fun onResume() {
@@ -201,6 +299,13 @@ class TrainingActivity : AppCompatActivity() {
         ring.ringColor = accent
         ring.fraction = fraction
         timer.text = timerText
+        camTimer?.text = (label + "  " + timerText).trim()
+        eyes?.setPhase(when (p) {
+            Engine.Phase.LISTEN -> "listen"
+            Engine.Phase.PAUSE, Engine.Phase.DEEP -> "pause"
+            Engine.Phase.RESPOND, Engine.Phase.WHY -> "answer"
+            else -> "idle"
+        })
         timer.setTextColor(if (p == Engine.Phase.DONE) Ui.GREEN else Ui.TEXT)
         hint.text = hintText
         question.text = questionText
