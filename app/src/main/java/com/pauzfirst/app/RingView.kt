@@ -31,7 +31,7 @@ class RingView(ctx: Context) : View(ctx) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val stroke = Ui.dp(context, 14).toFloat()
+        val stroke = Ui.dp(context, 16).toFloat()
         track.strokeWidth = stroke
         arc.strokeWidth = stroke
         track.color = Ui.SOFT

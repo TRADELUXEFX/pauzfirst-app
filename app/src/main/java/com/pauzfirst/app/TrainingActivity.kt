@@ -58,6 +58,7 @@ class TrainingActivity : AppCompatActivity() {
     private var segCount = 0
     private lateinit var ringBox: FrameLayout
     private lateinit var spacer: View
+    private lateinit var topSpacer: View
     private var camOn = false
 
     // camera
@@ -144,39 +145,51 @@ class TrainingActivity : AppCompatActivity() {
         }
         root.addTo(segments, 14)
 
+        // content sits in the middle of the free space (no dead area at the bottom)
+        topSpacer = View(c)
+        root.addView(topSpacer, LinearLayout.LayoutParams(1, 0, 1f))
+
+        // timer-first sizing: big ring, capped so it still fits short or narrow phones
+        val dm = resources.displayMetrics
+        val wDp = dm.widthPixels / dm.density
+        val hDp = dm.heightPixels / dm.density
+        val ringDp = Math.max(190f, Math.min(290f, Math.min(wDp - 72f, hDp * 0.36f))).toInt()
+        val ringPx = Ui.dp(c, ringDp)
+
         // phase pill
         phasePill = Ui.text(c, "", 12f, Ui.WHITE, Ui.BOLD)
         phasePill.letterSpacing = 0.14f
         phasePill.gravity = Gravity.CENTER
         phasePill.setPadding(Ui.dp(c, 18), Ui.dp(c, 8), Ui.dp(c, 18), Ui.dp(c, 8))
         val pillLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        pillLp.topMargin = Ui.dp(c, 28)
+        pillLp.gravity = Gravity.CENTER_HORIZONTAL
         root.addView(phasePill, pillLp)
 
         // ring with the timer in the middle
         ringBox = FrameLayout(c)
         ring = RingView(c)
-        ringBox.addView(ring, FrameLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220)))
-        timer = Ui.text(c, "", 52f, Ui.TEXT, Ui.BOLD)
+        ringBox.addView(ring, FrameLayout.LayoutParams(ringPx, ringPx))
+        timer = Ui.text(c, "", 64f * ringDp / 290f, Ui.TEXT, Ui.BOLD)
         timer.gravity = Gravity.CENTER
-        ringBox.addView(timer, FrameLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220)))
-        dots = PopDotsView(c, Ui.TEXT, 12)
+        ringBox.addView(timer, FrameLayout.LayoutParams(ringPx, ringPx))
+        dots = PopDotsView(c, Ui.TEXT, 14)
         dots.visibility = View.GONE
-        ringBox.addView(dots, FrameLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220)))
-        val ringLp = LinearLayout.LayoutParams(Ui.dp(c, 220), Ui.dp(c, 220))
-        ringLp.topMargin = Ui.dp(c, 22)
+        ringBox.addView(dots, FrameLayout.LayoutParams(ringPx, ringPx))
+        val ringLp = LinearLayout.LayoutParams(ringPx, ringPx)
+        ringLp.gravity = Gravity.CENTER_HORIZONTAL
+        ringLp.topMargin = Ui.dp(c, 20)
         root.addView(ringBox, ringLp)
 
         // question card
-        question = Ui.text(c, "", 22f, Ui.TEXT, Ui.MED)
+        question = Ui.text(c, "", 18f, Ui.TEXT, Ui.MED)
         question.gravity = Gravity.CENTER
         question.setLineSpacing(0f, 1.25f)
         val qCard = Ui.card(c)
         qCard.gravity = Gravity.CENTER
-        qCard.setPadding(Ui.dp(c, 22), Ui.dp(c, 26), Ui.dp(c, 22), Ui.dp(c, 26))
-        qCard.minimumHeight = Ui.dp(c, 130)
+        qCard.setPadding(Ui.dp(c, 20), Ui.dp(c, 18), Ui.dp(c, 20), Ui.dp(c, 18))
+        qCard.minimumHeight = Ui.dp(c, 72)
         qCard.addTo(question)
-        root.addTo(qCard, 22)
+        root.addTo(qCard, 20)
 
         // tip sits right under the question card
         hint = Ui.text(c, "", 13f, Ui.MUTED, Ui.MED)

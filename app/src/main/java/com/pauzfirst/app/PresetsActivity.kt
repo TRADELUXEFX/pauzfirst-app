@@ -52,9 +52,7 @@ class PresetsActivity : AppCompatActivity() {
         holder.removeAllViews()
         val list = Presets.load()
         if (list.isEmpty()) {
-            val t = Ui.text(c, "No saved settings yet. Set things up on the main screen, then tap Save settings.", 14f, Ui.MUTED, Ui.MED)
-            t.setLineSpacing(0f, 1.15f)
-            holder.addView(t)
+            holder.addView(Ui.note(c, "No saved settings yet. Set things up on the main screen, then tap Save settings."))
             return
         }
         for (p in list) holder.addTo(card(p), 12)

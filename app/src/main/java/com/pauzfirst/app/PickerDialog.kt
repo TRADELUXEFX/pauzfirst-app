@@ -48,6 +48,9 @@ object PickerDialog {
         val heading = Ui.text(c, title, 18f, Ui.TEXT, Ui.BOLD)
         heading.setPadding(Ui.dp(c, 10), 0, Ui.dp(c, 10), 0)
         card.addView(heading, Ui.lp(c))
+        val sub = Ui.text(c, "Tap a list to use it", 12f, Ui.MUTED, Ui.REG)
+        sub.setPadding(Ui.dp(c, 10), 0, Ui.dp(c, 10), 0)
+        card.addView(sub, Ui.lp(c, 4))
 
         val scroll = MaxHeightScroll(c, maxListH)
         scroll.isVerticalScrollBarEnabled = false
@@ -61,29 +64,50 @@ object PickerDialog {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             row.setPadding(Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14))
-            row.background = Ui.rounded(c, if (on) Ui.BLUE_SOFT else Color.TRANSPARENT, 16)
+            // every option is its own curved box, so it is obvious each one can be tapped
+            row.background = if (on) {
+                Ui.rounded(c, Ui.BLUE_SOFT, 16, Ui.BLUE, 2)
+            } else {
+                Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+            }
 
+            // round marker on the left: empty ring = not chosen, blue tick = chosen
+            val mark = Ui.text(c, if (on) "✓" else "", 13f, Ui.WHITE, Ui.BOLD)
+            mark.gravity = Gravity.CENTER
+            val g = android.graphics.drawable.GradientDrawable()
+            g.shape = android.graphics.drawable.GradientDrawable.OVAL
+            if (on) g.setColor(Ui.BLUE) else { g.setColor(Ui.WHITE); g.setStroke(Ui.dp(c, 2), Color.parseColor("#CBD5E1")) }
+            mark.background = g
+            val ml = LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24))
+            ml.rightMargin = Ui.dp(c, 12)
+            row.addView(mark, ml)
+
+            val label = Ui.text(c, names[i], 15f, if (on) Ui.BLUE else Ui.TEXT, if (on) Ui.BOLD else Ui.MED)
+            row.addView(label, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             if (pinned.getOrNull(i) == true) {
                 val star = Ui.text(c, "★", 15f, Ui.AMBER, Ui.BOLD)
                 val sp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                sp.rightMargin = Ui.dp(c, 10)
+                sp.leftMargin = Ui.dp(c, 10)
                 row.addView(star, sp)
             }
-            val label = Ui.text(c, names[i], 15f, if (on) Ui.BLUE else Ui.TEXT, if (on) Ui.BOLD else Ui.MED)
-            row.addView(label, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            if (on) {
-                val tick = Ui.text(c, "✓", 16f, Ui.BLUE, Ui.BOLD)
-                row.addView(tick, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-                selectedRow = row
+            if (on) selectedRow = row
+
+            // quick press feedback
+            row.setOnTouchListener { v, e ->
+                when (e.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> v.alpha = 0.6f
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> v.alpha = 1f
+                }
+                false
             }
             row.setOnClickListener {
                 dialog.dismiss()
                 onPick(i)
             }
-            list.addView(row, Ui.lp(c, if (i == 0) 0 else 2))
+            list.addView(row, Ui.lp(c, if (i == 0) 0 else 8))
         }
         scroll.addView(list, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        card.addView(scroll, Ui.lp(c, 12))
+        card.addView(scroll, Ui.lp(c, 14))
 
         dialog.setContentView(card)
         dialog.setCanceledOnTouchOutside(true)
