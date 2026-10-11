@@ -14,6 +14,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
@@ -70,14 +71,13 @@ class TrainingActivity : AppCompatActivity() {
     private lateinit var fsOverlay: LinearLayout
     private lateinit var fsBadge: TextView
     private lateinit var fsQuestion: TextView
-    private lateinit var fsGuide: LinearLayout
+    private lateinit var fsCard: FrameLayout
+    private lateinit var fsGuide: PhaseGuideView
     private lateinit var fsWhy: TextView
     private lateinit var fsDeep: LinearLayout
     private lateinit var fsSecs: TextView
-    private lateinit var fsNext: TextView
-    private lateinit var fsEnd: TextView
-    private class Step(val icon: TextView, val label: TextView, val time: TextView)
-    private val steps = ArrayList<Step>()
+    private lateinit var fsNext: LinearLayout
+    private lateinit var fsEnd: LinearLayout
     private var fsOn = false
     private var doneClosePosted = false
 
@@ -227,15 +227,22 @@ class TrainingActivity : AppCompatActivity() {
 
     // ---------------------------------------------------------------- full screen layer
 
-    private fun fsButton(c: Context, label: String, bg: Int): TextView {
-        val t = Ui.text(c, label, 14f, Ui.WHITE, Ui.BOLD)
-        t.gravity = Gravity.CENTER
+    /** Transparent camera button: icon above the label, like the website. */
+    private fun fsIconButton(c: Context, iconPath: String, label: String): LinearLayout {
+        val box = LinearLayout(c)
+        box.orientation = LinearLayout.VERTICAL
+        box.gravity = Gravity.CENTER_HORIZONTAL
         val sl = android.graphics.drawable.StateListDrawable()
         sl.addState(intArrayOf(android.R.attr.state_pressed), Ui.rounded(c, Color.parseColor("#8C1E90FF"), 16, Color.parseColor("#40FFFFFF"), 1))
-        sl.addState(intArrayOf(), Ui.rounded(c, bg, 16, Color.parseColor("#40FFFFFF"), 1))
-        t.background = sl
-        t.setPadding(Ui.dp(c, 6), Ui.dp(c, 15), Ui.dp(c, 6), Ui.dp(c, 15))
-        return t
+        sl.addState(intArrayOf(), Ui.rounded(c, Color.parseColor("#8C000000"), 16, Color.parseColor("#40FFFFFF"), 1))
+        box.background = sl
+        box.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        box.addView(FsIconView(c, iconPath), LinearLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22)))
+        val t = Ui.text(c, label, 13f, Ui.WHITE, Ui.MED)
+        val tlp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        tlp.topMargin = Ui.dp(c, 4)
+        box.addView(t, tlp)
+        return box
     }
 
     private fun buildFs(c: Context) {
@@ -267,39 +274,47 @@ class TrainingActivity : AppCompatActivity() {
             insets
         }
 
-        fsBadge = Ui.text(c, "", 11f, Color.parseColor("#B3FFFFFF"), Ui.BOLD)
+        // static tip pill (the website shows it on the full-screen camera)
+        val tip = Ui.text(c, "CLOSE YOUR EYES DURING TRAINING FOR DEEPER FOCUS", 9f, Color.parseColor("#D9FFFFFF"), Ui.BOLD)
+        tip.letterSpacing = 0.1f
+        tip.gravity = Gravity.CENTER
+        tip.background = Ui.rounded(c, Color.parseColor("#59000000"), 20, Color.parseColor("#1FFFFFFF"), 1)
+        tip.setPadding(Ui.dp(c, 14), Ui.dp(c, 8), Ui.dp(c, 14), Ui.dp(c, 8))
+        val tipLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        tipLp.topMargin = Ui.dp(c, 8)
+        fsOverlay.addView(tip, tipLp)
+
+        // question card with the logo on its top edge
+        fsCard = FrameLayout(c)
+        val card = LinearLayout(c)
+        card.orientation = LinearLayout.VERTICAL
+        card.gravity = Gravity.CENTER_HORIZONTAL
+        card.background = Ui.rounded(c, Color.parseColor("#73000000"), 16, Color.parseColor("#2EFFFFFF"), 1)
+        card.setPadding(Ui.dp(c, 20), Ui.dp(c, 26), Ui.dp(c, 20), Ui.dp(c, 18))
+        fsBadge = Ui.text(c, "", 12f, Color.parseColor("#99FFFFFF"), Ui.BOLD)
         fsBadge.letterSpacing = 0.12f
         fsBadge.gravity = Gravity.CENTER
-        fsOverlay.addTo(fsBadge, 8)
-
-        fsQuestion = Ui.text(c, "", 18f, Ui.WHITE, Ui.BOLD)
+        card.addView(fsBadge, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        fsQuestion = Ui.text(c, "", 20f, Ui.WHITE, Ui.BOLD)
         fsQuestion.gravity = Gravity.CENTER
         fsQuestion.setLineSpacing(0f, 1.2f)
-        fsQuestion.background = Ui.rounded(c, Color.parseColor("#73000000"), 16, Color.parseColor("#2EFFFFFF"), 1)
-        fsQuestion.setPadding(Ui.dp(c, 20), Ui.dp(c, 16), Ui.dp(c, 20), Ui.dp(c, 16))
-        fsOverlay.addTo(fsQuestion, 10)
+        val qLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        qLp.topMargin = Ui.dp(c, 8)
+        card.addView(fsQuestion, qLp)
+        val cardLp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
+        cardLp.topMargin = Ui.dp(c, 17)
+        fsCard.addView(card, cardLp)
+        val logo = ImageView(c)
+        logo.setImageResource(R.drawable.logo_badge)
+        logo.scaleType = ImageView.ScaleType.FIT_CENTER
+        fsCard.addView(logo, FrameLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 34), Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+        fsOverlay.addTo(fsCard, 14)
 
         // phase guide: Listen -> Pause -> Respond (static times, like the website)
-        fsGuide = LinearLayout(c)
-        fsGuide.orientation = LinearLayout.HORIZONTAL
-        val names = arrayOf("Listen", "Pause", "Respond")
-        val times = arrayOf("", Settings.pauseTime.toString() + "s", if (Settings.answerTime == 0) "∞" else Settings.answerTime.toString() + "s")
-        for (i in 0 until 3) {
-            val col = LinearLayout(c)
-            col.orientation = LinearLayout.VERTICAL
-            col.gravity = Gravity.CENTER_HORIZONTAL
-            val icon = Ui.text(c, (i + 1).toString(), 12f, Ui.WHITE, Ui.BOLD)
-            icon.gravity = Gravity.CENTER
-            col.addView(icon, LinearLayout.LayoutParams(Ui.dp(c, 30), Ui.dp(c, 30)))
-            val lab = Ui.text(c, names[i], 10f, Ui.WHITE, Ui.BOLD)
-            col.addView(lab, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = Ui.dp(c, 5) })
-            val tm = Ui.text(c, times[i], 9f, Ui.WHITE, Ui.MED)
-            col.addView(tm, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = Ui.dp(c, 2) })
-            fsGuide.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            steps.add(Step(icon, lab, tm))
-        }
+        fsGuide = PhaseGuideView(c)
+        fsGuide.setTimes("", Settings.pauseTime.toString() + "s", Settings.answerTime.toString() + "s")
         fsGuide.visibility = View.GONE
-        fsOverlay.addTo(fsGuide, 14)
+        fsOverlay.addTo(fsGuide, 10)
 
         // Deep Pause: count-up + Why pill
         fsDeep = LinearLayout(c)
@@ -311,7 +326,9 @@ class TrainingActivity : AppCompatActivity() {
         fsWhy.background = Ui.rounded(c, Ui.BLUE, 14)
         fsWhy.setPadding(Ui.dp(c, 14), Ui.dp(c, 6), Ui.dp(c, 14), Ui.dp(c, 6))
         fsWhy.visibility = View.GONE
-        fsDeep.addView(fsWhy, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.bottomMargin = Ui.dp(c, 10) })
+        val whyLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        whyLp.bottomMargin = Ui.dp(c, 10)
+        fsDeep.addView(fsWhy, whyLp)
         fsSecs = Ui.text(c, "", 52f, Ui.WHITE, Ui.BOLD)
         fsSecs.gravity = Gravity.CENTER
         fsSecs.setShadowLayer(12f, 0f, 2f, Color.parseColor("#80000000"))
@@ -320,28 +337,32 @@ class TrainingActivity : AppCompatActivity() {
         sub.letterSpacing = 0.15f
         sub.gravity = Gravity.CENTER
         sub.setShadowLayer(6f, 0f, 1f, Color.parseColor("#73000000"))
-        fsDeep.addView(sub, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).also { it.topMargin = Ui.dp(c, 6) })
+        val subLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        subLp.topMargin = Ui.dp(c, 6)
+        fsDeep.addView(sub, subLp)
         fsDeep.visibility = View.GONE
         fsOverlay.addTo(fsDeep, 16)
 
         fsOverlay.addView(View(c), LinearLayout.LayoutParams(1, 0, 1f))
 
-        // bottom row: Flip, Close, End, Next
+        // bottom row: Flip, Close, End, Next (all transparent, like the website)
         val btns = LinearLayout(c)
         btns.orientation = LinearLayout.HORIZONTAL
-        val dark = Color.parseColor("#8C000000")
-        val flip = fsButton(c, "Flip", dark)
-        val close = fsButton(c, "Close", dark)
-        fsEnd = fsButton(c, "End", dark)
-        fsNext = fsButton(c, "Next", dark)
+        btns.gravity = Gravity.CENTER
+        val flip = fsIconButton(c, Icons.FLIP, "Flip")
+        val close = fsIconButton(c, Icons.CLOSE, "Close")
+        fsEnd = fsIconButton(c, Icons.STOP, "End")
+        fsNext = fsIconButton(c, Icons.NEXT, "Next")
         fsNext.visibility = View.GONE
-        val btnViews = arrayOf(flip, close, fsEnd, fsNext)
+        val btnViews = arrayOf<View>(flip, close, fsEnd, fsNext)
         for (i in btnViews.indices) {
-            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            if (i > 0) lp.leftMargin = Ui.dp(c, 8)
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            if (i > 0) lp.leftMargin = Ui.dp(c, 10)
             btns.addView(btnViews[i], lp)
         }
-        fsOverlay.addView(btns, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val btnsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        btnsLp.bottomMargin = Ui.dp(c, 16)
+        fsOverlay.addView(btns, btnsLp)
         flip.setOnClickListener { flipCamera() }
         close.setOnClickListener { closeFs() }
         fsEnd.setOnClickListener { endSession() }
@@ -501,16 +522,6 @@ class TrainingActivity : AppCompatActivity() {
 
     private fun tint(hex: String): Int = Color.parseColor(hex)
 
-    private fun styleStep(s: Step, active: Boolean, color: Int) {
-        val g = GradientDrawable()
-        g.shape = GradientDrawable.OVAL
-        g.setColor(if (active) color else Color.parseColor("#26FFFFFF"))
-        s.icon.background = g
-        s.icon.setTextColor(if (active) Color.WHITE else Color.parseColor("#99FFFFFF"))
-        s.label.setTextColor(if (active) Color.WHITE else Color.parseColor("#8CFFFFFF"))
-        s.time.setTextColor(if (active) Color.parseColor("#BFFFFFFF") else Color.parseColor("#59FFFFFF"))
-    }
-
     private fun render() {
         if (!counting && Engine.phase == Engine.Phase.IDLE) {
             finish()
@@ -610,7 +621,7 @@ class TrainingActivity : AppCompatActivity() {
         fsBadge.text = progress.text
         fsBadge.visibility = if (p == Engine.Phase.DONE) View.INVISIBLE else View.VISIBLE
         fsQuestion.text = questionText
-        fsQuestion.visibility = if (questionText.isEmpty()) View.INVISIBLE else View.VISIBLE
+        fsCard.visibility = if (questionText.isEmpty()) View.INVISIBLE else View.VISIBLE
 
         val activeIdx = when (p) {
             Engine.Phase.LISTEN -> 0
@@ -619,8 +630,7 @@ class TrainingActivity : AppCompatActivity() {
             else -> -1
         }
         fsGuide.visibility = if (Settings.phaseGuide && !Settings.deepPause && activeIdx >= 0) View.VISIBLE else View.GONE
-        val cols = intArrayOf(Ui.BLUE, Ui.AMBER, Ui.GREEN)
-        for (i in 0 until steps.size) styleStep(steps[i], i == activeIdx, cols[i])
+        fsGuide.active = activeIdx
 
         val deepOn = p == Engine.Phase.DEEP || p == Engine.Phase.WHY
         fsDeep.visibility = if (deepOn) View.VISIBLE else View.GONE
@@ -629,8 +639,8 @@ class TrainingActivity : AppCompatActivity() {
         fsWhy.text = "WHY?  " + Engine.whyCount + " / 3"
 
         fsNext.visibility = if (showNext) View.VISIBLE else View.GONE
-        fsNext.text = Engine.nextLabel()
-        fsEnd.text = if (p == Engine.Phase.DONE) "Done" else "End"
+        (fsNext.getChildAt(1) as TextView).text = Engine.nextLabel()
+        (fsEnd.getChildAt(1) as TextView).text = if (p == Engine.Phase.DONE) "Done" else "End"
 
         // after "Training complete!" the full screen closes by itself (website: 3.5 s)
         if (p == Engine.Phase.DONE) {

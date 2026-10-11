@@ -211,7 +211,7 @@ class HomeActivity : AppCompatActivity() {
         val timeBox = LinearLayout(c)
         timeBox.orientation = LinearLayout.VERTICAL
         timeBox.addTo(Ui.stepper(c, "Pause", { Settings.pauseTime }, { Settings.pauseTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
-        timeBox.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 0, 60, 1) { if (it == 0) "∞" else it.toString() + "s" }, 12)
+        timeBox.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
         timing.addTo(timeBox)
         val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         timingLp.setMargins(pad, Ui.dp(c, 14), pad, 0)

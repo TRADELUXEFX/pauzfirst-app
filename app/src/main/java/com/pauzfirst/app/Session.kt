@@ -54,7 +54,7 @@ object Settings {
 
     /** 0 = no limit, tap Next when done. */
     var answerTime: Int
-        get() = getInt("s_answer", 5)
+        get() = Math.max(1, getInt("s_answer", 5))
         set(v) = putInt("s_answer", v)
 
     var voice: Boolean
