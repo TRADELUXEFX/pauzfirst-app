@@ -17,6 +17,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.Toast
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -72,6 +73,8 @@ class TrainingActivity : AppCompatActivity() {
     private lateinit var fsOverlay: LinearLayout
     private lateinit var fsBadge: TextView
     private lateinit var fsQuestion: TextView
+    private lateinit var star: TextView
+    private lateinit var fsStar: TextView
     private lateinit var fsCard: FrameLayout
     private lateinit var fsGuide: PhaseGuideView
     private lateinit var fsWhy: TextView
@@ -186,10 +189,20 @@ class TrainingActivity : AppCompatActivity() {
         question.setLineSpacing(0f, 1.25f)
         val qCard = Ui.card(c)
         qCard.gravity = Gravity.CENTER
+        // dark mode: lighter fill plus a thin edge so the card stands out from the phase background
+        qCard.background = Ui.rounded(c, Ui.c("#FFFFFF", "#1F3050"), 22, Ui.c("#00000000", "#3A5078"), 1)
         qCard.setPadding(Ui.dp(c, 20), Ui.dp(c, 18), Ui.dp(c, 20), Ui.dp(c, 18))
         qCard.minimumHeight = Ui.dp(c, 72)
         qCard.addTo(question)
-        root.addTo(qCard, 20)
+        val qFrame = FrameLayout(c)
+        qFrame.clipChildren = false
+        qFrame.addView(qCard, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+        star = Ui.text(c, "\u2606", 26f, Ui.MUTED, Ui.BOLD)
+        star.setPadding(Ui.dp(c, 12), Ui.dp(c, 8), Ui.dp(c, 14), Ui.dp(c, 8))
+        star.contentDescription = "Favorite this question"
+        star.setOnClickListener { toggleFav() }
+        qFrame.addView(star, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END))
+        root.addTo(qFrame, 20)
 
         // tip sits right under the question card
         hint = Ui.text(c, "", 13f, Ui.MUTED, Ui.MED)
@@ -313,6 +326,11 @@ class TrainingActivity : AppCompatActivity() {
         val cardLp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
         cardLp.topMargin = Ui.dp(c, 17)
         fsCard.addView(card, cardLp)
+        fsStar = Ui.text(c, "\u2606", 26f, Color.parseColor("#B3FFFFFF"), Ui.BOLD)
+        fsStar.setPadding(Ui.dp(c, 12), Ui.dp(c, 8), Ui.dp(c, 14), Ui.dp(c, 8))
+        fsStar.contentDescription = "Favorite this question"
+        fsStar.setOnClickListener { toggleFav() }
+        fsCard.addView(fsStar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END).also { it.topMargin = Ui.dp(c, 21) })
         val logo = ImageView(c)
         logo.setImageResource(R.drawable.logo_badge)
         logo.scaleType = ImageView.ScaleType.FIT_CENTER
@@ -610,6 +628,19 @@ class TrainingActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    private var currentQ = ""
+
+    private fun toggleFav() {
+        if (currentQ.isEmpty()) return
+        val now = FavStore.toggle(currentQ)
+        val glyph = if (now) "\u2605" else "\u2606"
+        star.text = glyph
+        fsStar.text = glyph
+        star.setTextColor(if (now) Ui.AMBER else Ui.MUTED)
+        fsStar.setTextColor(if (now) Ui.AMBER else Color.parseColor("#B3FFFFFF"))
+        Toast.makeText(this, if (now) "Added to favorites" else "Removed from favorites", Toast.LENGTH_SHORT).show()
+    }
+
     private fun tint(hex: String): Int {
         if (!Ui.dark) return Color.parseColor(hex)
         return Color.parseColor(when (hex) {
@@ -735,6 +766,17 @@ class TrainingActivity : AppCompatActivity() {
         fsBadge.text = progress.text
         fsBadge.visibility = if (p == Engine.Phase.DONE) View.INVISIBLE else View.VISIBLE
         fsQuestion.text = questionText
+        currentQ = questionText
+        val isDone = p == Engine.Phase.DONE
+        val fav = !isDone && FavStore.has(questionText)
+        val glyph = if (fav) "\u2605" else "\u2606"
+        star.text = glyph
+        fsStar.text = glyph
+        star.setTextColor(if (fav) Ui.AMBER else Ui.MUTED)
+        fsStar.setTextColor(if (fav) Ui.AMBER else Color.parseColor("#B3FFFFFF"))
+        val starVis = if (isDone || questionText.isEmpty()) View.GONE else View.VISIBLE
+        star.visibility = starVis
+        fsStar.visibility = starVis
         fsCard.visibility = if (questionText.isEmpty()) View.INVISIBLE else View.VISIBLE
 
         val activeIdx = when (p) {

@@ -46,7 +46,7 @@ class HomeActivity : AppCompatActivity() {
         }
         Ui.edgeToEdge(this)
         buildUi()
-        askNotificationPermission()
+        if (intent?.getBooleanExtra(EXTRA_AGAIN, false) != true) askAllPermissions()
         handleTrainAgain()
     }
 
@@ -68,12 +68,38 @@ class HomeActivity : AppCompatActivity() {
         const val EXTRA_AGAIN = "train_again"
     }
 
-    private fun askNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 11)
+    private fun granted(perm: String): Boolean =
+        ContextCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Asks for everything the app uses in one go, the first time the main screen opens, so nothing
+     * interrupts a session later. (Screen capture for recording can't be granted ahead of time: Android
+     * asks for that one every time a recording starts.)
+     */
+    private fun askAllPermissions() {
+        if (Session.prefs.getBoolean("perms_asked", false)) return
+        val need = ArrayList<String>()
+        if (Build.VERSION.SDK_INT >= 33 && !granted(Manifest.permission.POST_NOTIFICATIONS)) need.add(Manifest.permission.POST_NOTIFICATIONS)
+        if (!granted(Manifest.permission.CAMERA)) need.add(Manifest.permission.CAMERA)
+        if (!granted(Manifest.permission.RECORD_AUDIO)) need.add(Manifest.permission.RECORD_AUDIO)
+        if (need.isEmpty()) {
+            Session.prefs.edit().putBoolean("perms_asked", true).apply()
+            return
         }
+        AppDialog.show(
+            this,
+            "Allow access once",
+            message = "So nothing interrupts your training, PAUZFIRST asks for these now:\n\nNotifications: your daily reminder\nCamera: Mirror mode\nMicrophone: the voice meter and session recording\n\nYou can change them any time in your phone's Settings.",
+            buttons = listOf(
+                Btn("Not now", Kind.SOFT) {
+                    Session.prefs.edit().putBoolean("perms_asked", true).apply()
+                },
+                Btn("Allow", Kind.PRIMARY) {
+                    Session.prefs.edit().putBoolean("perms_asked", true).apply()
+                    requestPermissions(need.toTypedArray(), 11)
+                }
+            )
+        )
     }
 
     private fun goLogin() {
@@ -265,10 +291,10 @@ class HomeActivity : AppCompatActivity() {
         val modeKeys = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")
         val modeNames = listOf("Eyes Closed", "Eyes Open", "Mirror", "Animated Eyes")
         val modeDescs = listOf(
-            "Eyes closed. Read, pause, and answer aloud. Standard mode.",
-            "Eyes open. Read the question on screen and respond aloud. Focused mode.",
-            "Practice in front of the camera, full screen. Watch your expressions and body language. Advanced mode.",
-            "Full screen with a face that blinks and keeps eye contact while you practice. Advanced mode."
+            "Close your eyes, listen to the question, pause, and answer aloud.",
+            "Keep your eyes open, read the question on screen, and answer aloud.",
+            "Practice in front of the camera and watch your facial expressions and body language.",
+            "Practice with a face that blinks and keeps eye contact with you."
         )
         val chips = ArrayList<TextView>()
         val modeDesc = Ui.text(c, "", 12f, Ui.MUTED, Ui.REG)
@@ -319,6 +345,8 @@ class HomeActivity : AppCompatActivity() {
         val opts = Ui.card(c)
         opts.addTo(Ui.sectionTitle(c, "Options"))
         opts.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 14)
+        opts.addTo(Ui.switchRow(c, "Record session", "Records all sound: your voice and the phone's voice guidance", Settings.recordAudio) { Settings.recordAudio = it }, 14)
+        opts.addTo(Ui.switchRow(c, "Record screen", "Records the screen with sound all through training", Settings.recordScreen) { Settings.recordScreen = it }, 14)
         // Mirror and Animated eyes only
         val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the screen", Settings.phaseGuide) { Settings.phaseGuide = it }
         opts.addTo(guideRow, 14)
@@ -659,7 +687,52 @@ class HomeActivity : AppCompatActivity() {
             "   •   Best streak " + s.optInt("lifetimeStreak", 0)
     }
 
+    private var afterRecordPrep: (() -> Unit)? = null
+
+    private val recMicPerm = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) {
+            askScreenOrGo()
+        } else {
+            Toast.makeText(this, "Microphone is off, so this session won't be recorded.", Toast.LENGTH_LONG).show()
+            runAfterPrep()
+        }
+    }
+
+    private val recProjection = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
+        val d = r.data
+        if (r.resultCode == RESULT_OK && d != null) {
+            SessionRecorder.startProjection(this, r.resultCode, d, Settings.recordScreen)
+        } else {
+            val msg = if (Settings.recordAudio) "Not allowed, so only your microphone will be recorded, not the phone's own sound."
+            else "Not allowed, so the screen won't be recorded."
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+        }
+        runAfterPrep()
+    }
+
+    private fun runAfterPrep() {
+        val go = afterRecordPrep
+        afterRecordPrep = null
+        go?.invoke()
+    }
+
+    private fun askScreenOrGo() {
+        // Android words this as "start recording or casting"; it is also what lets the app hear the phone's own sound
+        val mpm = getSystemService(MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+        recProjection.launch(mpm.createScreenCaptureIntent())
+    }
+
+    /** Sets up recording (if chosen in the options) before the session begins. */
     private fun startTraining() {
+        if (!Settings.recordAudio && !Settings.recordScreen) {
+            launchTraining()
+            return
+        }
+        afterRecordPrep = { launchTraining() }
+        if (SessionRecorder.hasMic(this)) askScreenOrGo() else recMicPerm.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
+    private fun launchTraining() {
         val src = Settings.source
         val pool: List<String> =
             (if (src == Settings.DEFAULT_SOURCE) Defaults.load(this) else (lists[src] ?: emptyList())).distinct()
@@ -669,6 +742,7 @@ class HomeActivity : AppCompatActivity() {
             else
                 "No questions found in \"" + src + "\"."
             Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            SessionRecorder.stop(this)
             return
         }
         val n = Math.min(Settings.total, pool.size)

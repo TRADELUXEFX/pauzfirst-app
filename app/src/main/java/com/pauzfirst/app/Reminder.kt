@@ -68,6 +68,15 @@ object Reminder {
         }
     }
 
+    /** Clears the reminder notification (used once you have trained for the day). */
+    fun dismiss(ctx: Context?) {
+        if (ctx == null) return
+        try {
+            (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(2001)
+        } catch (e: Exception) {
+        }
+    }
+
     fun show(ctx: Context) {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

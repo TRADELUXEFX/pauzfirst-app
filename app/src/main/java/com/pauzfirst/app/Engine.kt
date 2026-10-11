@@ -217,7 +217,9 @@ object Engine {
     fun start(ctx: Context, qs: List<String>, bucket: String = "default", pool: List<String> = qs) {
         val a = ctx.applicationContext
         app = a
+        starting = true
         stopInternal(false)
+        starting = false
         pauseT = Settings.pauseTime
         answerT = Settings.answerTime
         voice = Settings.voice
@@ -235,6 +237,7 @@ object Engine {
         answered = 0
         startedAt = SystemClock.elapsedRealtime()
         ensureTts()
+        SessionRecorder.startAudioIfWanted(a)
         try {
             ContextCompat.startForegroundService(a, Intent(a, TrainingService::class.java))
         } catch (e: Exception) {
@@ -426,8 +429,12 @@ object Engine {
         endService()
     }
 
+    private var starting = false
+
     private fun endService() {
         val a = app ?: return
+        // a new session is starting: keep the recording that was just set up for it
+        if (!starting) SessionRecorder.stop(a)
         try { a.stopService(Intent(a, TrainingService::class.java)) } catch (e: Exception) { }
     }
 
@@ -467,10 +474,13 @@ object Engine {
                 // the session stays waiting on the phone and is sent next time
             }
             try {
-                UsedStore.markUsed(doneQs, bucket, pool)
+                if (bucket != "favorites") UsedStore.markUsed(doneQs, bucket, pool)
             } catch (e: Exception) {
                 // not critical: questions may repeat sooner
             }
+            // you trained today, so a reminder that is already showing has done its job
+            try { Reminder.dismiss(app) } catch (e: Exception) { }
+            try { StreakWidget.refresh(app!!) } catch (e: Exception) { }
             h.post { onSaved?.invoke() }
         }.start()
     }

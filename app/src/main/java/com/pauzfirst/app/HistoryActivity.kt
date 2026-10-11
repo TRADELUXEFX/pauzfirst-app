@@ -45,7 +45,7 @@ class HistoryActivity : AppCompatActivity() {
         body = LinearLayout(c)
         body.orientation = LinearLayout.VERTICAL
         body.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 24))
-        body.addView(Loading.skeletonCards(c, 5))
+        body.addView(Loading.page(c))
 
         val scroll = ScrollView(c)
         scroll.addView(body)

@@ -13,7 +13,7 @@ object StatsStore {
 
     fun today(): String = fmt().format(Date())
 
-    private fun yesterday(): String {
+    fun yesterday(): String {
         val c = Calendar.getInstance()
         c.add(Calendar.DAY_OF_YEAR, -1)
         return fmt().format(c.time)

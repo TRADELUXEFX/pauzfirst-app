@@ -76,6 +76,16 @@ object Settings {
         get() = getBool("s_voice", true)
         set(v) = putBool("s_voice", v)
 
+    /** Record the whole training (voice guidance + your answers) as audio. Chosen before the session starts. */
+    var recordAudio: Boolean
+        get() = getBool("s_rec_audio", false)
+        set(v) = putBool("s_rec_audio", v)
+
+    /** Record the whole screen with sound during training. */
+    var recordScreen: Boolean
+        get() = getBool("s_rec_screen", false)
+        set(v) = putBool("s_rec_screen", v)
+
     var deepPause: Boolean
         get() = getBool("s_deep", false)
         set(v) = putBool("s_deep", v)

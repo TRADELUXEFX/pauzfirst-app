@@ -134,6 +134,20 @@ class SkeletonView(ctx: Context, private val radiusDp: Int = 8, private val base
 }
 
 object Loading {
+    /** The loading animation for list-style screens: a sweeping ring with three popping dots, centered. */
+    fun page(c: Context): LinearLayout {
+        val col = LinearLayout(c)
+        col.orientation = LinearLayout.VERTICAL
+        col.gravity = android.view.Gravity.CENTER
+        col.minimumHeight = Ui.dp(c, 360)
+        col.addView(SpinnerRingView(c), LinearLayout.LayoutParams(Ui.dp(c, 64), Ui.dp(c, 64)))
+        val dots = PopDotsView(c, Ui.BLUE, 8)
+        val dp = LinearLayout.LayoutParams(Ui.dp(c, 60), Ui.dp(c, 24))
+        dp.topMargin = Ui.dp(c, 12)
+        col.addView(dots, dp)
+        return col
+    }
+
     /** Card-shaped placeholders: a short title bar and two text bars. */
     fun skeletonCards(c: Context, count: Int = 4): LinearLayout {
         val col = LinearLayout(c)

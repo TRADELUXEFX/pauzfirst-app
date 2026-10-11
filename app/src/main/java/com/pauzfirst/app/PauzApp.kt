@@ -7,6 +7,8 @@ import android.os.Bundle
 
 class PauzApp : Application() {
     private val themeOf = java.util.WeakHashMap<Activity, Boolean>()
+    private var launching = true
+    private val LIGHT_LAUNCH = android.graphics.Color.parseColor("#F1F5F9")
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
@@ -21,10 +23,15 @@ class PauzApp : Application() {
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(a: Activity, s: Bundle?) {
                 themeOf[a] = Ui.dark
-                a.window.setBackgroundDrawable(ColorDrawable(Ui.BG))
+                // the launch always looks light: the dark background only goes on once the first screen is up
+                a.window.setBackgroundDrawable(ColorDrawable(if (launching) LIGHT_LAUNCH else Ui.BG))
             }
             /** A screen that was open underneath when the theme changed redraws itself on return. */
             override fun onActivityResumed(a: Activity) {
+                if (launching && !a.isFinishing) {
+                    launching = false
+                    a.window.setBackgroundDrawable(ColorDrawable(Ui.BG))
+                }
                 if (a is TrainingActivity) return
                 val t = themeOf[a]
                 if (t != null && t != Ui.dark) a.recreate()
