@@ -224,10 +224,10 @@ class HomeActivity : AppCompatActivity() {
         // camera options: Mirror mode only
         val camBox = LinearLayout(c)
         camBox.orientation = LinearLayout.VERTICAL
-        camBox.addTo(Ui.switchRow(c, "Full camera view", "Bigger camera, hides the progress bar and hints", Settings.fullCamera) { Settings.fullCamera = it }, 14)
+        camBox.addTo(Ui.switchRow(c, "Full camera view", "Starts the camera full screen", Settings.fullCamera) { Settings.fullCamera = it }, 14)
         val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the camera", Settings.phaseGuide) { Settings.phaseGuide = it }
         camBox.addTo(guideRow, 14)
-        camBox.addTo(Ui.switchRow(c, "Animated eyes", "Dark screen with a face that blinks and keeps eye contact (shows in full camera view)", Settings.animatedEyes) { Settings.animatedEyes = it }, 14)
+        camBox.addTo(Ui.switchRow(c, "Animated eyes", "Dark screen with a face that blinks and keeps eye contact (full screen only)", Settings.animatedEyes) { Settings.animatedEyes = it }, 14)
         opts.addTo(camBox)
         // Deep Pause options
         val deepBox = LinearLayout(c)
@@ -383,7 +383,12 @@ class HomeActivity : AppCompatActivity() {
         val n = Math.min(Settings.total, pool.size)
         val bucket = if (src == Settings.DEFAULT_SOURCE) "default" else "saved"
         val picked = UsedStore.pick(pool, n, bucket)
-        Engine.start(this, picked, bucket, pool)
+        if (Settings.mirror) {
+            // Mirror: the training screen runs READY / SET / GO, then starts the session
+            PendingStart.set(picked, bucket, pool)
+        } else {
+            Engine.start(this, picked, bucket, pool)
+        }
         startActivity(Intent(this, TrainingActivity::class.java))
     }
 }
