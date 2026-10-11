@@ -29,6 +29,9 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var tileQuestions: TextView
     private lateinit var tileStreak: TextView
     private lateinit var extraStats: TextView
+    private lateinit var offlineBanner: TextView
+    private var net: NetWatch? = null
+    private var wasOffline = false
     private lateinit var sourceText: TextView
     private lateinit var resumeBtn: Button
     private var lists: Map<String, List<String>> = emptyMap()
@@ -144,6 +147,11 @@ class HomeActivity : AppCompatActivity() {
         resumeBtn.visibility = View.GONE
         hero.addTo(resumeBtn, 14)
         body.addTo(hero)
+
+        offlineBanner = Ui.banner(c, "You're offline. Training still works, and your progress is saved on this phone.")
+        val obLp = Ui.lp(c, 12)
+        obLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
+        body.addView(offlineBanner, obLp)
 
         // ---------- questions source ----------
         val pad = Ui.dp(c, 16)
@@ -416,6 +424,22 @@ class HomeActivity : AppCompatActivity() {
             return
         }
         resumeBtn.visibility = if (Engine.isActive()) View.VISIBLE else View.GONE
+        if (lists.isEmpty()) {
+            // no internet yet: use the copy of the lists saved on this phone
+            ListCache.load()?.let { lists = ListCache.texts(it); refreshSpinner() }
+        }
+        net = NetWatch(this) { online ->
+            offlineBanner.visibility = if (online) View.GONE else View.VISIBLE
+            if (!online) {
+                wasOffline = true
+            } else if (wasOffline) {
+                // back online: sync stats, lists and any sessions waiting on the phone
+                wasOffline = false
+                loadRemote()
+                Thread { try { HistoryStore.flush() } catch (e: Exception) { } }.start()
+            }
+        }
+        net?.start()
         showSource()
         val local = StatsStore.local()
         showStats(local)
@@ -426,6 +450,8 @@ class HomeActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        net?.stop()
+        net = null
         Engine.onSaved = null
     }
 

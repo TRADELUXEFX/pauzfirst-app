@@ -150,6 +150,17 @@ object Ui {
         return t
     }
 
+    /** Soft amber notice bar (hidden until needed). */
+    fun banner(c: Context, s: String): TextView {
+        val t = text(c, s, 12f, Color.parseColor("#92400E"), MED)
+        t.gravity = Gravity.CENTER
+        t.setLineSpacing(0f, 1.2f)
+        t.background = rounded(c, Color.parseColor("#FEF3C7"), 14)
+        t.setPadding(dp(c, 14), dp(c, 10), dp(c, 14), dp(c, 10))
+        t.visibility = View.GONE
+        return t
+    }
+
     /** Centered helper message (empty states, errors, tips). */
     fun note(c: Context, s: String): TextView {
         val t = text(c, s, 14f, MUTED, MED)

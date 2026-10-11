@@ -25,6 +25,15 @@ class ListsActivity : AppCompatActivity() {
     private lateinit var holder: LinearLayout
     private var raw: Map<String, JSONArray> = emptyMap()
     private var loadedOnce = false
+    private lateinit var offlineNote: TextView
+    private var net: NetWatch? = null
+    private var wasOffline = false
+
+    private fun needsNet(): Boolean {
+        if (NetWatch.online(this)) return false
+        Toast.makeText(this, "This needs internet. Try again when you're back online.", Toast.LENGTH_SHORT).show()
+        return true
+    }
     private var expanded: String? = null
 
     // multi-select (bulk delete)
@@ -50,6 +59,22 @@ class ListsActivity : AppCompatActivity() {
         super.onResume()
         if (!::holder.isInitialized) return
         load()
+        net = NetWatch(this) { online ->
+            offlineNote.visibility = if (online) View.GONE else View.VISIBLE
+            if (!online) {
+                wasOffline = true
+            } else if (wasOffline) {
+                wasOffline = false
+                load()
+            }
+        }
+        net?.start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        net?.stop()
+        net = null
     }
 
     private fun buildUi() {
@@ -70,7 +95,7 @@ class ListsActivity : AppCompatActivity() {
         aiRow.addView(aiCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         aiRow.addView(Ui.text(c, "›", 22f, Ui.BLUE, Ui.BOLD))
         aiCard.addView(aiRow)
-        aiCard.setOnClickListener { startActivity(Intent(this, AiActivity::class.java)) }
+        aiCard.setOnClickListener { if (!needsNet()) startActivity(Intent(this, AiActivity::class.java)) }
         val aiLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         aiLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 4))
         page.addView(aiCard, aiLp)
@@ -99,6 +124,10 @@ class ListsActivity : AppCompatActivity() {
         mainChip.setOnClickListener {
             if (!selectMode) setSelectMode(true) else confirmDeleteSelected()
         }
+        offlineNote = Ui.banner(c, "You're offline. Showing the copy saved on this phone. You can view and use your lists, but changing them needs internet.")
+        val onLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        onLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), 0)
+        page.addView(offlineNote, onLp)
         page.addView(selectRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         holder = LinearLayout(c)
@@ -129,8 +158,8 @@ class ListsActivity : AppCompatActivity() {
 
         setContentView(page)
 
-        newBtn.setOnClickListener { startActivity(Intent(this, ListEditActivity::class.java)) }
-        importBtn.setOnClickListener { showImportDialog() }
+        newBtn.setOnClickListener { if (!needsNet()) startActivity(Intent(this, ListEditActivity::class.java)) }
+        importBtn.setOnClickListener { if (!needsNet()) showImportDialog() }
     }
 
     private fun toast(s: String) {
@@ -147,7 +176,13 @@ class ListsActivity : AppCompatActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (r == null) {
-                    if (!loadedOnce) {
+                    val cached = if (!loadedOnce) ListCache.load() else null
+                    if (!loadedOnce && cached != null) {
+                        // offline: show the copy kept on the phone
+                        loadedOnce = true
+                        raw = cached
+                        render()
+                    } else if (!loadedOnce) {
                         holder.removeAllViews()
                         holder.addView(Ui.note(this, "Couldn't load your lists. Check your connection and reopen this screen."))
                     } else {
@@ -370,9 +405,11 @@ class ListsActivity : AppCompatActivity() {
             finish()
         }
         edit.setOnClickListener {
+            if (needsNet()) return@setOnClickListener
             startActivity(Intent(this, ListEditActivity::class.java).putExtra("name", name))
         }
         pin.setOnClickListener {
+            if (needsNet()) return@setOnClickListener
             val on = !Settings.isPinned(name)
             Settings.setPin(name, on)
             render()
@@ -388,8 +425,8 @@ class ListsActivity : AppCompatActivity() {
                 }
             }.start()
         }
-        share.setOnClickListener { doShare(name) }
-        del.setOnClickListener { confirmDelete(name) }
+        share.setOnClickListener { if (!needsNet()) doShare(name) }
+        del.setOnClickListener { if (!needsNet()) confirmDelete(name) }
         return card
     }
 
@@ -473,6 +510,7 @@ class ListsActivity : AppCompatActivity() {
     }
 
     private fun confirmDeleteSelected() {
+        if (needsNet()) return
         val names = selected.toList()
         if (names.isEmpty()) {
             Toast.makeText(this, "Tick the lists you want to delete first.", Toast.LENGTH_SHORT).show()

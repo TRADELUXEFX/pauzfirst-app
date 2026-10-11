@@ -123,11 +123,13 @@ object Api {
         return try {
             val arr = JSONArray(r.body)
             val out = LinkedHashMap<String, List<String>>()
+            val rawOut = LinkedHashMap<String, JSONArray>()
             val pins = ArrayList<String>()
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
                 if (o.optBoolean("pinned", false)) pins.add(o.getString("name"))
                 val qs = o.optJSONArray("questions") ?: continue
+                rawOut[o.getString("name")] = qs
                 val list = ArrayList<String>()
                 for (j in 0 until qs.length()) {
                     val q = qs.opt(j)
@@ -141,6 +143,7 @@ object Api {
                 out[o.getString("name")] = list
             }
             Settings.setPinned(pins)
+            ListCache.save(rawOut)
             out
         } catch (e: Exception) {
             null
@@ -197,6 +200,7 @@ object Api {
                 out[o.getString("name")] = o.optJSONArray("questions") ?: JSONArray()
             }
             Settings.setPinned(pins)
+            ListCache.save(out)
             out
         } catch (e: Exception) {
             null
