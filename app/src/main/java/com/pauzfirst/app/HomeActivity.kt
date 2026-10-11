@@ -345,8 +345,8 @@ class HomeActivity : AppCompatActivity() {
         val opts = Ui.card(c)
         opts.addTo(Ui.sectionTitle(c, "Options"))
         opts.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 14)
-        opts.addTo(Ui.switchRow(c, "Record session", "Records all sound: your voice and the phone's voice guidance", Settings.recordAudio) { Settings.recordAudio = it }, 14)
-        opts.addTo(Ui.switchRow(c, "Record screen", "Records the screen with sound all through training", Settings.recordScreen) { Settings.recordScreen = it }, 14)
+        opts.addTo(Ui.switchRow(c, "Record training audio", null, Settings.recordAudio) { Settings.recordAudio = it }, 14)
+        opts.addTo(Ui.switchRow(c, "Record training video", null, Settings.recordScreen) { Settings.recordScreen = it }, 14)
         // Mirror and Animated eyes only
         val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the screen", Settings.phaseGuide) { Settings.phaseGuide = it }
         opts.addTo(guideRow, 14)

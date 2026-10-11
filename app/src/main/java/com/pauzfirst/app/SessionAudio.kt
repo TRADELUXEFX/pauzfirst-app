@@ -18,10 +18,10 @@ import java.nio.ByteBuffer
 
 /**
  * Records the sound of a whole session as one track: your microphone mixed with the phone's own sound
- * (the voice guidance). The phone's sound comes from Android's playback capture, which needs the
+ * (the voice guidance). While the phone is speaking the microphone is left out, so the voice isn't doubled. The phone's sound comes from Android's playback capture, which needs the
  * screen-capture permission; without it (or before Android 10) only the microphone is recorded.
  */
-class SessionAudio(private val projection: MediaProjection?) {
+class SessionAudio(private val projection: MediaProjection?, private val micMuted: () -> Boolean = { false }) {
     private val rate = 44100
     private val frame = 2048
     @Volatile private var running = false
@@ -123,8 +123,11 @@ class SessionAudio(private val projection: MediaProjection?) {
                     if (playRec != null) {
                         m = Math.max(0, playRec.read(b, 0, n, AudioRecord.READ_BLOCKING))
                     }
+                    // the phone's voice is already recorded cleanly, so leave the microphone out while it speaks
+                    // (otherwise the mic hears it from the speaker too and it sounds like an echo)
+                    val muteMic = playRec != null && micMuted()
                     for (k in 0 until n) {
-                        var v = a[k].toInt()
+                        var v = if (muteMic) 0 else a[k].toInt()
                         if (k < m) v += b[k].toInt()
                         if (v > 32767) v = 32767
                         if (v < -32768) v = -32768

@@ -149,7 +149,24 @@ object Engine {
         }
     }
 
+    // True while the phone is speaking (and for a moment after). The recorder uses it so the microphone
+    // doesn't pick up the voice a second time, which sounded like an echo.
+    @Volatile private var speaking = false
+    @Volatile private var speakStart = 0L
+    @Volatile private var speakEnd = 0L
+
+    fun isVoiceActive(): Boolean {
+        val now = SystemClock.uptimeMillis()
+        return (speaking && now - speakStart < 20000L) || now < speakEnd
+    }
+
+    private fun voiceStopped() {
+        speaking = false
+        speakEnd = SystemClock.uptimeMillis() + 350L
+    }
+
     private fun finishUtterance(id: String?) {
+        voiceStopped()
         h.post {
             if (id != null && id == activeId) {
                 val cb = doneCb
@@ -167,6 +184,8 @@ object Engine {
         activeId = id
         doneCb = cb
         t.setSpeechRate(rate)
+        speakStart = SystemClock.uptimeMillis()
+        speaking = true
         t.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
     }
 
@@ -189,6 +208,7 @@ object Engine {
         doneCb = null
         activeId = ""
         queued = null
+        voiceStopped()
         try { tts?.stop() } catch (e: Exception) { }
     }
 

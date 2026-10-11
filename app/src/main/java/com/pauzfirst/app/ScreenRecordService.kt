@@ -97,7 +97,7 @@ class ScreenRecordService : Service() {
         // sound first: your mic mixed with the phone's own sound
         val sf = File(cacheDir, "pauzfirst_sound_" + stamp + ".m4a")
         soundFile = sf
-        val s = SessionAudio(p)
+        val s = SessionAudio(p) { Engine.isVoiceActive() }
         sound = s
         s.start(sf)
 
