@@ -3,10 +3,13 @@ package com.pauzfirst.app
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -16,13 +19,16 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import com.pauzfirst.app.Ui.addTo
 import org.json.JSONObject
 
 class HomeActivity : AppCompatActivity() {
-    private lateinit var statsText: TextView
+    private lateinit var tileSessions: TextView
+    private lateinit var tileQuestions: TextView
+    private lateinit var tileStreak: TextView
+    private lateinit var extraStats: TextView
     private lateinit var spinner: Spinner
     private lateinit var resumeBtn: Button
     private var lists: Map<String, List<String>> = emptyMap()
@@ -34,6 +40,8 @@ class HomeActivity : AppCompatActivity() {
             goLogin()
             return
         }
+        window.statusBarColor = Ui.BLUE
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
         buildUi()
         askNotificationPermission()
     }
@@ -53,65 +61,139 @@ class HomeActivity : AppCompatActivity() {
         finish()
     }
 
+    private fun statTile(label: String): Pair<LinearLayout, TextView> {
+        val c = this
+        val tile = LinearLayout(c)
+        tile.orientation = LinearLayout.VERTICAL
+        tile.gravity = Gravity.CENTER
+        tile.background = Ui.rounded(c, Color.parseColor("#26FFFFFF"), 16)
+        tile.setPadding(Ui.dp(c, 8), Ui.dp(c, 12), Ui.dp(c, 8), Ui.dp(c, 12))
+        val value = Ui.text(c, "0", 22f, Ui.WHITE, Ui.BOLD)
+        value.gravity = Gravity.CENTER
+        val cap = Ui.text(c, label, 11f, Color.parseColor("#CCE4FF"), Ui.MED)
+        cap.gravity = Gravity.CENTER
+        tile.addView(value)
+        tile.addView(cap, Ui.lp(c, 4))
+        return Pair(tile, value)
+    }
+
     private fun buildUi() {
         val c = this
-        val root = LinearLayout(c)
-        root.orientation = LinearLayout.VERTICAL
-        root.setPadding(Ui.dp(c, 16), Ui.dp(c, 20), Ui.dp(c, 16), Ui.dp(c, 28))
+        val page = LinearLayout(c)
+        page.orientation = LinearLayout.VERTICAL
+        page.setBackgroundColor(Ui.BG)
 
-        // header
-        val header = LinearLayout(c)
-        header.orientation = LinearLayout.HORIZONTAL
-        header.gravity = Gravity.CENTER_VERTICAL
-        val title = Ui.text(c, "PAUZFIRST", 24f, Ui.BLUE, true)
-        header.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val logout = Ui.button(c, "Log out", Ui.RED)
-        logout.textSize = 12f
-        logout.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
-        header.addView(logout, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        root.addTo(header)
-        root.addTo(Ui.text(c, "Pause and think before you respond.", 13f, Ui.GREY), 2)
+        val body = LinearLayout(c)
+        body.orientation = LinearLayout.VERTICAL
 
-        resumeBtn = Ui.button(c, "Return to running session", Ui.GREEN)
+        // ---------- hero ----------
+        val hero = LinearLayout(c)
+        hero.orientation = LinearLayout.VERTICAL
+        val bg = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
+        val r = Ui.dp(c, 32).toFloat()
+        bg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r)
+        hero.background = bg
+        hero.setPadding(Ui.dp(c, 20), Ui.dp(c, 12), Ui.dp(c, 20), Ui.dp(c, 24))
+
+        val top = LinearLayout(c)
+        top.orientation = LinearLayout.HORIZONTAL
+        top.gravity = Gravity.CENTER_VERTICAL
+        val titleCol = LinearLayout(c)
+        titleCol.orientation = LinearLayout.VERTICAL
+        val title = Ui.text(c, "PAUZFIRST", 22f, Ui.WHITE, Ui.BOLD)
+        title.letterSpacing = 0.08f
+        titleCol.addView(title)
+        titleCol.addView(Ui.text(c, "Pause and think before you respond", 12f, Color.parseColor("#CCE4FF"), Ui.REG), Ui.lp(c, 3))
+        top.addView(titleCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val logout = Ui.text(c, "Log out", 12f, Ui.WHITE, Ui.BOLD)
+        logout.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)
+        logout.setPadding(Ui.dp(c, 14), Ui.dp(c, 9), Ui.dp(c, 14), Ui.dp(c, 9))
+        top.addView(logout, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        hero.addTo(top)
+
+        val tiles = LinearLayout(c)
+        tiles.orientation = LinearLayout.HORIZONTAL
+        val t1 = statTile("Sessions")
+        val t2 = statTile("Questions")
+        val t3 = statTile("Day streak")
+        tileSessions = t1.second
+        tileQuestions = t2.second
+        tileStreak = t3.second
+        val tileLp = { first: Boolean ->
+            val p = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            if (!first) p.leftMargin = Ui.dp(c, 10)
+            p
+        }
+        tiles.addView(t1.first, tileLp(true))
+        tiles.addView(t2.first, tileLp(false))
+        tiles.addView(t3.first, tileLp(false))
+        hero.addTo(tiles, 20)
+
+        extraStats = Ui.text(c, "", 12f, Color.parseColor("#CCE4FF"), Ui.MED)
+        extraStats.gravity = Gravity.CENTER
+        hero.addTo(extraStats, 12)
+
+        resumeBtn = Ui.pill(c, "Return to running session", Ui.GREEN)
         resumeBtn.visibility = View.GONE
-        root.addTo(resumeBtn, 14)
+        hero.addTo(resumeBtn, 14)
+        body.addTo(hero)
 
-        // progress
-        val statsCard = Ui.card(c)
-        statsCard.addTo(Ui.text(c, "Your progress", 15f, Ui.DARK, true))
-        statsText = Ui.text(c, "", 14f, Ui.GREY)
-        statsCard.addTo(statsText, 6)
-        root.addTo(statsCard, 14)
-
-        // settings
-        val set = Ui.card(c)
-        set.addTo(Ui.text(c, "Training settings", 15f, Ui.DARK, true))
-        set.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it }, 1, 50, 1) { it.toString() }, 10)
-        set.addTo(Ui.stepper(c, "Pause (seconds)", { Settings.pauseTime }, { Settings.pauseTime = it }, 1, 60, 1) { it.toString() }, 8)
-        set.addTo(Ui.stepper(c, "Respond (seconds)", { Settings.answerTime }, { Settings.answerTime = it }, 0, 60, 1) { if (it == 0) "∞" else it.toString() }, 8)
-        set.addTo(toggle("Voice guidance", Settings.voice) { Settings.voice = it }, 8)
-        set.addTo(toggle("Eyes open (instead of eyes closed)", Settings.eyesOpen) { Settings.eyesOpen = it }, 2)
-        set.addTo(toggle("Deep Pause (no time limit, tap Next)", Settings.deepPause) { Settings.deepPause = it }, 2)
-        set.addTo(toggle("3 Why Challenge (Deep Pause only)", Settings.threeWhy) { Settings.threeWhy = it }, 2)
-        set.addTo(toggle("Voice tip: \"Answer when you feel ready\"", Settings.tip) { Settings.tip = it }, 2)
-        set.addTo(Ui.stepper(c, "Tip repeats every (sec, 0 = once)", { Settings.tipInterval }, { Settings.tipInterval = it }, 0, 120, 5) { it.toString() }, 6)
-        root.addTo(set, 14)
-
-        // source
-        val src = Ui.card(c)
-        src.addTo(Ui.text(c, "Questions from", 15f, Ui.DARK, true))
+        // ---------- questions source ----------
+        val pad = Ui.dp(c, 16)
+        val srcCard = Ui.card(c)
+        srcCard.addTo(Ui.sectionTitle(c, "Questions from"))
         spinner = Spinner(c)
-        src.addTo(spinner, 8)
-        root.addTo(src, 14)
-        refreshSpinner()
+        val spinWrap = LinearLayout(c)
+        spinWrap.background = Ui.rounded(c, Color.parseColor("#F8FAFC"), 16, Ui.LINE, 1)
+        spinWrap.setPadding(Ui.dp(c, 8), Ui.dp(c, 2), Ui.dp(c, 8), Ui.dp(c, 2))
+        spinWrap.addView(spinner, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 48)))
+        srcCard.addTo(spinWrap, 10)
+        val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        srcLp.setMargins(pad, Ui.dp(c, 18), pad, 0)
+        body.addView(srcCard, srcLp)
 
-        val start = Ui.button(c, "Start training")
-        start.textSize = 18f
-        root.addTo(start, 18)
+        // ---------- timing ----------
+        val timing = Ui.card(c)
+        timing.addTo(Ui.sectionTitle(c, "Timing"))
+        timing.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it }, 1, 50, 1) { it.toString() }, 14)
+        timing.addTo(Ui.stepper(c, "Pause", { Settings.pauseTime }, { Settings.pauseTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
+        timing.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 0, 60, 1) { if (it == 0) "∞" else it.toString() + "s" }, 12)
+        val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        timingLp.setMargins(pad, Ui.dp(c, 14), pad, 0)
+        body.addView(timing, timingLp)
+
+        // ---------- options ----------
+        val opts = Ui.card(c)
+        opts.addTo(Ui.sectionTitle(c, "Options"))
+        opts.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 14)
+        opts.addTo(Ui.switchRow(c, "Eyes open", "Count this session as eyes open", Settings.eyesOpen) { Settings.eyesOpen = it }, 14)
+        opts.addTo(Ui.switchRow(c, "Deep Pause", "No time limit. Tap Next when ready", Settings.deepPause) { Settings.deepPause = it }, 14)
+        opts.addTo(Ui.switchRow(c, "3 Why Challenge", "Asks \"Why did you say that?\" (Deep Pause only)", Settings.threeWhy) { Settings.threeWhy = it }, 14)
+        opts.addTo(Ui.switchRow(c, "Voice tip", "Says \"Answer when you feel ready\"", Settings.tip) { Settings.tip = it }, 14)
+        opts.addTo(Ui.stepper(c, "Tip repeats every", { Settings.tipInterval }, { Settings.tipInterval = it }, 0, 120, 5) { if (it == 0) "once" else it.toString() + "s" }, 14)
+        val optsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        optsLp.setMargins(pad, Ui.dp(c, 14), pad, Ui.dp(c, 20))
+        body.addView(opts, optsLp)
 
         val scroll = ScrollView(c)
-        scroll.addView(root)
-        setContentView(scroll)
+        scroll.isFillViewport = false
+        scroll.clipToPadding = false
+        scroll.addView(body)
+        page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+
+        // ---------- sticky start bar ----------
+        val bar = LinearLayout(c)
+        bar.orientation = LinearLayout.VERTICAL
+        bar.setBackgroundColor(Ui.WHITE)
+        bar.elevation = Ui.dp(c, 8).toFloat()
+        bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        val start = Ui.pill(c, "Start training")
+        start.textSize = 17f
+        bar.addTo(start)
+        page.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
+        setContentView(page)
+        refreshSpinner()
 
         logout.setOnClickListener {
             Engine.stop()
@@ -130,14 +212,11 @@ class HomeActivity : AppCompatActivity() {
         }
     }
 
-    private fun toggle(label: String, initial: Boolean, onChange: (Boolean) -> Unit): SwitchCompat {
-        val s = SwitchCompat(this)
-        s.text = label
-        s.textSize = 15f
-        s.setTextColor(Ui.DARK)
-        s.isChecked = initial
-        s.setOnCheckedChangeListener { _, checked -> onChange(checked) }
-        return s
+    private fun styleSpinnerText(v: View?) {
+        val t = v as? TextView ?: return
+        Ui.setFont(this, t, Ui.MED)
+        t.setTextColor(Ui.TEXT)
+        t.textSize = 15f
     }
 
     private fun refreshSpinner() {
@@ -145,7 +224,19 @@ class HomeActivity : AppCompatActivity() {
         names.add(Settings.DEFAULT_SOURCE)
         names.addAll(lists.keys)
         sourceNames = names
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, names)
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, names) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val v = super.getView(position, convertView, parent)
+                styleSpinnerText(v)
+                return v
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val v = super.getDropDownView(position, convertView, parent)
+                styleSpinnerText(v)
+                return v
+            }
+        }
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinner.adapter = adapter
         val idx = names.indexOf(Settings.source)
@@ -155,7 +246,7 @@ class HomeActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!Session.loggedIn()) return
-        if (!::statsText.isInitialized) return
+        if (!::tileSessions.isInitialized) return
         resumeBtn.visibility = if (Engine.isActive()) View.VISIBLE else View.GONE
         showStats(StatsStore.local())
         Engine.onSaved = { loadRemote() }
@@ -190,15 +281,11 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun showStats(s: JSONObject) {
-        val ms = s.optJSONObject("modeSessions")
-        val sb = StringBuilder()
-        sb.append("Sessions: ").append(s.optLong("lifetimeSessions", 0L)).append("\n")
-        sb.append("Questions answered: ").append(s.optLong("lifetimeQuestions", 0L)).append("\n")
-        sb.append("Time practiced: ").append(StatsStore.formatTime(s.optLong("lifetimeTime", 0L))).append("\n")
-        sb.append("Daily streak: ").append(s.optInt("dailyStreak", 0)).append("   Lifetime streak: ").append(s.optInt("lifetimeStreak", 0)).append("\n")
-        sb.append("Eyes closed: ").append(ms?.optInt("eyes-closed", 0) ?: 0)
-        sb.append("   Eyes open: ").append(ms?.optInt("eyes-open", 0) ?: 0)
-        statsText.text = sb.toString()
+        tileSessions.text = s.optLong("lifetimeSessions", 0L).toString()
+        tileQuestions.text = s.optLong("lifetimeQuestions", 0L).toString()
+        tileStreak.text = s.optInt("dailyStreak", 0).toString()
+        extraStats.text = "Time practiced " + StatsStore.formatTime(s.optLong("lifetimeTime", 0L)) +
+            "   •   Best streak " + s.optInt("lifetimeStreak", 0)
     }
 
     private fun startTraining() {

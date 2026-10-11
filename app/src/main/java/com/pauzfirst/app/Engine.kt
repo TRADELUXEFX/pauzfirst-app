@@ -39,6 +39,9 @@ object Engine {
         private set
     var showNext = false
         private set
+    /** Length of the current countdown (0 when the phase has no countdown), for the ring. */
+    var phaseTotal = 0
+        private set
 
     /** Screen refresh hook. Set by the training screen while it is visible. */
     var listener: (() -> Unit)? = null
@@ -236,6 +239,7 @@ object Engine {
     private fun beginQuestion() {
         gen++
         phase = Phase.LISTEN
+        phaseTotal = 0
         seconds = 0
         whyCount = 0
         showNext = false
@@ -248,6 +252,7 @@ object Engine {
     private fun startPause() {
         gen++
         phase = Phase.PAUSE
+        phaseTotal = pauseT
         seconds = pauseT
         showNext = false
         notifyUi()
@@ -271,6 +276,7 @@ object Engine {
         phase = Phase.RESPOND
         infinite = answerT == 0
         seconds = answerT
+        phaseTotal = if (infinite) 0 else answerT
         showNext = infinite
         notifyUi()
         say("Respond", 0.9f, null)
@@ -293,6 +299,7 @@ object Engine {
     private fun startDeep() {
         gen++
         phase = Phase.DEEP
+        phaseTotal = 0
         seconds = 0
         showNext = true
         notifyUi()
@@ -328,6 +335,7 @@ object Engine {
         gen++
         phase = Phase.WHY
         whyCount++
+        phaseTotal = 0
         seconds = 0
         showNext = true
         notifyUi()
@@ -346,6 +354,7 @@ object Engine {
         showNext = false
         if (index < questions.size) {
             phase = Phase.NEXT
+            phaseTotal = 0
             seconds = 0
             notifyUi()
             later(if (deep) 3000L else 2000L) { beginQuestion() }

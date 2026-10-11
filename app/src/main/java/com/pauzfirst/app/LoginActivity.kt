@@ -1,16 +1,18 @@
 package com.pauzfirst.app
 
 import android.content.Intent
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.text.InputType
 import android.view.Gravity
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import com.pauzfirst.app.Ui.addTo
 
 class LoginActivity : AppCompatActivity() {
@@ -26,50 +28,65 @@ class LoginActivity : AppCompatActivity() {
             return
         }
         val c = this
+        window.statusBarColor = Ui.BLUE
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+
         val root = LinearLayout(c)
         root.orientation = LinearLayout.VERTICAL
-        root.gravity = Gravity.CENTER_HORIZONTAL
-        root.setPadding(Ui.dp(c, 24), Ui.dp(c, 64), Ui.dp(c, 24), Ui.dp(c, 24))
+        root.setBackgroundColor(Ui.BG)
 
-        val title = Ui.text(c, "PAUZFIRST", 30f, Ui.BLUE, true)
-        title.gravity = Gravity.CENTER
-        root.addTo(title)
-        val sub = Ui.text(c, "Login to get access to training", 14f, Ui.GREY)
-        sub.gravity = Gravity.CENTER
-        root.addTo(sub, 6)
+        // blue hero with logo + name
+        val hero = LinearLayout(c)
+        hero.orientation = LinearLayout.VERTICAL
+        hero.gravity = Gravity.CENTER
+        val bg = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
+        val r = Ui.dp(c, 36).toFloat()
+        bg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r)
+        hero.background = bg
+        hero.setPadding(Ui.dp(c, 24), Ui.dp(c, 44), Ui.dp(c, 24), Ui.dp(c, 56))
 
-        email = EditText(c)
-        email.hint = "Email address"
-        email.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-        email.setSingleLine(true)
-        email.background = Ui.rounded(c, Ui.WHITE, 12)
-        email.setPadding(Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14))
-        root.addTo(email, 32)
+        val logo = ImageView(c)
+        logo.setImageResource(R.mipmap.ic_launcher)
+        val ls = Ui.dp(c, 84)
+        hero.addView(logo, LinearLayout.LayoutParams(ls, ls))
+        val name = Ui.text(c, "PAUZFIRST", 28f, Ui.WHITE, Ui.BOLD)
+        name.letterSpacing = 0.08f
+        name.gravity = Gravity.CENTER
+        hero.addTo(name, 16)
+        val tag = Ui.text(c, "Pause and think before you respond", 13f, Color80(), Ui.REG)
+        tag.gravity = Gravity.CENTER
+        hero.addTo(tag, 6)
+        root.addView(hero, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        password = EditText(c)
-        password.hint = "Password"
-        password.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        password.setSingleLine(true)
+        // form card, overlapping the hero a little
+        val card = Ui.card(c)
+        card.addTo(Ui.text(c, "Welcome back", 20f, Ui.TEXT, Ui.BOLD))
+        card.addTo(Ui.text(c, "Log in to start training", 13f, Ui.MUTED, Ui.REG), 2)
+        email = Ui.input(c, "Email address", false)
+        card.addTo(email, 20)
+        password = Ui.input(c, "Password", true)
         password.imeOptions = EditorInfo.IME_ACTION_DONE
-        password.background = Ui.rounded(c, Ui.WHITE, 12)
-        password.setPadding(Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14))
-        root.addTo(password, 12)
-
-        loginBtn = Ui.button(c, "Login")
-        root.addTo(loginBtn, 16)
-
-        msg = Ui.text(c, "", 13f, Ui.RED)
+        card.addTo(password, 12)
+        loginBtn = Ui.pill(c, "Log in")
+        card.addTo(loginBtn, 20)
+        msg = Ui.text(c, "", 12f, Ui.RED, Ui.MED)
         msg.gravity = Gravity.CENTER
-        root.addTo(msg, 12)
-
-        val forgot = Ui.text(c, "Forgot your password? Reset it", 14f, Ui.BLUE, true)
+        card.addTo(msg, 12)
+        val forgot = Ui.text(c, "Forgot password?", 14f, Ui.BLUE, Ui.BOLD)
         forgot.gravity = Gravity.CENTER
-        forgot.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 12))
-        root.addTo(forgot, 8)
+        forgot.setPadding(0, Ui.dp(c, 10), 0, Ui.dp(c, 6))
+        card.addTo(forgot, 4)
 
-        val hint = Ui.text(c, "New here? Open the invite link from your email first to create your password, then log in.", 12f, Ui.GREY)
+        val cardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        cardLp.setMargins(Ui.dp(c, 20), -Ui.dp(c, 28), Ui.dp(c, 20), 0)
+        root.addView(card, cardLp)
+
+        val hint = Ui.text(c, "New here? Open the invite link in your email first to create your password, then log in.", 12f, Ui.MUTED, Ui.REG)
         hint.gravity = Gravity.CENTER
-        root.addTo(hint, 16)
+        hint.setLineSpacing(0f, 1.2f)
+        val hintLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        hintLp.setMargins(Ui.dp(c, 36), Ui.dp(c, 22), Ui.dp(c, 36), Ui.dp(c, 24))
+        root.addView(hint, hintLp)
 
         loginBtn.setOnClickListener { doLogin() }
         forgot.setOnClickListener { doReset() }
@@ -79,9 +96,12 @@ class LoginActivity : AppCompatActivity() {
 
         val scroll = ScrollView(c)
         scroll.isFillViewport = true
+        scroll.setBackgroundColor(Ui.BG)
         scroll.addView(root)
         setContentView(scroll)
     }
+
+    private fun Color80(): Int = android.graphics.Color.parseColor("#CCE4FF")
 
     private fun goHome() {
         startActivity(Intent(this, HomeActivity::class.java))
@@ -120,7 +140,7 @@ class LoginActivity : AppCompatActivity() {
     private fun doReset() {
         val e = email.text.toString().trim()
         if (e.isEmpty() || !e.contains("@")) {
-            setMsg("Enter your email above, then tap Reset.", false)
+            setMsg("Enter your email above, then tap Forgot password.", false)
             return
         }
         setMsg("Sending reset link…", true)
