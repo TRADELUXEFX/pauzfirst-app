@@ -230,7 +230,10 @@ class TrainingActivity : AppCompatActivity() {
     private fun fsButton(c: Context, label: String, bg: Int): TextView {
         val t = Ui.text(c, label, 14f, Ui.WHITE, Ui.BOLD)
         t.gravity = Gravity.CENTER
-        t.background = Ui.rounded(c, bg, 16, Color.parseColor("#40FFFFFF"), 1)
+        val sl = android.graphics.drawable.StateListDrawable()
+        sl.addState(intArrayOf(android.R.attr.state_pressed), Ui.rounded(c, Color.parseColor("#8C1E90FF"), 16, Color.parseColor("#40FFFFFF"), 1))
+        sl.addState(intArrayOf(), Ui.rounded(c, bg, 16, Color.parseColor("#40FFFFFF"), 1))
+        t.background = sl
         t.setPadding(Ui.dp(c, 6), Ui.dp(c, 15), Ui.dp(c, 6), Ui.dp(c, 15))
         return t
     }
@@ -329,8 +332,8 @@ class TrainingActivity : AppCompatActivity() {
         val dark = Color.parseColor("#8C000000")
         val flip = fsButton(c, "Flip", dark)
         val close = fsButton(c, "Close", dark)
-        fsEnd = fsButton(c, "End", Color.parseColor("#B3EF4444"))
-        fsNext = fsButton(c, "Next", Ui.GREEN)
+        fsEnd = fsButton(c, "End", dark)
+        fsNext = fsButton(c, "Next", dark)
         fsNext.visibility = View.GONE
         val btnViews = arrayOf(flip, close, fsEnd, fsNext)
         for (i in btnViews.indices) {
@@ -385,7 +388,7 @@ class TrainingActivity : AppCompatActivity() {
         uiH.post(tick)
     }
 
-    private fun setImmersive(on: Boolean) {
+    private fun applyImmersive(on: Boolean) {
         WindowCompat.setDecorFitsSystemWindows(window, !on)
         val ic = WindowCompat.getInsetsController(window, window.decorView)
         if (on) {
@@ -412,7 +415,7 @@ class TrainingActivity : AppCompatActivity() {
         fs.visibility = View.VISIBLE
         fsEyes?.visibility = View.VISIBLE
         preview?.setSurfaceProvider(fsPv.surfaceProvider)
-        setImmersive(true)
+        applyImmersive(true)
         backCb.isEnabled = true
         render()
     }
@@ -423,7 +426,7 @@ class TrainingActivity : AppCompatActivity() {
         fsEyes?.visibility = View.GONE
         fs.visibility = View.GONE
         camView?.let { preview?.setSurfaceProvider(it.surfaceProvider) }
-        setImmersive(false)
+        applyImmersive(false)
         backCb.isEnabled = false
         render()
     }
