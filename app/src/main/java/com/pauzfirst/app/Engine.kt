@@ -231,7 +231,20 @@ object Engine {
         h.postDelayed(run, 1000L)
     }
 
-    private fun notifyUi() { listener?.invoke() }
+    private fun notifyUi() {
+        listener?.invoke()
+        updateNotification()
+    }
+
+    /** Puts the question being asked into the running notification (works for Surprise Pauses too, which have no screen). */
+    fun updateNotification() {
+        val a = app ?: return
+        if (phase == Phase.IDLE || phase == Phase.DONE) return
+        val q = currentQuestion()
+        if (q.isEmpty()) return
+        val title = if (headlessRun) "Surprise pause" else "Training running"
+        TrainingService.show(a, title, q)
+    }
 
     // ---- public controls ----
     fun isActive(): Boolean = phase != Phase.IDLE && phase != Phase.DONE
@@ -250,6 +263,7 @@ object Engine {
         threeWhy = Settings.threeWhy
         tip = Settings.tip
         tipInt = Settings.tipInterval
+        headlessRun = headless
         if (headless) {
             // nobody is tapping Next: keep it to question, pause, answer time, and always speak
             deep = false
@@ -460,6 +474,9 @@ object Engine {
 
     private var starting = false
 
+    /** True while the running session is a Surprise Pause, so it is saved to the single daily Surprise Pauses card. */
+    private var headlessRun = false
+
     private fun endService() {
         val a = app ?: return
         // a new session is starting: keep the recording that was just set up for it
@@ -484,6 +501,7 @@ object Engine {
         val doneQs = questions.take(q)
         val bucket = usedBucket
         val pool = usedPool
+        val surprise = headlessRun
         Thread {
             try {
                 val remote = Api.fetchStats()
@@ -499,7 +517,8 @@ object Engine {
                 // progress stays in the local copy
             }
             try {
-                HistoryStore.record(q, secs, m, deep, entryDate)
+                if (surprise) HistoryStore.recordSurprise(q, secs)
+                else HistoryStore.record(q, secs, m, deep, entryDate)
                 HistoryStore.flush()
             } catch (e: Exception) {
                 // the session stays waiting on the phone and is sent next time

@@ -96,6 +96,14 @@ class HistoryActivity : AppCompatActivity() {
         val scroll = ScrollView(c)
         scroll.addView(body)
         Ui.noClip(body, scroll)
+        // content scrolling up under the toggle is cut with rounded corners instead of a hard straight edge
+        val topR = Ui.dp(c, 20).toFloat()
+        scroll.outlineProvider = object : android.view.ViewOutlineProvider() {
+            override fun getOutline(v: android.view.View, outline: android.graphics.Outline) {
+                outline.setRoundRect(0, 0, v.width, v.height + topR.toInt(), topR)
+            }
+        }
+        scroll.clipToOutline = true
         // The system bar space is added under the list only on Stats; on History the fixed bar below handles it.
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(body) { _, insets ->
             val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
@@ -355,26 +363,10 @@ class HistoryActivity : AppCompatActivity() {
             card.addTo(row, if (r == 0) 4 else 0)
         }
 
-        // legend + count
-        val legend = LinearLayout(c)
-        legend.orientation = LinearLayout.HORIZONTAL
-        legend.gravity = Gravity.CENTER_VERTICAL or Gravity.END
-        legend.addView(Ui.text(c, "Less", 12f, Ui.MUTED_TINT, Ui.MED))
-        for (col in listOf(Ui.c("#B7D5FA", "#2F5F9E"), Ui.c("#7DB8FF", "#3F7FD0"), Ui.BLUE)) {
-            val sw = View(c)
-            sw.background = Ui.rounded(c, col, 4)
-            val lp = LinearLayout.LayoutParams(Ui.dp(c, 14), Ui.dp(c, 14))
-            lp.leftMargin = Ui.dp(c, 6)
-            legend.addView(sw, lp)
-        }
-        val more = Ui.text(c, "More", 12f, Ui.MUTED_TINT, Ui.MED)
-        val moreLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        moreLp.leftMargin = Ui.dp(c, 6)
-        legend.addView(more, moreLp)
-        card.addTo(legend, 6)
-
+        // count (centered)
         val count = Ui.text(c, if (practiced == 1) "1 day practiced this month" else "$practiced days practiced this month", 13f, Ui.MUTED_TINT, Ui.MED)
-        card.addTo(count, 6)
+        count.gravity = Gravity.CENTER
+        card.addTo(count, 10)
     }
 
     private fun FrameLayoutCell(c: android.content.Context) = android.widget.FrameLayout(c)
@@ -502,6 +494,7 @@ class HistoryActivity : AppCompatActivity() {
         "eyes-open" -> "Eyes open"
         "mirror" -> "Mirror"
         "animated-eyes" -> "Animated eyes"
+        HistoryStore.SURPRISE -> "Surprise Pauses"
         else -> m
     }
 
@@ -537,7 +530,7 @@ class HistoryActivity : AppCompatActivity() {
         }
 
         // filter chips: only the modes that actually appear in the history
-        val order = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")
+        val order = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes", HistoryStore.SURPRISE)
         val present = ArrayList<String>()
         for (m in order) {
             for (i in 0 until h.length()) {
@@ -588,8 +581,12 @@ class HistoryActivity : AppCompatActivity() {
         val ratings = LocalExtras.allRatings()
         for (o in items) {
             val ms = parse(o.optString("date", ""))
+            val isSurprise = o.optString("mode", "") == HistoryStore.SURPRISE
             val whenText = when {
                 ms <= 0L -> o.optString("date", "")
+                isSurprise && android.text.format.DateUtils.isToday(ms) -> "Today"
+                isSurprise && android.text.format.DateUtils.isToday(ms + android.text.format.DateUtils.DAY_IN_MILLIS) -> "Yesterday"
+                isSurprise -> SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(Date(ms))
                 android.text.format.DateUtils.isToday(ms) -> "Today at " + tf.format(Date(ms))
                 android.text.format.DateUtils.isToday(ms + android.text.format.DateUtils.DAY_IN_MILLIS) -> "Yesterday at " + tf.format(Date(ms))
                 else -> df.format(Date(ms))
@@ -598,7 +595,7 @@ class HistoryActivity : AppCompatActivity() {
             var sub = q.toString() + (if (q == 1) " question" else " questions") +
                 "  •  " + StatsStore.formatDuration(o.optInt("time", 0).toLong())
             if (o.optBoolean("deepPause", false)) sub += "  •  Deep Pause"
-            val rated = ratings.optInt(o.optString("date", ""), 0)
+            val rated = if (isSurprise) 0 else ratings.optInt(o.optString("date", ""), 0)
             if (rated in 1..3) sub += "  •  " + SummaryActivity.RATING_FACES[rated - 1]
 
             val row = LinearLayout(c)
@@ -619,7 +616,7 @@ class HistoryActivity : AppCompatActivity() {
             tag.textSize = 11f
             tag.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
             right.addView(tag, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            val rec = LocalExtras.recordingFor(recs, ms, o.optInt("time", 0))
+            val rec = if (isSurprise) null else LocalExtras.recordingFor(recs, ms, o.optInt("time", 0))
             if (rec != null && LocalExtras.exists(c, rec.uri)) {
                 val play = LinearLayout(c)
                 play.orientation = LinearLayout.HORIZONTAL

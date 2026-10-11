@@ -16,6 +16,9 @@ import java.util.TimeZone
 object HistoryStore {
     private const val MAX = 200
 
+    /** History mode for Surprise Pauses: one card per day that keeps growing, instead of one card per question. */
+    const val SURPRISE = "surprise"
+
     fun isoNow(): String {
         val f = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
         f.timeZone = TimeZone.getTimeZone("UTC")
@@ -64,12 +67,80 @@ object HistoryStore {
         savePending(out)
     }
 
+    private fun localDay(ms: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(ms))
+
+    /** The phone-calendar day of a Surprise Pauses card, or null for any other entry. */
+    private fun surpriseDay(o: JSONObject): String? {
+        if (o.optString("mode", "") != SURPRISE) return null
+        val d = o.optString("day", "")
+        if (d.isNotEmpty()) return d
+        val ms = parseIso(o.optString("date", ""))
+        return if (ms > 0L) localDay(ms) else null
+    }
+
+    /**
+     * Adds one finished surprise to today's single Surprise Pauses card (creates it on the first one of the day).
+     * Same "date" every time, so it replaces itself everywhere instead of piling up new cards.
+     */
+    @Synchronized
+    fun recordSurprise(questions: Int, seconds: Int) {
+        val today = localDay(System.currentTimeMillis())
+        val pend = pending()
+        var existing: JSONObject? = null
+        for (src in listOf(pend, cached())) {
+            for (i in 0 until src.length()) {
+                val o = src.optJSONObject(i) ?: continue
+                if (surpriseDay(o) == today) {
+                    if (existing == null || o.optInt("questions", 0) > existing.optInt("questions", 0)) existing = o
+                }
+            }
+        }
+        if (existing == null) {
+            // nothing on the phone yet: check online so a card already sent today is not duplicated
+            val remote = try { Api.fetchHistory() } catch (e: Exception) { null }
+            if (remote != null) {
+                for (i in 0 until remote.length()) {
+                    val o = remote.optJSONObject(i) ?: continue
+                    if (surpriseDay(o) == today) { existing = o; break }
+                }
+            }
+        }
+        val date = existing?.optString("date", "").orEmpty().ifEmpty { isoNow() }
+        val e = JSONObject()
+            .put("date", date)
+            .put("day", today)
+            .put("mode", SURPRISE)
+            .put("time", (existing?.optInt("time", 0) ?: 0) + seconds)
+            .put("deepPause", false)
+            .put("questions", (existing?.optInt("questions", 0) ?: 0) + questions)
+        val out = JSONArray()
+        out.put(e)
+        for (i in 0 until pend.length()) {
+            val o = pend.get(i) as JSONObject
+            if (surpriseDay(o) != today) out.put(o)
+        }
+        savePending(out)
+    }
+
     private fun merge(remote: JSONArray, pend: JSONArray): JSONArray {
         val items = ArrayList<JSONObject>()
         val seen = HashSet<String>()
+        val surpriseAt = HashMap<String, Int>()
         for (src in listOf(pend, remote)) {
             for (i in 0 until src.length()) {
                 val o = src.optJSONObject(i) ?: continue
+                val sd = surpriseDay(o)
+                if (sd != null) {
+                    // one Surprise Pauses card per day: keep the one with the most questions
+                    val at: Int = surpriseAt[sd] ?: -1
+                    if (at < 0) {
+                        surpriseAt[sd] = items.size
+                        items.add(o)
+                    } else if (o.optInt("questions", 0) > items.get(at).optInt("questions", 0)) {
+                        items.set(at, o)
+                    }
+                    continue
+                }
                 val d = o.optString("date", "")
                 if (d.isNotEmpty() && !seen.add(d)) continue
                 items.add(o)
@@ -89,6 +160,8 @@ object HistoryStore {
         val remote = Api.fetchHistory() ?: return false
         val merged = merge(remote, pend)
         if (!Api.saveHistory(merged)) return false
+        // keep the copy on the phone current, so the next surprise adds to the right total
+        try { Session.prefs.edit().putString(cacheKey(), merged.toString()).apply() } catch (e: Exception) { }
         val sent = HashSet<String>()
         for (i in 0 until pend.length()) sent.add(pend.getJSONObject(i).optString("date", ""))
         val now = pending()

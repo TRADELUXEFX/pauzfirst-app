@@ -33,11 +33,12 @@ object SurprisePause {
         get() = Session.prefs.getInt("sp_end", 20 * 60)
         set(v) { Session.prefs.edit().putInt("sp_end", v).apply() }
 
+    const val MIN_PER_DAY = 10
     const val MAX_PER_DAY = 100
 
     var perDay: Int
-        get() = Session.prefs.getInt("sp_n", 2).coerceIn(1, MAX_PER_DAY)
-        set(v) { Session.prefs.edit().putInt("sp_n", v.coerceIn(1, MAX_PER_DAY)).apply() }
+        get() = Session.prefs.getInt("sp_n", 10).coerceIn(MIN_PER_DAY, MAX_PER_DAY)
+        set(v) { Session.prefs.edit().putInt("sp_n", v.coerceIn(MIN_PER_DAY, MAX_PER_DAY)).apply() }
 
     fun clockText(min: Int, is24: Boolean): String {
         val h = min / 60

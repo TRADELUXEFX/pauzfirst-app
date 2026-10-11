@@ -18,46 +18,23 @@ class TrainingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val channelId = "pauzfirst_training"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.createNotificationChannel(
-                NotificationChannel(channelId, "Training", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(CHANNEL, "Training", NotificationManager.IMPORTANCE_LOW)
             )
         }
-        val open = PendingIntent.getActivity(
-            this, 0, Intent(this, TrainingActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        val stopIntent = PendingIntent.getService(
-            this, 1, Intent(this, TrainingService::class.java).setAction(ACTION_STOP),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, channelId)
-        } else {
-            Notification.Builder(this)
-        }
-        val notification = builder
-            .setContentTitle("Training running")
-            .setContentText("Tap to return to your training")
-            .setSmallIcon(R.drawable.ic_stat_pauzfirst)
-            .setColor(Ui.BLUE)
-            .setContentIntent(open)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .addAction(Notification.Action.Builder(
-                android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_pauzfirst),
-                "Stop",
-                stopIntent
-            ).build())
-            .build()
+        lastTitle = ""
+        lastText = ""
+        val notification = build(this, "Training running", "Tap to return to your training")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         } else {
             startForeground(1001, notification)
         }
+        // the service starts a moment after the first question: put that question in the notification now
+        Engine.updateNotification()
 
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -78,6 +55,52 @@ class TrainingService : Service() {
 
     companion object {
         const val ACTION_STOP = "com.pauzfirst.app.STOP_TRAINING"
+        private const val CHANNEL = "pauzfirst_training"
+        private var lastTitle = ""
+        private var lastText = ""
+
+        private fun build(ctx: Context, title: String, text: String): Notification {
+            val open = PendingIntent.getActivity(
+                ctx, 0, Intent(ctx, TrainingActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val stopIntent = PendingIntent.getService(
+                ctx, 1, Intent(ctx, TrainingService::class.java).setAction(ACTION_STOP),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(ctx, CHANNEL)
+            } else {
+                Notification.Builder(ctx)
+            }
+            return builder
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
+                .setSmallIcon(R.drawable.ic_stat_pauzfirst)
+                .setColor(Ui.BLUE)
+                .setContentIntent(open)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .addAction(Notification.Action.Builder(
+                    android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_pauzfirst),
+                    "Stop",
+                    stopIntent
+                ).build())
+                .build()
+        }
+
+        /** Shows the current question in the running notification, so it can be read without opening the app. */
+        fun show(ctx: Context, title: String, text: String) {
+            if (title == lastTitle && text == lastText) return
+            lastTitle = title
+            lastText = text
+            try {
+                val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.notify(1001, build(ctx, title, text))
+            } catch (e: Exception) {
+            }
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
