@@ -319,7 +319,7 @@ class SummaryActivity : AppCompatActivity() {
         val s = Engine.lastStreak
         if (s >= 0) {
             val next = nextMilestone(s)
-            ring.set(if (next > 0) s.toFloat() / next.toFloat() else 1f, s.toString(), "day streak")
+            ring.set(if (next > 0) s.toFloat() / next.toFloat() else 1f, if (next > 0) s.toString() + "/" + next.toString() else s.toString(), "day streak")
             if (Engine.lastStreakUp && isMilestone(s)) {
                 milestoneText.text = s.toString() + " day streak"
                 milestone.visibility = View.VISIBLE
@@ -473,7 +473,11 @@ private class FinishRing(ctx: Context) : View(ctx) {
         bigP.color = Ui.TEXT
         smallP.color = Ui.MUTED
         val u = width / 150f
-        bigP.textSize = 40f * u
+        bigP.textSize = (if (big.length > 2) 34f else 40f) * u
+        // shrink the number to fit inside the ring, whatever the length (e.g. 365/400)
+        val maxW = width * 0.62f
+        val bw = bigP.measureText(big)
+        if (bw > maxW) bigP.textSize = bigP.textSize * maxW / bw
         smallP.textSize = 13f * u
         // centre number + caption as one block, with an even gap between them
         val bb = android.graphics.Rect()

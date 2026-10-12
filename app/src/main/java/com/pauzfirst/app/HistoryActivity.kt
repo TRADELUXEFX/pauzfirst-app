@@ -599,7 +599,7 @@ class HistoryActivity : AppCompatActivity() {
 
             val row = LinearLayout(c)
             row.orientation = LinearLayout.HORIZONTAL
-            row.gravity = Gravity.TOP
+            row.gravity = Gravity.CENTER_VERTICAL
             val col = LinearLayout(c)
             col.orientation = LinearLayout.VERTICAL
             col.addView(Ui.text(c, whenText, 14f, Ui.TEXT, Ui.MED))

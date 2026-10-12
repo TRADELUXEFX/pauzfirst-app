@@ -81,6 +81,7 @@ class TrainingActivity : AppCompatActivity() {
     private lateinit var fsNext: LinearLayout
     private lateinit var fsEnd: LinearLayout
     private lateinit var fsMeter: AudioLevelView
+    private lateinit var rootMeter: AudioLevelView   // sound bars at the bottom of the normal (Eyes closed / Eyes open) screen
     private var micOn = false
     private var micAsked = false
     @Volatile private var micGen = 0
@@ -206,6 +207,10 @@ class TrainingActivity : AppCompatActivity() {
         spacer = View(c)
         root.addView(spacer, LinearLayout.LayoutParams(1, 0, 1f))
 
+        // live sound bars, down at the bottom just above Next
+        rootMeter = AudioLevelView(c)
+        root.addView(rootMeter, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
         nextBtn = Ui.pill(c, "Next", Ui.GREEN)
         root.addTo(nextBtn, 12)
 
@@ -234,6 +239,8 @@ class TrainingActivity : AppCompatActivity() {
                 ensureMic()
             }
         }
+        // Eyes closed / Eyes open: the sound bars run on the normal screen
+        if (!Settings.mirror) ensureMic()
         if (counting) startCountdown()
     }
 
@@ -467,6 +474,8 @@ class TrainingActivity : AppCompatActivity() {
         fs.visibility = View.GONE
         applyImmersive(false)
         render()
+        // camera refused: the normal screen takes over, so the sound bars go there
+        if (Engine.phase != Engine.Phase.DONE) ensureMic()
     }
 
     private fun endSession() {
@@ -492,14 +501,14 @@ class TrainingActivity : AppCompatActivity() {
 
     @android.annotation.SuppressLint("MissingPermission")
     private fun startMic() {
-        if (micOn || !fsOn) return
+        if (micOn) return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
         val rate = 16000
         val minBuf = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         if (minBuf <= 0) return
         micOn = true
         val my = ++micGen
-        val meter = fsMeter
+        val meter = if (fsOn) fsMeter else rootMeter
         Thread {
             var rec: AudioRecord? = null
             try {
@@ -598,7 +607,7 @@ class TrainingActivity : AppCompatActivity() {
         if (!::question.isInitialized) return
         Engine.listener = { render() }
         render()
-        if (fsOn && Engine.phase != Engine.Phase.DONE &&
+        if (Engine.phase != Engine.Phase.DONE &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         ) startMic()
     }

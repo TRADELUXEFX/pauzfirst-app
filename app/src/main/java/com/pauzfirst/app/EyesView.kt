@@ -124,6 +124,7 @@ class EyesView(ctx: Context) : View(ctx) {
             c.save()
             c.clipPath(scratch)
             fill.style = Paint.Style.FILL
+            fill.color = Color.BLACK   // a shader is dimmed by the paint's alpha: start every eye from a fully opaque paint
             fill.shader = sclera
             rect.set(cx - 64f, 52f, cx + 64f, 120f)
             c.drawOval(rect, fill)
@@ -134,6 +135,7 @@ class EyesView(ctx: Context) : View(ctx) {
             // iris + pupil follow the gaze
             c.save()
             c.translate(px - cx, py - 86f)
+            fill.color = Color.BLACK
             fill.shader = iris
             c.drawCircle(cx, 86f, 24f, fill)
             fill.shader = null
@@ -145,6 +147,7 @@ class EyesView(ctx: Context) : View(ctx) {
             line.color = argb(0.3f, 0x0a, 0x28, 0x18)
             line.strokeWidth = 1f
             c.drawCircle(cx, 86f, 18f, line)
+            fill.color = Color.BLACK
             fill.shader = pupil
             c.drawCircle(cx, 86f, 11f, fill)
             fill.shader = null
@@ -155,6 +158,7 @@ class EyesView(ctx: Context) : View(ctx) {
             fill.color = argb(0.38f, 255, 255, 255)
             c.drawCircle(catchX + 13f, 93f, 2.2f, fill)
             // lid shadow
+            fill.color = Color.BLACK
             fill.shader = lidShadow
             c.drawRect(shadowX, 52f, shadowX + 130f, 86f, fill)
             fill.shader = null
