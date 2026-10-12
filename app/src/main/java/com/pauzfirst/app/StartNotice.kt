@@ -29,7 +29,6 @@ object StartNotice {
             val row = android.widget.RemoteViews(ctx.packageName, R.layout.notice_start)
             row.setOnClickPendingIntent(R.id.notice_start, start)
             val n = b.setContentTitle("Train to pause before you respond")
-                .setContentText("Tap to begin")
                 .setCustomContentView(row)
                 .setSmallIcon(R.drawable.ic_stat_pauzfirst)
                 .setColor(Ui.BLUE)

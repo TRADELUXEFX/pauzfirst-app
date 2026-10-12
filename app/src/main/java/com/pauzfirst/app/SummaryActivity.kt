@@ -4,7 +4,10 @@ import android.content.ContentValues
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.content.Context
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -23,6 +26,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
 import androidx.core.widget.TextViewCompat
 import com.pauzfirst.app.Ui.addTo
 import java.io.File
@@ -33,12 +37,11 @@ import java.util.Locale
 
 /**
  * The one finish page every training mode ends on.
- * Blue header and stats card on top (that part is what gets shared), Done at the bottom with round Save and Share buttons.
+ * Brand, streak ring and stats card on top (that part is what gets shared), Done at the bottom with round Save and Share buttons.
  */
 class SummaryActivity : AppCompatActivity() {
     companion object {
         /** The rating, 1 to 3: Hard, Okay, Great. */
-        val RATING_FACES = arrayOf("\uD83D\uDE13", "\uD83D\uDE10", "\uD83D\uDE04")
         val RATING_LABELS = arrayOf("Hard", "Okay", "Great")
         val RATING_CAPTIONS = arrayOf(
             "Hard sessions build the most. Well done for finishing.",
@@ -51,8 +54,7 @@ class SummaryActivity : AppCompatActivity() {
     private lateinit var vals: Array<TextView>
     private lateinit var modeChip: LinearLayout
     private lateinit var modeText: TextView
-    private lateinit var streakChip: LinearLayout
-    private lateinit var streakText: TextView
+    private lateinit var ring: FinishRing
     private lateinit var checkCircle: FrameLayout
     private lateinit var milestone: LinearLayout
     private lateinit var milestoneText: TextView
@@ -61,6 +63,8 @@ class SummaryActivity : AppCompatActivity() {
     private lateinit var rateCaption: TextView
     private val rateTiles = ArrayList<LinearLayout>()
     private val rateLabels = ArrayList<TextView>()
+    private val rateIcons = ArrayList<FsIconView>()
+    private val faceIcons = arrayOf(Icons.FACE_SAD, Icons.FACE_OKAY, Icons.FACE_HAPPY)
     private var rating = 0
 
     private fun paintRating() {
@@ -73,6 +77,7 @@ class SummaryActivity : AppCompatActivity() {
             rateTiles[i].background = bg
             rateTiles[i].alpha = if (rating == 0 || on) 1f else 0.55f
             rateLabels[i].setTextColor(if (on) Ui.BLUE else Ui.MUTED_TINT)
+            rateIcons[i].setColor(if (on) Ui.BLUE else Ui.MUTED_TINT)
         }
         rateCaption.text = if (rating in 1..3) RATING_CAPTIONS[rating - 1] else "Pick the one that fits"
     }
@@ -80,6 +85,8 @@ class SummaryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.edgeToEdge(this)
+        // the finish page is light now, so the status bar icons are dark
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !Ui.dark
         val c = this
         val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
         val match = LinearLayout.LayoutParams.MATCH_PARENT
@@ -88,146 +95,109 @@ class SummaryActivity : AppCompatActivity() {
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
 
-        // ---------- the part that gets shared: blue header + stats card ----------
+        // ---------- the part that gets shared: one white card (brand, streak ring, stats) ----------
         shareArea = LinearLayout(c)
         shareArea.orientation = LinearLayout.VERTICAL
         shareArea.setBackgroundColor(Ui.BG)
+        shareArea.setPadding(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 4))
 
-        val hero = LinearLayout(c)
-        hero.orientation = LinearLayout.VERTICAL
-        hero.gravity = Gravity.CENTER_HORIZONTAL
-        val heroBg = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
-        val r = Ui.dp(c, 26).toFloat()
-        heroBg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, r, r, r, r)
-        hero.background = heroBg
-        hero.setPadding(Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 58))
-        Ui.padInsets(hero, top = true)
+        val card = LinearLayout(c)
+        card.orientation = LinearLayout.VERTICAL
+        card.background = Ui.rounded(c, Ui.SURFACE, 22, Ui.LINE, 1)
+        card.setPadding(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16))
 
-        val brand = LinearLayout(c)
-        brand.orientation = LinearLayout.HORIZONTAL
-        brand.gravity = Gravity.CENTER_VERTICAL
+        val topRow = LinearLayout(c)
+        topRow.orientation = LinearLayout.HORIZONTAL
+        topRow.gravity = Gravity.CENTER_VERTICAL
         val logo = ImageView(c)
         logo.setImageResource(R.drawable.logo_badge)
         logo.scaleType = ImageView.ScaleType.FIT_CENTER
-        val logoLp = LinearLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 30))
+        val logoLp = LinearLayout.LayoutParams(Ui.dp(c, 30), Ui.dp(c, 26))
         logoLp.rightMargin = Ui.dp(c, 8)
-        brand.addView(logo, logoLp)
-        val name = Ui.text(c, "PAUZFIRST", 16f, Ui.WHITE, Ui.BOLD)
+        topRow.addView(logo, logoLp)
+        val name = Ui.text(c, "PAUZFIRST", 14f, Ui.BLUE, Ui.BOLD)
         name.letterSpacing = 0.1f
-        brand.addView(name)
-        hero.addView(brand, LinearLayout.LayoutParams(wrap, wrap))
+        topRow.addView(name, LinearLayout.LayoutParams(0, wrap, 1f))
 
-        val sub = Ui.text(c, "Trained to pause and think before responding", 13f, Color.parseColor("#CCE4FF"), Ui.REG)
-        sub.gravity = Gravity.CENTER
-        sub.setLineSpacing(0f, 1.2f)
-        hero.addTo(sub, 6)
-
-        val circle = FrameLayout(c)
-        val circleBg = GradientDrawable()
-        circleBg.shape = GradientDrawable.OVAL
-        circleBg.setColor(Color.parseColor("#33FFFFFF"))
-        circle.background = circleBg
-        checkCircle = circle
-        circle.addView(FsIconView(c, Icons.CHECK, Ui.WHITE), FrameLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 34), Gravity.CENTER))
-        val circleLp = LinearLayout.LayoutParams(Ui.dp(c, 70), Ui.dp(c, 70))
-        circleLp.topMargin = Ui.dp(c, 24)
-        hero.addView(circle, circleLp)
-
-        val title = Ui.text(c, "Training complete", 24f, Ui.WHITE, Ui.BOLD)
-        title.gravity = Gravity.CENTER
-        hero.addTo(title, 14)
-
-        // mode gets its own box, right above the date and time
+        // mode, top right
         modeChip = LinearLayout(c)
         modeChip.orientation = LinearLayout.HORIZONTAL
-        modeChip.gravity = Gravity.CENTER
-        modeChip.background = Ui.rounded(c, Color.parseColor("#26FFFFFF"), 20)
-        modeChip.setPadding(Ui.dp(c, 14), Ui.dp(c, 7), Ui.dp(c, 16), Ui.dp(c, 7))
-        val modeIcon = FsIconView(c, Icons.EYE, Ui.WHITE)
-        val modeIconLp = LinearLayout.LayoutParams(Ui.dp(c, 16), Ui.dp(c, 16))
-        modeIconLp.rightMargin = Ui.dp(c, 6)
-        modeChip.addView(modeIcon, modeIconLp)
-        modeText = Ui.text(c, "", 12f, Ui.WHITE, Ui.BOLD)
+        modeChip.gravity = Gravity.CENTER_VERTICAL
+        val modeIconLp = LinearLayout.LayoutParams(Ui.dp(c, 15), Ui.dp(c, 15))
+        modeIconLp.rightMargin = Ui.dp(c, 4)
+        modeChip.addView(FsIconView(c, Icons.EYE, Ui.MUTED), modeIconLp)
+        modeText = Ui.text(c, "", 12f, Ui.MUTED, Ui.MED)
         modeChip.addView(modeText)
-        val modeLp = LinearLayout.LayoutParams(wrap, wrap)
-        modeLp.topMargin = Ui.dp(c, 12)
-        hero.addView(modeChip, modeLp)
+        topRow.addView(modeChip, LinearLayout.LayoutParams(wrap, wrap))
+        card.addView(topRow, LinearLayout.LayoutParams(match, wrap))
 
-        val date = Ui.text(c, SimpleDateFormat("MMMM d, yyyy  \u00B7  h:mm a", Locale.getDefault()).format(Date()), 12f, Color.parseColor("#CCE4FF"), Ui.MED)
+        // streak ring (the check pops in on this)
+        ring = FinishRing(c)
+        checkCircle = FrameLayout(c)
+        checkCircle.addView(ring, FrameLayout.LayoutParams(match, match))
+        val hDp = resources.displayMetrics.heightPixels / resources.displayMetrics.density
+        val ringDp = Math.max(96f, Math.min(150f, hDp - 600f)).toInt()
+        val ringLp = LinearLayout.LayoutParams(Ui.dp(c, ringDp), Ui.dp(c, ringDp))
+        ringLp.gravity = Gravity.CENTER_HORIZONTAL
+        ringLp.topMargin = Ui.dp(c, 14)
+        card.addView(checkCircle, ringLp)
+
+        val title = Ui.text(c, "Training complete", 20f, Ui.TEXT, Ui.BOLD)
+        title.gravity = Gravity.CENTER
+        card.addTo(title, 8)
+
+        val date = Ui.text(c, SimpleDateFormat("MMMM d, yyyy  \u00B7  h:mm a", Locale.getDefault()).format(Date()), 12f, Ui.MUTED, Ui.MED)
         date.gravity = Gravity.CENTER
-        hero.addTo(date, 8)
+        card.addTo(date, 4)
 
         // streak milestone badge (3, 7, 14, 30, 100 ... days), shown once the streak is known
         milestone = LinearLayout(c)
         milestone.orientation = LinearLayout.HORIZONTAL
         milestone.gravity = Gravity.CENTER
-        milestone.background = Ui.rounded(c, Ui.WHITE, 20)
+        milestone.background = Ui.rounded(c, Ui.c("#FEF3C7", "#3A2F10"), 20)
         milestone.setPadding(Ui.dp(c, 14), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 8))
         val mFlame = FsIconView(c, Icons.FLAME, Ui.AMBER)
         val mFlameLp = LinearLayout.LayoutParams(Ui.dp(c, 18), Ui.dp(c, 18))
         mFlameLp.rightMargin = Ui.dp(c, 6)
         milestone.addView(mFlame, mFlameLp)
-        milestoneText = Ui.text(c, "", 13f, Color.parseColor("#92400E"), Ui.BOLD)
+        milestoneText = Ui.text(c, "", 13f, Ui.c("#92400E", "#FCD34D"), Ui.BOLD)
         milestone.addView(milestoneText)
         milestone.visibility = View.GONE
         val mLp = LinearLayout.LayoutParams(wrap, wrap)
-        mLp.topMargin = Ui.dp(c, 14)
-        hero.addView(milestone, mLp)
-        shareArea.addView(hero, LinearLayout.LayoutParams(match, wrap))
+        mLp.gravity = Gravity.CENTER_HORIZONTAL
+        mLp.topMargin = Ui.dp(c, 12)
+        card.addView(milestone, mLp)
 
-        // stats card overlapping the header
-        val stats = LinearLayout(c)
-        stats.orientation = LinearLayout.VERTICAL
-        stats.background = Ui.rounded(c, Ui.SURFACE, 22)
-        stats.elevation = Ui.dp(c, 3).toFloat()
-        stats.setPadding(Ui.dp(c, 10), Ui.dp(c, 14), Ui.dp(c, 10), Ui.dp(c, 14))
+        // Questions | Time | Best streak
+        val divLp = LinearLayout.LayoutParams(match, Ui.dp(c, 1))
+        divLp.topMargin = Ui.dp(c, 16)
+        card.addView(Ui.divider(c), divLp)
 
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
-        val labels = arrayOf("Questions", "Time")
-        val icons = arrayOf(Icons.HELP, Icons.CLOCK)
-        vals = Array(2) { Ui.text(c, "", 20f, Ui.TEXT, Ui.BOLD) }
-        for (i in 0 until 2) {
+        val labels = arrayOf("Questions", "Time", "Best streak")
+        vals = Array(3) { Ui.text(c, "", 20f, Ui.TEXT, Ui.BOLD) }
+        for (i in 0 until 3) {
+            if (i > 0) row.addView(Ui.divider(c), LinearLayout.LayoutParams(Ui.dp(c, 1), match))
             val cell = LinearLayout(c)
             cell.orientation = LinearLayout.VERTICAL
             cell.gravity = Gravity.CENTER_HORIZONTAL
-            cell.setPadding(Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4))
-            cell.addView(FsIconView(c, icons[i], Ui.BLUE), LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24)))
+            cell.setPadding(Ui.dp(c, 4), Ui.dp(c, 12), Ui.dp(c, 4), Ui.dp(c, 0))
             vals[i].gravity = Gravity.CENTER
             vals[i].maxLines = 1
-            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(vals[i], 12, 20, 1, TypedValue.COMPLEX_UNIT_SP)
-            val vLp = LinearLayout.LayoutParams(match, Ui.dp(c, 30))
-            vLp.topMargin = Ui.dp(c, 6)
-            cell.addView(vals[i], vLp)
-            val cap = Ui.text(c, labels[i], 11f, Ui.MUTED, Ui.MED)
+            cell.addView(vals[i], LinearLayout.LayoutParams(match, wrap))
+            val cap = Ui.text(c, labels[i], 12f, Ui.MUTED, Ui.MED)
             cap.gravity = Gravity.CENTER
-            cell.addView(cap, Ui.lp(c, 2))
+            cell.addView(cap, Ui.lp(c, 3))
             row.addView(cell, LinearLayout.LayoutParams(0, wrap, 1f))
         }
-        stats.addView(row, LinearLayout.LayoutParams(match, wrap))
-
-        streakChip = LinearLayout(c)
-        streakChip.orientation = LinearLayout.HORIZONTAL
-        streakChip.gravity = Gravity.CENTER
-        streakChip.background = Ui.rounded(c, Ui.c("#FEF3C7", "#3A2F10"), 16)
-        streakChip.setPadding(Ui.dp(c, 14), Ui.dp(c, 10), Ui.dp(c, 14), Ui.dp(c, 10))
-        val amberText = Ui.c("#92400E", "#FCD34D")
-        val flame = FsIconView(c, Icons.FLAME, amberText)
-        val flameLp = LinearLayout.LayoutParams(Ui.dp(c, 18), Ui.dp(c, 18))
-        flameLp.rightMargin = Ui.dp(c, 6)
-        streakChip.addView(flame, flameLp)
-        streakText = Ui.text(c, "", 12f, amberText, Ui.MED)
-        streakChip.addView(streakText)
-        streakChip.visibility = View.GONE
-        stats.addTo(streakChip, 12)
-
-        val statsLp = LinearLayout.LayoutParams(match, wrap)
-        statsLp.setMargins(Ui.dp(c, 16), -Ui.dp(c, 40), Ui.dp(c, 16), Ui.dp(c, 16))
-        shareArea.addView(stats, statsLp)
+        card.addView(row, LinearLayout.LayoutParams(match, wrap))
+        shareArea.addView(card, LinearLayout.LayoutParams(match, wrap))
 
         val content = LinearLayout(c)
         content.orientation = LinearLayout.VERTICAL
         content.addView(shareArea, LinearLayout.LayoutParams(match, wrap))
+        Ui.padInsets(content, top = true)
 
         // "How did it feel?" 1 (hard) to 5 (great), saved with this training
         rateCard = Ui.card(c, Ui.CARD_TINT)
@@ -243,10 +213,10 @@ class SummaryActivity : AppCompatActivity() {
             val tile = LinearLayout(c)
             tile.orientation = LinearLayout.VERTICAL
             tile.gravity = Gravity.CENTER_HORIZONTAL
-            tile.setPadding(Ui.dp(c, 4), Ui.dp(c, 14), Ui.dp(c, 4), Ui.dp(c, 12))
-            val face = Ui.text(c, RATING_FACES[n - 1], 34f, Ui.TEXT, Ui.REG)
-            face.gravity = Gravity.CENTER
-            tile.addView(face, LinearLayout.LayoutParams(wrap, wrap))
+            tile.setPadding(Ui.dp(c, 4), Ui.dp(c, 10), Ui.dp(c, 4), Ui.dp(c, 8))
+            val face = FsIconView(c, faceIcons[n - 1], Ui.MUTED_TINT)
+            rateIcons.add(face)
+            tile.addView(face, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)))
             val lab = Ui.text(c, RATING_LABELS[n - 1], 14f, Ui.MUTED_TINT, Ui.BOLD)
             lab.gravity = Gravity.CENTER
             tile.addView(lab, LinearLayout.LayoutParams(wrap, wrap).also { it.topMargin = Ui.dp(c, 6) })
@@ -274,11 +244,8 @@ class SummaryActivity : AppCompatActivity() {
         content.addView(again, againLp)
         Ui.noClip(content, shareArea)
 
-        val scroll = ScrollView(c)
-        scroll.isFillViewport = true
-        scroll.clipToPadding = false
-        scroll.addView(content, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
-        page.addView(scroll, LinearLayout.LayoutParams(match, 0, 1f))
+        // no scrolling: everything fits on one screen (the ring shrinks on short phones)
+        page.addView(content, LinearLayout.LayoutParams(match, 0, 1f))
 
         // ---------- bottom bar: one main action, share and save as round icons ----------
         val bar = LinearLayout(c)
@@ -346,25 +313,34 @@ class SummaryActivity : AppCompatActivity() {
         rateCard.visibility = if (Engine.lastDate.isNotEmpty()) View.VISIBLE else View.GONE
         vals[0].text = Engine.lastQuestions.toString()
         vals[1].text = StatsStore.formatTime(Engine.lastSeconds.toLong())
+        vals[2].text = if (Engine.lastBest >= 0) Engine.lastBest.toString() else "-"
         modeText.text = modeLabel(Engine.lastModeKey)
         val s = Engine.lastStreak
         if (s >= 0) {
-            streakText.text = s.toString() + " day streak  \u00B7  Best streak " + Engine.lastBest
-            streakChip.visibility = View.VISIBLE
+            val next = nextMilestone(s)
+            ring.set(if (next > 0) s.toFloat() / next.toFloat() else 1f, s.toString(), "day streak")
             if (Engine.lastStreakUp && isMilestone(s)) {
                 milestoneText.text = s.toString() + " day streak"
                 milestone.visibility = View.VISIBLE
                 if (!milestoneShown) {
                     milestoneShown = true
-                    // a second, bigger pop on the check to mark the milestone
-                    checkCircle.animate().scaleX(1.18f).scaleY(1.18f).setDuration(220).withEndAction {
+                    // a second, bigger pop on the ring to mark the milestone
+                    checkCircle.animate().scaleX(1.12f).scaleY(1.12f).setDuration(220).withEndAction {
                         checkCircle.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(OvershootInterpolator(2.5f)).start()
                     }.start()
                 }
             }
         } else {
-            streakChip.visibility = View.GONE
+            // streak not known yet: empty ring with a check
+            ring.set(0f, "", "")
         }
+    }
+
+    /** The next streak badge at or above n (3, 7, 14, 21, 30, 50, 75, 100, then every 100). */
+    private fun nextMilestone(n: Int): Int {
+        val marks = intArrayOf(3, 7, 14, 21, 30, 50, 75, 100)
+        for (m in marks) if (n <= m) return m
+        return (n / 100 + 1) * 100
     }
 
     private fun isMilestone(n: Int): Boolean =
@@ -385,7 +361,7 @@ class SummaryActivity : AppCompatActivity() {
         finish()
     }
 
-    /** The blue header and stats card as a sharp picture (3x), ready to post. */
+    /** The brand, streak ring and stats card as a sharp picture (3x), ready to post. */
     private fun cardBitmap(): Bitmap {
         val scale = 3f
         val w = shareArea.width
@@ -436,5 +412,69 @@ class SummaryActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "Couldn't save the image", Toast.LENGTH_SHORT).show()
         }
+    }
+}
+
+/** Streak ring for the finish card: grey track, blue arc toward the next streak badge, number and caption in the middle. */
+private class FinishRing(ctx: Context) : View(ctx) {
+    private var progress = 0f
+    private var big = ""
+    private var small = ""
+    private val stroke = Ui.dp(ctx, 10).toFloat()
+    private val track = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val arc = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val bigP = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val smallP = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val tick = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val box = RectF()
+
+    init {
+        track.style = Paint.Style.STROKE
+        track.strokeWidth = stroke
+        arc.style = Paint.Style.STROKE
+        arc.strokeWidth = stroke
+        arc.strokeCap = Paint.Cap.ROUND
+        bigP.typeface = Fonts.bold(ctx)
+        bigP.textAlign = Paint.Align.CENTER
+        bigP.textSize = Ui.dp(ctx, 40).toFloat()
+        smallP.typeface = Fonts.medium(ctx)
+        smallP.textAlign = Paint.Align.CENTER
+        smallP.textSize = Ui.dp(ctx, 13).toFloat()
+        tick.style = Paint.Style.STROKE
+        tick.strokeWidth = Ui.dp(ctx, 5).toFloat()
+        tick.strokeCap = Paint.Cap.ROUND
+    }
+
+    fun set(p: Float, number: String, caption: String) {
+        progress = if (p < 0f) 0f else if (p > 1f) 1f else p
+        big = number
+        small = caption
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val pad = stroke / 2f + 1f
+        box.set(pad, pad, width - pad, height - pad)
+        track.color = Ui.LINE
+        canvas.drawOval(box, track)
+        arc.color = Ui.BLUE
+        if (progress > 0f) canvas.drawArc(box, -90f, 360f * progress, false, arc)
+        val cx = width / 2f
+        val cy = height / 2f
+        if (big.isEmpty()) {
+            tick.color = Ui.BLUE
+            val u = width / 150f
+            canvas.drawLine(cx - 20f * u, cy + 2f * u, cx - 6f * u, cy + 16f * u, tick)
+            canvas.drawLine(cx - 6f * u, cy + 16f * u, cx + 22f * u, cy - 14f * u, tick)
+            return
+        }
+        bigP.color = Ui.TEXT
+        smallP.color = Ui.MUTED
+        val u = width / 150f
+        bigP.textSize = Ui.dp(context, 40) * u
+        smallP.textSize = Ui.dp(context, 13) * u
+        canvas.drawText(big, cx, cy + 6f * u, bigP)
+        canvas.drawText(small, cx, cy + 28f * u, smallP)
     }
 }

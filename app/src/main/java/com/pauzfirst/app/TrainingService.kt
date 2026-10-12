@@ -99,11 +99,14 @@ class TrainingService : Service() {
                 .setContentIntent(open)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                .addAction(Notification.Action.Builder(
+            // a Surprise Pause shows only its title and the question: no Stop button
+            if (!surprise) {
+                builder.addAction(Notification.Action.Builder(
                     android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_stat_pauzfirst),
                     "Stop",
                     stopIntent
                 ).build())
+            }
             if (surprise) {
                 // the whole question, never cut to one line, in the pop-up and in the shade
                 fun view(): android.widget.RemoteViews {

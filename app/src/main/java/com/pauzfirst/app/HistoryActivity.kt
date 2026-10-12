@@ -596,7 +596,6 @@ class HistoryActivity : AppCompatActivity() {
                 "  •  " + StatsStore.formatDuration(o.optInt("time", 0).toLong())
             if (o.optBoolean("deepPause", false)) sub += "  •  Deep Pause"
             val rated = if (isSurprise) 0 else ratings.optInt(o.optString("date", ""), 0)
-            if (rated in 1..3) sub += "  •  " + SummaryActivity.RATING_FACES[rated - 1]
 
             val row = LinearLayout(c)
             row.orientation = LinearLayout.HORIZONTAL
@@ -604,7 +603,17 @@ class HistoryActivity : AppCompatActivity() {
             val col = LinearLayout(c)
             col.orientation = LinearLayout.VERTICAL
             col.addView(Ui.text(c, whenText, 14f, Ui.TEXT, Ui.MED))
-            col.addView(Ui.text(c, sub, 12f, Ui.MUTED_TINT, Ui.REG), Ui.lp(c, 3))
+            val subRow = LinearLayout(c)
+            subRow.orientation = LinearLayout.HORIZONTAL
+            subRow.gravity = Gravity.CENTER_VERTICAL
+            subRow.addView(Ui.text(c, sub, 12f, Ui.MUTED_TINT, Ui.REG))
+            if (rated in 1..3) {
+                // the rating as a drawn face, same icons as the finish page
+                subRow.addView(Ui.text(c, "  •  ", 12f, Ui.MUTED_TINT, Ui.REG))
+                val face = FsIconView(c, arrayOf(Icons.FACE_SAD, Icons.FACE_OKAY, Icons.FACE_HAPPY)[rated - 1], Ui.MUTED_TINT)
+                subRow.addView(face, LinearLayout.LayoutParams(Ui.dp(c, 16), Ui.dp(c, 16)))
+            }
+            col.addView(subRow, Ui.lp(c, 3))
             row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
             // right side: the mode tag, with a Play video / Play audio container under it when this training was recorded

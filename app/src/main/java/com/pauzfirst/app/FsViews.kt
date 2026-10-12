@@ -21,6 +21,11 @@ class FsIconView(ctx: Context, d: String, color: Int = Color.WHITE) : View(ctx) 
         p.strokeJoin = Paint.Join.ROUND
     }
 
+    fun setColor(color: Int) {
+        p.color = color
+        invalidate()
+    }
+
     override fun onDraw(c: Canvas) {
         val s = Math.min(width / 24f, height / 24f)
         c.save()
