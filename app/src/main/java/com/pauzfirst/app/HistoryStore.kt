@@ -220,7 +220,7 @@ object HistoryStore {
             val o = h.optJSONObject(k) ?: continue
             val ms = parseIso(o.optString("date", ""))
             if (ms < fromMs || ms >= toMs) continue
-            out[0] += 1
+            out[0] += 1L
             out[1] += o.optInt("questions", 0).toLong()
             out[2] += o.optInt("time", 0).toLong()
         }
