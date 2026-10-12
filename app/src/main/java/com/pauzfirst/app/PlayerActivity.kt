@@ -90,8 +90,11 @@ class PlayerActivity : AppCompatActivity() {
         bar.addView(playPause, LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40)))
 
         val cur: TextView = Ui.text(c, "00:00", 13f, Color.WHITE, Ui.MED)
-        val clp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        clp.leftMargin = Ui.dp(c, 12)
+        // fixed-width time boxes: the digits change width as they count, which would otherwise stretch and shrink the seek line
+        cur.gravity = Gravity.CENTER
+        cur.maxLines = 1
+        val clp = LinearLayout.LayoutParams(Ui.dp(c, 46), LinearLayout.LayoutParams.WRAP_CONTENT)
+        clp.leftMargin = Ui.dp(c, 8)
         bar.addView(cur, clp)
 
         val seek = SeekBar(c)
@@ -101,7 +104,9 @@ class PlayerActivity : AppCompatActivity() {
         bar.addView(seek, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
         val total: TextView = Ui.text(c, "00:00", 13f, Color.WHITE, Ui.MED)
-        bar.addView(total)
+        total.gravity = Gravity.CENTER
+        total.maxLines = 1
+        bar.addView(total, LinearLayout.LayoutParams(Ui.dp(c, 46), LinearLayout.LayoutParams.WRAP_CONTENT))
 
         val barLp = FrameLayout.LayoutParams(match, wrap, Gravity.BOTTOM)
         barLp.leftMargin = Ui.dp(c, 12)
