@@ -26,7 +26,11 @@ class TrainingService : Service() {
         }
         lastTitle = ""
         lastText = ""
-        val notification = build(this, "Training running", "Tap to return to your training")
+        // start with the question already in the notification, so it never shows the generic text first
+        val q = Engine.noticeText()
+        val notification = if (q.isEmpty()) build(this, "Training running", "Tap to return to your training")
+            else build(this, Engine.noticeTitle(), q)
+        if (q.isNotEmpty()) { lastTitle = Engine.noticeTitle(); lastText = q }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1001, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)

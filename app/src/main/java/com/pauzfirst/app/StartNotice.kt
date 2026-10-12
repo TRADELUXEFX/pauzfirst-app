@@ -24,18 +24,18 @@ object StartNotice {
             val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             val startIntent = Intent(ctx, HomeActivity::class.java).putExtra(HomeActivity.EXTRA_AGAIN, true).addFlags(flags)
             val start = PendingIntent.getActivity(ctx, 31, startIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            val open = PendingIntent.getActivity(
-                ctx, 32, Intent(ctx, HomeActivity::class.java).addFlags(flags),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
             val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(ctx, CHANNEL) else Notification.Builder(ctx)
+            // one compact row: app icon, title, and a "Start training" button inside the notification
+            val row = android.widget.RemoteViews(ctx.packageName, R.layout.notice_start)
+            row.setOnClickPendingIntent(R.id.notice_start, start)
             val n = b.setContentTitle("Train to pause before you respond")
+                .setContentText("Tap to begin")
+                .setCustomContentView(row)
                 .setSmallIcon(R.drawable.ic_stat_pauzfirst)
                 .setColor(Ui.BLUE)
-                .setContentIntent(open)
+                .setContentIntent(start)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                .addAction(Notification.Action.Builder(null, "Start training", start).build())
                 .build()
             nm.notify(ID, n)
         } catch (e: Exception) {

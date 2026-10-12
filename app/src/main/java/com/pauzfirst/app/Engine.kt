@@ -239,11 +239,17 @@ object Engine {
     /** Puts the question being asked into the running notification (works for Surprise Pauses too, which have no screen). */
     fun updateNotification() {
         val a = app ?: return
-        if (phase == Phase.IDLE || phase == Phase.DONE) return
-        val q = currentQuestion()
-        if (q.isEmpty()) return
-        val title = if (headlessRun) "Surprise pause" else "Training running"
-        TrainingService.show(a, title, q)
+        val text = noticeText()
+        if (text.isEmpty()) return
+        TrainingService.show(a, noticeTitle(), text)
+    }
+
+    fun noticeTitle(): String = if (headlessRun) "Surprise pause" else "Training running"
+
+    /** The question being asked right now, or "" when nothing is running. */
+    fun noticeText(): String {
+        if (phase == Phase.IDLE || phase == Phase.DONE) return ""
+        return currentQuestion()
     }
 
     // ---- public controls ----
@@ -492,7 +498,8 @@ object Engine {
         lastSeconds = secs
         lastModeKey = modeKey
         val entryDate = HistoryStore.isoNow()
-        lastDate = if (q > 0) entryDate else ""
+        // Surprise Pauses are not rated: no "How did it feel?" for them
+        lastDate = if (q > 0 && !headlessRun) entryDate else ""
         lastStreak = -1
         lastBest = -1
         lastStreakUp = false

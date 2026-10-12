@@ -367,21 +367,23 @@ object Api {
 
     // ---------- question bank (community_questions, same table the website uses) ----------
 
-    /** The shared bank of AI-generated questions used by Default mode, or null if the request failed. */
+    /** The shared bank of AI-generated questions used by Default mode, or null if the request failed. Reads it page by page so it is not cut off at 1,000. */
     fun fetchBank(): List<String>? {
-        val r = authed("GET", "/rest/v1/community_questions?select=question&limit=1000", null, null)
-        if (!r.ok) return null
-        return try {
-            val arr = JSONArray(r.body)
-            val out = ArrayList<String>()
+        val out = ArrayList<String>()
+        val page = 1000
+        var offset = 0
+        while (offset < 100000) {
+            val r = authed("GET", "/rest/v1/community_questions?select=question&order=question.asc&limit=" + page + "&offset=" + offset, null, null)
+            if (!r.ok) return if (out.isEmpty()) null else out
+            val arr = try { JSONArray(r.body) } catch (e: Exception) { return if (out.isEmpty()) null else out }
             for (i in 0 until arr.length()) {
                 val q = arr.getJSONObject(i).optString("question", "").trim()
                 if (q.isNotEmpty()) out.add(q)
             }
-            out
-        } catch (e: Exception) {
-            null
+            if (arr.length() == 0) break
+            offset += arr.length()
         }
+        return out
     }
 
     /** Adds AI-generated questions to the bank. Questions already there are skipped. */
