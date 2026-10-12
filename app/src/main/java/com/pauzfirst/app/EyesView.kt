@@ -10,30 +10,27 @@ import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
-import android.os.Handler
-import android.os.Looper
+import android.os.SystemClock
 import android.view.View
 import androidx.core.graphics.PathParser
 import java.util.Random
+import kotlin.math.exp
+import kotlin.math.sin
 
 /**
  * The website's "animated eyes" (dark mirror mode): a dark screen with a face that blinks,
- * drifts its gaze, and locks eye contact while a question is read. Drawn in the website's
+ * drifts its gaze smoothly, and locks eye contact while a question is read. Drawn in the website's
  * 340 x 280 coordinate space so it matches the SVG.
  */
 class EyesView(ctx: Context) : View(ctx) {
     private val rnd = Random()
-    private val h = Handler(Looper.getMainLooper())
 
     private var active = false
     private var phase = "idle"
-    private var lid = 0f
     private var lx = 91f
     private var rx = 249f
     private var py = 86f
     private var locking = false
-    private var blinkStep = 0
-    private var closing = true
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val line = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -115,9 +112,9 @@ class EyesView(ctx: Context) : View(ctx) {
 
     private fun drawEye(
         c: Canvas, cx: Float, px: Float, outline: Path, sclera: Shader, iris: Shader, pupil: Shader,
-        corner: Float, catchX: Float, shadowX: Float
+        corner: Float, catchX: Float, shadowX: Float, lidAmt: Float
     ) {
-        val scaleY = 1f - lid
+        val scaleY = 1f - lidAmt
         if (scaleY > 0.02f) {
             matrix.setScale(1f, scaleY, cx, 86f)
             outline.transform(matrix, scratch)
@@ -149,14 +146,14 @@ class EyesView(ctx: Context) : View(ctx) {
             c.drawCircle(cx, 86f, 18f, line)
             fill.color = Color.BLACK
             fill.shader = pupil
-            c.drawCircle(cx, 86f, 11f, fill)
+            c.drawCircle(cx, 86f, pupilRad, fill)
             fill.shader = null
             c.restore()
             // catchlights stay put
             fill.color = argb(0.92f, 255, 255, 255)
-            c.drawCircle(catchX, 79f, 4.5f, fill)
+            c.drawCircle(catchX + cgx, 79f + cgy, 4.5f, fill)
             fill.color = argb(0.38f, 255, 255, 255)
-            c.drawCircle(catchX + 13f, 93f, 2.2f, fill)
+            c.drawCircle(catchX + 13f + cgx, 93f + cgy, 2.2f, fill)
             // lid shadow
             fill.color = Color.BLACK
             fill.shader = lidShadow
@@ -174,16 +171,20 @@ class EyesView(ctx: Context) : View(ctx) {
         c.save()
         c.translate((width - 340f * s) / 2f, (height - 280f * s) / 2f)
         c.scale(s, s)
+        c.translate(swayX, swayY)
 
-        // eyebrows
+        // eyebrows (they lift when listening and follow the gaze a little)
+        c.save()
+        c.translate(0f, browY)
         stroke(c, lBrow, Color.parseColor("#1A0E08"), 6f)
         stroke(c, lBrow, argb(0.5f, 0x2e, 0x1a, 0x0c), 3.5f)
         stroke(c, rBrow, Color.parseColor("#1A0E08"), 6f)
         stroke(c, rBrow, argb(0.5f, 0x2e, 0x1a, 0x0c), 3.5f)
+        c.restore()
 
         // eyes
-        drawEye(c, 91f, lx, lOutline, scleraL, irisL, pupilL, 32f, 84f, 26f)
-        drawEye(c, 249f, rx, rOutline, scleraR, irisR, pupilR, 308f, 242f, 184f)
+        drawEye(c, 91f, lx, lOutline, scleraL, irisL, pupilL, 32f, 84f, 26f, lidL)
+        drawEye(c, 249f, rx, rOutline, scleraR, irisR, pupilR, 308f, 242f, 184f, lidR)
         val ink = Color.parseColor("#060204")
         stroke(c, lLiner, ink, 4.5f)
         stroke(c, lWing, ink, 3f)
@@ -245,100 +246,155 @@ class EyesView(ctx: Context) : View(ctx) {
         }
     }
 
-    // ---------- animation (same timings as the website) ----------
+    // ---------- animation (one frame loop: smooth gaze, micro-movements, living pupils) ----------
+
+    // gaze: current + target offsets from the centre, plus micro jitter on top
+    private var gx = 0f
+    private var gy = 0f
+    private var tgx = 0f
+    private var tgy = 0f
+    private var gazeRate = 6f
+    private var jx = 0f
+    private var jy = 0f
+    private var tjx = 0f
+    private var tjy = 0f
+    private var returnToCenter = false
+    private var nextDriftAt = 0L
+    private var nextJitterAt = 0L
+
+    // blinking (each eye has its own lid, the right one lags a few ms)
+    private var lidL = 0f
+    private var lidR = 0f
+    private var blinkStart = -1_000_000L
+    private var blinkDur = 256L
+    private var blinkDelayR = 0L
+    private var nextBlinkAt = 0L
+    private var nextIsSecond = false
+
+    // face details
+    private var pupilRad = 11f
+    private var dilate = 0f
+    private var browLift = 0f
+    private var browY = 0f
+    private var cgx = 0f
+    private var cgy = 0f
+    private var swayX = 0f
+    private var swayY = 0f
+    private var lastT = 0L
 
     private fun blinkMin(): Int = when (phase) { "listen" -> 1800; "pause" -> 4000; "answer" -> 900; else -> 2200 }
     private fun blinkMax(): Int = when (phase) { "listen" -> 3800; "pause" -> 7500; "answer" -> 2200; else -> 5500 }
 
-    private val blinkRun = Runnable { doBlink() }
-    private val stepRun = Runnable { stepBlink() }
-    private val driftRun = Runnable { drift() }
-    private val lockRun = Runnable { lockStep() }
+    private val frameRun = Runnable { frame() }
 
-    private fun scheduleBlinkSoon() {
-        h.removeCallbacks(blinkRun)
+    private fun scheduleBlinkSoon(now: Long) {
         val m = blinkMin()
-        h.postDelayed(blinkRun, (m * 0.3 + rnd.nextDouble() * m * 0.4).toLong())
+        nextIsSecond = false
+        nextBlinkAt = now + (m * 0.3 + rnd.nextDouble() * m * 0.4).toLong()
     }
 
-    private fun doBlink() {
-        if (!active) return
-        blinkStep = 0
-        closing = true
-        stepBlink()
-        val lo = blinkMin()
-        val hi = blinkMax()
-        h.removeCallbacks(blinkRun)
-        h.postDelayed(blinkRun, (lo + rnd.nextDouble() * (hi - lo)).toLong())
-    }
-
-    private fun stepBlink() {
-        if (!active) return
+    private fun startBlink(now: Long, second: Boolean) {
         val slow = phase == "pause"
-        val steps = if (slow) 10 else 8
-        val closeMs = if (slow) 18L else 14L
-        val openMs = if (slow) 22L else 18L
-        blinkStep++
-        if (closing) {
-            lid = blinkStep / steps.toFloat()
-            invalidate()
-            if (blinkStep >= steps) {
-                closing = false
-                blinkStep = 0
-                h.postDelayed(stepRun, openMs)
-            } else {
-                h.postDelayed(stepRun, closeMs)
-            }
+        val k = 0.85f + rnd.nextFloat() * 0.4f
+        blinkDur = ((if (slow) 400f else 256f) * k).toLong()
+        blinkStart = now
+        blinkDelayR = (rnd.nextFloat() * 28f).toLong()
+        val double = !second && !slow && rnd.nextFloat() < 0.2f
+        if (double) {
+            nextIsSecond = true
+            nextBlinkAt = now + blinkDur + 120L
         } else {
-            lid = 1f - blinkStep / steps.toFloat()
-            invalidate()
-            if (blinkStep < steps) {
-                h.postDelayed(stepRun, openMs)
-            } else {
-                lid = 0f
-                invalidate()
-            }
+            nextIsSecond = false
+            val lo = blinkMin()
+            val hi = blinkMax()
+            nextBlinkAt = now + (lo + rnd.nextDouble() * (hi - lo)).toLong()
         }
     }
 
-    private fun drift() {
-        if (!active || locking) return
-        val dx = ((rnd.nextDouble() - 0.5) * 16.0).toFloat()
-        val dy = ((rnd.nextDouble() - 0.5) * 8.0).toFloat()
-        lx = 91f + dx
-        rx = 249f + dx
-        py = 86f + dy
-        invalidate()
-        h.postDelayed(driftRun, (800 + rnd.nextDouble() * 2200).toLong())
+    private fun lidAt(t: Long): Float {
+        if (t <= 0L || t >= blinkDur) return 0f
+        val f = t.toFloat() / blinkDur
+        val v = if (f < 0.44f) f / 0.44f else 1f - (f - 0.44f) / 0.56f
+        return v * v * (3f - 2f * v)
     }
 
-    private fun lockPupils() {
+    private fun pickGaze(now: Long) {
+        if (returnToCenter) {
+            returnToCenter = false
+            tgx = (rnd.nextFloat() - 0.5f) * 4f
+            tgy = (rnd.nextFloat() - 0.5f) * 2f
+            gazeRate = 7f
+            nextDriftAt = now + 700L + rnd.nextInt(1800)
+        } else if (rnd.nextFloat() < 0.3f) {
+            // a bigger look to the side / up / down, held for a moment, then back to centre
+            tgx = (rnd.nextFloat() - 0.5f) * 26f
+            tgy = (rnd.nextFloat() - 0.5f) * 13f
+            gazeRate = 13f
+            returnToCenter = true
+            nextDriftAt = now + 1200L + rnd.nextInt(2300)
+        } else {
+            tgx = (rnd.nextFloat() - 0.5f) * 16f
+            tgy = (rnd.nextFloat() - 0.5f) * 8f
+            gazeRate = 5f + rnd.nextFloat() * 4f
+            nextDriftAt = now + 800L + rnd.nextInt(2200)
+        }
+    }
+
+    private fun frame() {
         if (!active) return
-        locking = true
-        h.removeCallbacks(driftRun)
-        h.removeCallbacks(lockRun)
-        postOnAnimation(lockRun)
-    }
+        val now = SystemClock.uptimeMillis()
+        val dt = (now - lastT).coerceIn(1L, 64L) / 1000f
+        lastT = now
 
-    private fun lockStep() {
-        if (!locking || !active) return
-        lx += (91f - lx) * 0.08f
-        rx += (249f - rx) * 0.08f
-        py += (86f - py) * 0.08f
-        invalidate()
-        if (Math.abs(lx - 91f) + Math.abs(py - 86f) > 0.3f) {
-            postOnAnimation(lockRun)
-        } else {
-            lx = 91f; rx = 249f; py = 86f
-            invalidate()
+        // gaze: ease toward the target (locks to the centre while a question is read)
+        if (locking) {
+            tgx = 0f; tgy = 0f; gazeRate = 5f
+        } else if (now >= nextDriftAt) {
+            pickGaze(now)
         }
-    }
+        val a = 1f - exp(-gazeRate * dt)
+        gx += (tgx - gx) * a
+        gy += (tgy - gy) * a
 
-    private fun unlockPupils() {
-        locking = false
-        removeCallbacks(lockRun)
-        h.removeCallbacks(driftRun)
-        h.postDelayed(driftRun, (400 + rnd.nextDouble() * 800).toLong())
+        // micro movements
+        if (now >= nextJitterAt) {
+            val amp = if (locking) 0.25f else 1f
+            tjx = (rnd.nextFloat() - 0.5f) * 1.0f * amp
+            tjy = (rnd.nextFloat() - 0.5f) * 0.7f * amp
+            nextJitterAt = now + 120L + rnd.nextInt(140)
+        }
+        val aj = 1f - exp(-30f * dt)
+        jx += (tjx - jx) * aj
+        jy += (tjy - jy) * aj
+
+        lx = 91f + gx + jx
+        rx = 249f + gx + jx
+        py = 86f + gy + jy
+
+        // blinks (per-eye lids, occasional double blink) + upper lids lower a touch when looking down
+        if (now >= nextBlinkAt) startBlink(now, nextIsSecond)
+        val bias = Math.max(0f, gy + jy) * 0.01f
+        lidL = Math.min(1f, lidAt(now - blinkStart) + bias)
+        lidR = Math.min(1f, lidAt(now - blinkStart - blinkDelayR) + bias)
+
+        // pupils breathe and widen slightly while listening / answering
+        val dilTarget = when (phase) { "listen" -> 1.3f; "answer" -> 0.7f; else -> 0f }
+        dilate += (dilTarget - dilate) * (1f - exp(-2f * dt))
+        pupilRad = 11f + dilate + 0.6f * sin(now / 1300f)
+
+        // brows lift when listening, settle when answering, and follow the gaze a little
+        val browTarget = when (phase) { "listen" -> -3f; "answer" -> 1.5f; else -> 0f }
+        browLift += (browTarget - browLift) * (1f - exp(-4f * dt))
+        browY = browLift + gy * 0.25f
+
+        // catchlights drift with the gaze, the whole face sways like breathing
+        cgx = (gx + jx) * 0.25f
+        cgy = (gy + jy) * 0.25f
+        swayX = 1.2f * sin(now / 2100f)
+        swayY = 1.0f * sin(now / 2900f + 1f)
+
+        invalidate()
+        postOnAnimation(frameRun)
     }
 
     /** phase: "listen", "pause", "answer" or "idle". Safe to call every second. */
@@ -346,29 +402,42 @@ class EyesView(ctx: Context) : View(ctx) {
         if (p == phase) return
         phase = p
         if (!active) return
-        scheduleBlinkSoon()
-        if (phase == "listen") lockPupils() else unlockPupils()
+        val now = SystemClock.uptimeMillis()
+        scheduleBlinkSoon(now)
+        if (phase == "listen") {
+            locking = true
+        } else if (locking) {
+            locking = false
+            returnToCenter = false
+            nextDriftAt = now + 400L + rnd.nextInt(800)
+        }
     }
 
     private fun begin() {
         if (active) return
         active = true
-        locking = false
-        lid = 0f
-        h.removeCallbacks(blinkRun)
-        h.removeCallbacks(driftRun)
-        scheduleBlinkSoon()
-        if (phase == "listen") lockPupils() else h.postDelayed(driftRun, 600L)
+        val now = SystemClock.uptimeMillis()
+        locking = phase == "listen"
+        gx = 0f; gy = 0f; tgx = 0f; tgy = 0f
+        jx = 0f; jy = 0f; tjx = 0f; tjy = 0f
+        returnToCenter = false
+        blinkStart = -1_000_000L
+        lidL = 0f; lidR = 0f
+        pupilRad = 11f; dilate = 0f
+        browLift = 0f; browY = 0f
+        lastT = now
+        nextDriftAt = now + 600L
+        nextJitterAt = now
+        scheduleBlinkSoon(now)
+        removeCallbacks(frameRun)
+        postOnAnimation(frameRun)
         invalidate()
     }
 
     private fun end() {
         active = false
         locking = false
-        h.removeCallbacks(blinkRun)
-        h.removeCallbacks(stepRun)
-        h.removeCallbacks(driftRun)
-        removeCallbacks(lockRun)
+        removeCallbacks(frameRun)
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
