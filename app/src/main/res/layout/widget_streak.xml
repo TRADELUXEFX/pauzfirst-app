@@ -29,7 +29,7 @@
         android:textColor="@color/widget_muted"
         android:textSize="14sp" />
 
-    <View
+    <FrameLayout
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:layout_weight="1" />
