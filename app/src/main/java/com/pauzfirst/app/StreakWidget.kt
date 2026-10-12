@@ -90,7 +90,10 @@ class StreakWidget : AppWidgetProvider() {
                 streak = StatsStore.currentStreak(s)
             }
             v.setTextViewText(R.id.w_streak, streak.toString())
-            v.setTextViewText(R.id.w_label, if (today) "day streak \u00B7 done today" else "day streak")
+            v.setTextViewText(R.id.w_label, if (streak == 1) "day streak" else "days streak")
+            // trained today: the button itself says so, in green
+            v.setTextViewText(R.id.w_start, if (today) "Training completed" else "Start")
+            v.setInt(R.id.w_start, "setBackgroundResource", if (today) R.drawable.widget_btn_done else R.drawable.widget_btn)
             val i = Intent(ctx, HomeActivity::class.java)
                 .putExtra(HomeActivity.EXTRA_AGAIN, true)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
