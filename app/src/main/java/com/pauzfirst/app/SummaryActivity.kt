@@ -99,7 +99,7 @@ class SummaryActivity : AppCompatActivity() {
         shareArea = LinearLayout(c)
         shareArea.orientation = LinearLayout.VERTICAL
         shareArea.setBackgroundColor(Ui.BG)
-        shareArea.setPadding(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 4))
+        shareArea.setPadding(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16))
 
         val card = LinearLayout(c)
         card.orientation = LinearLayout.VERTICAL
@@ -136,7 +136,7 @@ class SummaryActivity : AppCompatActivity() {
         checkCircle = FrameLayout(c)
         checkCircle.addView(ring, FrameLayout.LayoutParams(match, match))
         val hDp = resources.displayMetrics.heightPixels / resources.displayMetrics.density
-        val ringDp = Math.max(96f, Math.min(150f, hDp - 600f)).toInt()
+        val ringDp = Math.max(96f, Math.min(190f, hDp - 600f)).toInt()
         val ringLp = LinearLayout.LayoutParams(Ui.dp(c, ringDp), Ui.dp(c, ringDp))
         ringLp.gravity = Gravity.CENTER_HORIZONTAL
         ringLp.topMargin = Ui.dp(c, 14)
@@ -196,6 +196,7 @@ class SummaryActivity : AppCompatActivity() {
 
         val content = LinearLayout(c)
         content.orientation = LinearLayout.VERTICAL
+        content.gravity = Gravity.CENTER_VERTICAL
         content.addView(shareArea, LinearLayout.LayoutParams(match, wrap))
         Ui.padInsets(content, top = true)
 
@@ -234,7 +235,7 @@ class SummaryActivity : AppCompatActivity() {
         rateCard.addTo(rateRow, 16)
         paintRating()
         val rateLp = LinearLayout.LayoutParams(match, wrap)
-        rateLp.setMargins(Ui.dp(c, 16), 0, Ui.dp(c, 16), Ui.dp(c, 12))
+        rateLp.setMargins(Ui.dp(c, 16), 0, Ui.dp(c, 16), Ui.dp(c, 16))
         content.addView(rateCard, rateLp)
 
         val again = Ui.pill(c, "Train again", Ui.BLUE_SOFT, Ui.BLUE)
@@ -472,9 +473,19 @@ private class FinishRing(ctx: Context) : View(ctx) {
         bigP.color = Ui.TEXT
         smallP.color = Ui.MUTED
         val u = width / 150f
-        bigP.textSize = Ui.dp(context, 40) * u
-        smallP.textSize = Ui.dp(context, 13) * u
-        canvas.drawText(big, cx, cy + 6f * u, bigP)
-        canvas.drawText(small, cx, cy + 28f * u, smallP)
+        bigP.textSize = 40f * u
+        smallP.textSize = 13f * u
+        // centre number + caption as one block, with an even gap between them
+        val bb = android.graphics.Rect()
+        val sb = android.graphics.Rect()
+        bigP.getTextBounds(big, 0, big.length, bb)
+        smallP.getTextBounds(small, 0, small.length, sb)
+        val bigH = bb.height().toFloat()
+        val gap = 7f * u
+        val total = bigH + gap + (-sb.top).toFloat() + sb.bottom.toFloat()
+        val top = cy - total / 2f
+        val bigBase = top + bigH
+        canvas.drawText(big, cx, bigBase, bigP)
+        canvas.drawText(small, cx, bigBase + gap + (-sb.top).toFloat(), smallP)
     }
 }
