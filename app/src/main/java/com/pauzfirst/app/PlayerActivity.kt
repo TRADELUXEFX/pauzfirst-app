@@ -1,14 +1,18 @@
 package com.pauzfirst.app
 
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.MediaController
+import android.widget.SeekBar
+import android.widget.TextView
 import android.widget.Toast
 import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
@@ -20,7 +24,13 @@ import androidx.core.view.WindowInsetsControllerCompat
 /** Plays one saved training recording (audio or video) inside the app. */
 class PlayerActivity : AppCompatActivity() {
     private var video: VideoView? = null
-    private var chromeOn = true   // header, controls and system bars showing
+    private var chromeOn = true   // back button, control bar and system bars showing
+    private val handler = Handler(Looper.getMainLooper())
+
+    private fun fmt(ms: Int): String {
+        val s = Math.max(0, ms) / 1000
+        return String.format("%02d:%02d", s / 60, s % 60)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,92 +46,146 @@ class PlayerActivity : AppCompatActivity() {
         val c = this
         val uri = intent.getStringExtra("uri") ?: run { finish(); return }
         val isVideo = intent.getBooleanExtra("video", false)
-
         val match = FrameLayout.LayoutParams.MATCH_PARENT
         val wrap = FrameLayout.LayoutParams.WRAP_CONTENT
+        val glass = Color.parseColor("#99000000")
+        val edge = Color.parseColor("#59FFFFFF")
+
         // the video fills the whole screen; everything else floats on top of it, so nothing can resize it
         val page = FrameLayout(c)
         page.setBackgroundColor(Color.BLACK)
-
-        val stage = FrameLayout(c)   // full screen; its inset sizes never change
         val vv = VideoView(c)
         video = vv
-        stage.addView(vv, FrameLayout.LayoutParams(match, match, Gravity.CENTER))
+        page.addView(vv, FrameLayout.LayoutParams(match, match, Gravity.CENTER))
         if (!isVideo) {
             // audio only: a calm note in place of the picture
-            val note = Ui.text(c, "Playing your training audio", 14f, Color.parseColor("#CBD5E1"), Ui.MED)
+            val note = Ui.text(c, "Audio recording", 20f, Color.WHITE, Ui.BOLD)
             note.gravity = Gravity.CENTER
-            stage.addView(note, FrameLayout.LayoutParams(wrap, wrap, Gravity.CENTER))
+            page.addView(note, FrameLayout.LayoutParams(wrap, wrap, Gravity.CENTER))
         }
-        page.addView(stage, FrameLayout.LayoutParams(match, match))
-        // invisible box the play controls attach to: the screen minus the navigation bar
-        val anchor = FrameLayout(c)
-        val alp = FrameLayout.LayoutParams(match, match)
-        page.addView(anchor, alp)
 
-        // same transparent look as the camera buttons: dark glass, thin white border
-        val header = LinearLayout(c)
-        header.orientation = LinearLayout.HORIZONTAL
-        header.gravity = Gravity.CENTER_VERTICAL
-        header.background = Ui.rounded(c, Color.parseColor("#99000000"), 18, Color.parseColor("#59FFFFFF"), 1)
-        header.setPadding(Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8))
+        // back: just a round glass button, so it covers as little of the video as possible
         val back = FrameLayout(c)
-        back.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)
+        back.background = Ui.rounded(c, glass, 22, edge, 1)
         back.contentDescription = "Back"
         back.setOnClickListener { finish() }
-        back.addView(FsIconView(c, "M15 18l-6-6 6-6"), FrameLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22), Gravity.CENTER))
-        header.addView(back, LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40)))
-        val title = Ui.text(c, if (isVideo) "Video recording" else "Audio recording", 18f, Color.WHITE, Ui.BOLD)
-        title.maxLines = 1
-        val tlp = LinearLayout.LayoutParams(wrap, wrap)
-        tlp.leftMargin = Ui.dp(c, 12)
-        tlp.rightMargin = Ui.dp(c, 12)
-        header.addView(title, tlp)
-        val hlp = FrameLayout.LayoutParams(wrap, wrap, Gravity.TOP or Gravity.START)
-        hlp.leftMargin = Ui.dp(c, 12)
-        page.addView(header, hlp)
+        back.addView(FsIconView(c, "M15 18l-6-6 6-6"), FrameLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24), Gravity.CENTER))
+        val blp = FrameLayout.LayoutParams(Ui.dp(c, 44), Ui.dp(c, 44), Gravity.TOP or Gravity.START)
+        blp.leftMargin = Ui.dp(c, 12)
+        page.addView(back, blp)
 
-        // bars' full size whether or not they are showing, so the layout never changes when they hide
+        // one slim glass bar at the bottom: play/pause, time, seek line, length
+        val bar = LinearLayout(c)
+        bar.orientation = LinearLayout.HORIZONTAL
+        bar.gravity = Gravity.CENTER_VERTICAL
+        bar.background = Ui.rounded(c, glass, 28, edge, 1)
+        bar.setPadding(Ui.dp(c, 8), Ui.dp(c, 6), Ui.dp(c, 16), Ui.dp(c, 6))
+
+        val playPause = FrameLayout(c)
+        playPause.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)
+        val playIcon = FsIconView(c, Icons.PLAY)
+        val pauseIcon = FsIconView(c, "M8 5v14 M16 5v14")
+        playPause.addView(playIcon, FrameLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22), Gravity.CENTER))
+        playPause.addView(pauseIcon, FrameLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22), Gravity.CENTER))
+        bar.addView(playPause, LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40)))
+
+        val cur: TextView = Ui.text(c, "00:00", 13f, Color.WHITE, Ui.MED)
+        val clp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        clp.leftMargin = Ui.dp(c, 12)
+        bar.addView(cur, clp)
+
+        val seek = SeekBar(c)
+        seek.progressTintList = ColorStateList.valueOf(Color.parseColor("#1E90FF"))
+        seek.progressBackgroundTintList = ColorStateList.valueOf(Color.parseColor("#59FFFFFF"))
+        seek.thumbTintList = ColorStateList.valueOf(Color.WHITE)
+        bar.addView(seek, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+
+        val total: TextView = Ui.text(c, "00:00", 13f, Color.WHITE, Ui.MED)
+        bar.addView(total)
+
+        val barLp = FrameLayout.LayoutParams(match, wrap, Gravity.BOTTOM)
+        barLp.leftMargin = Ui.dp(c, 12)
+        barLp.rightMargin = Ui.dp(c, 12)
+        page.addView(bar, barLp)
+
+        // bars' full size whether or not they are showing, so nothing moves when they hide
         ViewCompat.setOnApplyWindowInsetsListener(page) { _, insets ->
             val bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            hlp.topMargin = bars.top + Ui.dp(c, 8)
-            header.layoutParams = hlp
-            // the play controls sit just above the navigation bar
-            alp.bottomMargin = bars.bottom
-            anchor.layoutParams = alp
+            blp.topMargin = bars.top + Ui.dp(c, 8)
+            back.layoutParams = blp
+            barLp.bottomMargin = bars.bottom + Ui.dp(c, 12)
+            bar.layoutParams = barLp
             insets
         }
         ViewCompat.requestApplyInsets(page)
         setContentView(page)
 
-        val mc = MediaController(c)
-        mc.setAnchorView(anchor)
-        vv.setMediaController(mc)
+        // ---- playback wiring
+        var dragging = false
+        fun syncIcons() {
+            val playing = vv.isPlaying
+            playIcon.visibility = if (playing) View.GONE else View.VISIBLE
+            pauseIcon.visibility = if (playing) View.VISIBLE else View.GONE
+        }
+        val tick = object : Runnable {
+            override fun run() {
+                if (!dragging) {
+                    val pos = vv.currentPosition
+                    seek.progress = pos
+                    cur.text = fmt(pos)
+                }
+                syncIcons()
+                handler.postDelayed(this, 250)
+            }
+        }
+        playPause.setOnClickListener {
+            if (vv.isPlaying) vv.pause() else {
+                if (vv.duration > 0 && vv.currentPosition >= vv.duration - 200) vv.seekTo(0)
+                vv.start()
+            }
+            syncIcons()
+        }
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                if (fromUser) { cur.text = fmt(p); vv.seekTo(p) }
+            }
+            override fun onStartTrackingTouch(s: SeekBar?) { dragging = true }
+            override fun onStopTrackingTouch(s: SeekBar?) { dragging = false }
+        })
+        vv.setOnPreparedListener {
+            it.isLooping = false
+            seek.max = vv.duration
+            total.text = fmt(vv.duration)
+            vv.start()
+            syncIcons()
+            handler.removeCallbacks(tick)
+            handler.post(tick)
+        }
+        vv.setOnCompletionListener { seek.progress = seek.max; cur.text = fmt(vv.duration); syncIcons() }
+        vv.setOnErrorListener { _, _, _ ->
+            Toast.makeText(c, "Couldn't play this recording", Toast.LENGTH_SHORT).show()
+            finish()
+            true
+        }
+
         if (isVideo) {
-            // like a gallery: tap the video to hide everything (header, controls, system bars) and tap again to bring it back; the video itself never moves
+            // like a gallery: tap the video to hide everything (back button, controls, system bars) and tap again to bring it back; the video itself never moves
             vv.setOnTouchListener { _, e ->
                 if (e.action == MotionEvent.ACTION_UP) {
                     chromeOn = !chromeOn
                     val ic = WindowCompat.getInsetsController(window, window.decorView)
+                    val vis = if (chromeOn) View.VISIBLE else View.INVISIBLE
+                    back.visibility = vis
+                    bar.visibility = vis
                     if (chromeOn) {
-                        header.visibility = View.VISIBLE
                         ic.show(WindowInsetsCompat.Type.systemBars())
-                        anchor.post { mc.show(0) }
                     } else {
-                        header.visibility = View.INVISIBLE
-                        mc.hide()
                         ic.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                         ic.hide(WindowInsetsCompat.Type.systemBars())
                     }
                 }
                 true
             }
-        }
-        vv.setOnPreparedListener { it.isLooping = false; vv.start(); mc.show(0) }
-        vv.setOnErrorListener { _, _, _ ->
-            Toast.makeText(c, "Couldn't play this recording", Toast.LENGTH_SHORT).show()
-            finish()
-            true
         }
         try {
             vv.setVideoURI(Uri.parse(uri))
@@ -138,6 +202,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        handler.removeCallbacksAndMessages(null)
         try { video?.stopPlayback() } catch (e: Exception) { }
     }
 }
