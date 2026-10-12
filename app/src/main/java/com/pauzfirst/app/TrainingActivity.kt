@@ -644,6 +644,12 @@ class TrainingActivity : AppCompatActivity() {
             return
         }
         if (!counting && Engine.phase == Engine.Phase.DONE) {
+            // a Surprise Pause has no finish page: just close
+            if (Engine.isSurprise()) {
+                Engine.reset()
+                finish()
+                return
+            }
             goSummary()
             return
         }

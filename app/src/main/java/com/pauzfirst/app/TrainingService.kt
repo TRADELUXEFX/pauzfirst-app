@@ -18,12 +18,7 @@ class TrainingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.createNotificationChannel(
-                NotificationChannel(CHANNEL, "Training", NotificationManager.IMPORTANCE_LOW)
-            )
-        }
+        ensureChannels(this)
         lastTitle = ""
         lastText = ""
         // start with the question already in the notification, so it never shows the generic text first
@@ -60,8 +55,24 @@ class TrainingService : Service() {
     companion object {
         const val ACTION_STOP = "com.pauzfirst.app.STOP_TRAINING"
         private const val CHANNEL = "pauzfirst_training"
+        private const val CHANNEL_SURPRISE = "pauzfirst_surprise"
         private var lastTitle = ""
         private var lastText = ""
+
+        private fun ensureChannels(ctx: Context) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+            try {
+                val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.createNotificationChannel(NotificationChannel(CHANNEL, "Training", NotificationManager.IMPORTANCE_LOW))
+                // Surprise pauses pop up on screen so the question can be read in full; the voice is the only sound
+                val sp = NotificationChannel(CHANNEL_SURPRISE, "Surprise pauses", NotificationManager.IMPORTANCE_HIGH)
+                sp.setSound(null, null)
+                sp.enableVibration(false)
+                sp.setShowBadge(false)
+                nm.createNotificationChannel(sp)
+            } catch (e: Exception) {
+            }
+        }
 
         private fun build(ctx: Context, title: String, text: String): Notification {
             val open = PendingIntent.getActivity(
@@ -72,15 +83,17 @@ class TrainingService : Service() {
                 ctx, 1, Intent(ctx, TrainingService::class.java).setAction(ACTION_STOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
+            val surprise = Engine.isSurprise()
+            ensureChannels(ctx)
+            val channel = if (surprise) CHANNEL_SURPRISE else CHANNEL
             val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Notification.Builder(ctx, CHANNEL)
+                Notification.Builder(ctx, channel)
             } else {
                 Notification.Builder(ctx)
             }
-            return builder
+            builder
                 .setContentTitle(title)
                 .setContentText(text)
-                .setStyle(Notification.BigTextStyle().bigText(text))
                 .setSmallIcon(R.drawable.ic_stat_pauzfirst)
                 .setColor(Ui.BLUE)
                 .setContentIntent(open)
@@ -91,7 +104,30 @@ class TrainingService : Service() {
                     "Stop",
                     stopIntent
                 ).build())
-                .build()
+            if (surprise) {
+                // the whole question, never cut to one line, in the pop-up and in the shade
+                fun view(): android.widget.RemoteViews {
+                    val v = android.widget.RemoteViews(ctx.packageName, R.layout.notice_question)
+                    v.setTextViewText(R.id.nq_title, title)
+                    v.setTextViewText(R.id.nq_text, text)
+                    return v
+                }
+                builder
+                    .setStyle(Notification.DecoratedCustomViewStyle())
+                    .setCustomContentView(view())
+                    .setCustomBigContentView(view())
+                    .setCustomHeadsUpContentView(view())
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                    @Suppress("DEPRECATION")
+                    builder.setPriority(Notification.PRIORITY_HIGH)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+                }
+            } else {
+                builder.setStyle(Notification.BigTextStyle().bigText(text))
+            }
+            return builder.build()
         }
 
         /** Shows the current question in the running notification, so it can be read without opening the app. */

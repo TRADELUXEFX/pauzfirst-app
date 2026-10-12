@@ -244,6 +244,9 @@ object Engine {
         TrainingService.show(a, noticeTitle(), text)
     }
 
+    /** True while the running session is a Surprise Pause. */
+    fun isSurprise(): Boolean = headlessRun
+
     fun noticeTitle(): String = if (headlessRun) "Surprise pause" else "Training running"
 
     /** The question being asked right now, or "" when nothing is running. */
@@ -465,6 +468,11 @@ object Engine {
         showNext = false
         notifyUi()
         saveSession()
+        // a Surprise Pause ends silently: it only says "Respond", never "Training complete"
+        if (headlessRun) {
+            endService()
+            return
+        }
         say("Training complete. Great job!", 0.9f) { endService() }
         later(8000L) { endService() }
     }
