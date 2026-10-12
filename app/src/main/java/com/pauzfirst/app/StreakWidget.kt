@@ -12,7 +12,7 @@ import android.widget.RemoteViews
 /** Home screen widget: your streak at a glance, and Start begins a session in one tap. */
 class StreakWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        for (id in ids) manager.updateAppWidget(id, build(context))
+        for (id in ids) manager.updateAppWidget(id, safeBuild(context))
         scheduleMidnight(context)
     }
 
@@ -66,8 +66,17 @@ class StreakWidget : AppWidgetProvider() {
                 val m = AppWidgetManager.getInstance(ctx)
                 val ids = m.getAppWidgetIds(ComponentName(ctx, StreakWidget::class.java))
                 if (ids.isEmpty()) return
-                for (id in ids) m.updateAppWidget(id, build(ctx))
+                for (id in ids) m.updateAppWidget(id, safeBuild(ctx))
             } catch (e: Exception) {
+            }
+        }
+
+        /** If anything goes wrong while filling in the numbers, still show the plain widget instead of "Couldn't add widget". */
+        private fun safeBuild(ctx: Context): RemoteViews {
+            return try {
+                build(ctx)
+            } catch (e: Exception) {
+                RemoteViews(ctx.packageName, R.layout.widget_streak)
             }
         }
 
