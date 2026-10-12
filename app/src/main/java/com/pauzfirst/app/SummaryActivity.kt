@@ -175,7 +175,7 @@ class SummaryActivity : AppCompatActivity() {
 
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
-        val labels = arrayOf("Questions", "Time", "Best streak")
+        val labels = arrayOf("Questions", "Time", "Days practiced")
         vals = Array(3) { Ui.text(c, "", 20f, Ui.TEXT, Ui.BOLD) }
         for (i in 0 until 3) {
             if (i > 0) row.addView(Ui.divider(c), LinearLayout.LayoutParams(Ui.dp(c, 1), match))

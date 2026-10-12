@@ -16,6 +16,14 @@ object Defaults {
     }
 
     private const val BANK_KEY = "bank_cache"
+    private const val BANK_TS = "bank_cache_ts"
+
+    /** The bank is only downloaded again when the saved copy is missing or older than a day. */
+    fun bankDue(): Boolean {
+        val ts = Session.prefs.getLong(BANK_TS, 0L)
+        val has = (Session.prefs.getString(BANK_KEY, "[]") ?: "[]").length > 2
+        return !has || System.currentTimeMillis() - ts > 24L * 3600L * 1000L
+    }
 
     /** Keeps a copy of the shared question bank on the phone so Default mode works offline. */
     fun saveBank(list: List<String>) {
@@ -23,7 +31,7 @@ object Defaults {
         try {
             val a = JSONArray()
             for (q in list) a.put(q)
-            Session.prefs.edit().putString(BANK_KEY, a.toString()).apply()
+            Session.prefs.edit().putString(BANK_KEY, a.toString()).putLong(BANK_TS, System.currentTimeMillis()).apply()
         } catch (e: Exception) {
         }
     }

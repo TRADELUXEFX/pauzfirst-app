@@ -19,6 +19,7 @@ class PauzApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Session.init(this)
+        Engine.init(this)
         Ui.dark = Settings.isDark(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(a: Activity, s: Bundle?) {
@@ -40,7 +41,13 @@ class PauzApp : Application() {
             override fun onActivityPaused(a: Activity) {}
             override fun onActivityStopped(a: Activity) {}
             override fun onActivitySaveInstanceState(a: Activity, o: Bundle) {}
-            override fun onActivityDestroyed(a: Activity) {}
+            override fun onActivityDestroyed(a: Activity) {
+                // left the training screen during READY / SET / GO (before any session started):
+                // nothing else would stop a recording that was already set up for it
+                if (a is TrainingActivity && a.isFinishing && Engine.phase == Engine.Phase.IDLE) {
+                    SessionRecorder.stop(a)
+                }
+            }
         })
     }
 }

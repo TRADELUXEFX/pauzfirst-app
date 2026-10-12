@@ -9,6 +9,7 @@ import com.pauzfirst.app.Ui.addTo
 /** Every question in the shared bank that Default mode draws from, with the ones you've already used marked. */
 class BankActivity : AppCompatActivity() {
     private lateinit var holder: LinearLayout
+    private val showAll = HashSet<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,12 +60,18 @@ class BankActivity : AppCompatActivity() {
             if (items.isEmpty()) return
             val l = Ui.sectionTitle(c, title + "  " + items.size)
             holder.addTo(l, 18)
-            for (q in items) {
+            val shown = if (showAll.contains(title)) items else items.take(150)
+            for (q in shown) {
                 val card = Ui.card(c)
                 val t = Ui.text(c, q, 14f, if (dim) Ui.MUTED else Ui.TEXT, Ui.MED)
                 t.setLineSpacing(0f, 1.2f)
                 card.addView(t)
                 holder.addTo(card, 8)
+            }
+            if (shown.size < items.size) {
+                val more = Ui.chip(c, "Show " + (items.size - shown.size) + " more", Ui.BLUE, Ui.BLUE_SOFT)
+                more.setOnClickListener { showAll.add(title); render() }
+                holder.addTo(more, 10)
             }
         }
         section("Left", unused, false)
