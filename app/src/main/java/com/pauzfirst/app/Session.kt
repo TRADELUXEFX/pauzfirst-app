@@ -33,6 +33,56 @@ object Session {
     fun clear() {
         prefs.edit().remove("access").remove("refresh").remove("uid").remove("expires_at").apply()
     }
+
+    /** Training settings belong to one account. The display choice (dark mode) stays with the phone. */
+    private fun isAccountKey(k: String): Boolean = (k.startsWith("s_") && k != "s_dark") || k.startsWith("sp_")
+
+    /**
+     * Called when a login is saved. If a different account used this phone last, its settings are put away
+     * and this account gets its own saved settings back (or fresh defaults if it has none yet).
+     * The first time after an update, the settings already on the phone are simply kept for whoever is logged in.
+     */
+    @Synchronized
+    fun adoptAccount(uid: String) {
+        if (uid.isEmpty()) return
+        val owner = prefs.getString("settings_owner", "") ?: ""
+        if (owner == uid) return
+        val ed = prefs.edit()
+        if (owner.isNotEmpty()) {
+            val snap = org.json.JSONObject()
+            for ((k, v) in prefs.all) {
+                if (!isAccountKey(k)) continue
+                val item = org.json.JSONObject()
+                when (v) {
+                    is Boolean -> item.put("t", "b").put("v", v)
+                    is Int -> item.put("t", "i").put("v", v)
+                    is Long -> item.put("t", "l").put("v", v)
+                    is String -> item.put("t", "s").put("v", v)
+                    else -> continue
+                }
+                snap.put(k, item)
+            }
+            ed.putString("acct_settings_" + owner, snap.toString())
+            for (k in prefs.all.keys) if (isAccountKey(k)) ed.remove(k)
+            val saved = prefs.getString("acct_settings_" + uid, null)
+            if (saved != null) {
+                try {
+                    val o = org.json.JSONObject(saved)
+                    for (k in o.keys()) {
+                        val item = o.getJSONObject(k)
+                        when (item.getString("t")) {
+                            "b" -> ed.putBoolean(k, item.getBoolean("v"))
+                            "i" -> ed.putInt(k, item.getInt("v"))
+                            "l" -> ed.putLong(k, item.getLong("v"))
+                            else -> ed.putString(k, item.getString("v"))
+                        }
+                    }
+                } catch (e: Exception) {
+                }
+            }
+        }
+        ed.putString("settings_owner", uid).apply()
+    }
 }
 
 /** Training settings (kept on the phone). */

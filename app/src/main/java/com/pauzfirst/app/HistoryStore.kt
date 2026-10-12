@@ -14,7 +14,7 @@ import java.util.TimeZone
  * New sessions wait on the phone until they are sent, so none are lost when offline.
  */
 object HistoryStore {
-    private const val MAX = 200
+    private const val MAX = 1000
 
     /** History mode for Surprise Pauses: one card per day that keeps growing, instead of one card per question. */
     const val SURPRISE = "surprise"

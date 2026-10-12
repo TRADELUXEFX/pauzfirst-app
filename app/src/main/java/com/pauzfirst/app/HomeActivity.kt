@@ -714,7 +714,9 @@ class HomeActivity : AppCompatActivity() {
         Thread {
             val waiting = HistoryStore.pendingCount()
             val remoteLists = Api.fetchLists()
-            try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }
+            if (Defaults.bankDue()) {
+                try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }
+            }
             val remoteStats = Api.fetchStats()
             val remoteUsed = Api.fetchUsed()
             val synced = try { waiting > 0 && HistoryStore.flush() } catch (e: Exception) { false }
@@ -801,9 +803,9 @@ class HomeActivity : AppCompatActivity() {
     private fun showStats(s: JSONObject) {
         tileSessions.text = s.optLong("lifetimeSessions", 0L).toString()
         tileQuestions.text = s.optLong("lifetimeQuestions", 0L).toString()
-        tileStreak.text = s.optInt("dailyStreak", 0).toString()
+        tileStreak.text = StatsStore.currentStreak(s).toString()
         extraStats.text = "Time practiced " + StatsStore.formatDuration(s.optLong("lifetimeTime", 0L)) +
-            "   •   Best streak " + s.optInt("lifetimeStreak", 0)
+            "   •   Days practiced " + s.optInt("lifetimeStreak", 0)
         refreshFirstRun(s)
     }
 
@@ -894,6 +896,10 @@ class HomeActivity : AppCompatActivity() {
 
     private fun launchTraining() {
         val src = Settings.source
+        // started from the widget / notification / Train again before the lists were loaded: use the saved copy
+        if (lists.isEmpty() && src != Settings.DEFAULT_SOURCE) {
+            ListCache.load()?.let { lists = ListCache.texts(it) }
+        }
         val pool: List<String> =
             (if (src == Settings.DEFAULT_SOURCE) Defaults.pool(this) else (lists[src] ?: emptyList())).distinct()
         if (pool.isEmpty()) {

@@ -212,7 +212,7 @@ class HistoryActivity : AppCompatActivity() {
 
         body.addTo(tileRow(
             metric("Lifetime streak", s.optInt("lifetimeStreak", 0).toString()),
-            metric("Current streak", s.optInt("dailyStreak", 0).toString())
+            metric("Current streak", StatsStore.currentStreak(s).toString())
         ), 10)
 
         body.addTo(tileRow(metric("Total training time", StatsStore.formatDuration(s.optLong("lifetimeTime", 0L)))), 10)
@@ -567,13 +567,21 @@ class HistoryActivity : AppCompatActivity() {
         }
         val avg = totalSecs / items.size
 
+        // All time with no mode chosen: the real lifetime total, even when older entries are no longer in the list
+        val lifetime = StatsStore.local().optLong("lifetimeSessions", 0L)
+        val shownTotal = if (rangeIdx == 2 && filter == null && lifetime > items.size) lifetime else items.size.toLong()
+
         // the three numbers follow the mode filter and the range switch
         body.addTo(tileRow(
-            metric("Trainings", items.size.toString()),
+            metric("Trainings", shownTotal.toString()),
             metric("Last 7 days", week.toString()),
             metric("Avg. length", StatsStore.formatDuration(avg)),
             tint = true
         ), 10)
+
+        if (shownTotal > items.size) {
+            body.addTo(Ui.note(c, "The list below shows your latest " + items.size + " trainings. The total above counts all of them."), 8)
+        }
 
         val df = SimpleDateFormat("EEE d MMM, h:mm a", Locale.getDefault())
         val tf = SimpleDateFormat("h:mm a", Locale.getDefault())

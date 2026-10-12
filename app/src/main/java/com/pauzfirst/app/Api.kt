@@ -52,7 +52,10 @@ object Api {
             Session.refresh = o.getString("refresh_token")
             Session.expiresAt = System.currentTimeMillis() + o.optLong("expires_in", 3600L) * 1000L
             val u = o.optJSONObject("user")
-            if (u != null && u.optString("id").isNotEmpty()) Session.userId = u.optString("id")
+            if (u != null && u.optString("id").isNotEmpty()) {
+                Session.userId = u.optString("id")
+                Session.adoptAccount(Session.userId)
+            }
             true
         } catch (e: Exception) {
             false

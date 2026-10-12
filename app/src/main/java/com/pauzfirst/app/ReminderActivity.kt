@@ -10,12 +10,20 @@ import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.pauzfirst.app.Ui.addTo
 
 /** Daily reminder settings, opened from the bell icon on the main screen. */
 class ReminderActivity : AppCompatActivity() {
+    /** Red note under the Surprise pauses switch while the "Alarms & reminders" permission is missing. */
+    private var permWarn: TextView? = null
+
+    private fun refreshPermWarn() {
+        permWarn?.visibility = if (SurprisePause.enabled && !SurprisePause.canRunInBackground(this)) View.VISIBLE else View.GONE
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -143,6 +151,7 @@ class ReminderActivity : AppCompatActivity() {
         super.onResume()
         // coming back from the permission screen: schedule again, now with exact timing if it was allowed
         if (SurprisePause.enabled) SurprisePause.schedule(this)
+        refreshPermWarn()
     }
 
     /** Surprise Pauses: a few random one-question nudges per day inside a window. */
@@ -197,7 +206,13 @@ class ReminderActivity : AppCompatActivity() {
             } else {
                 SurprisePause.cancel(this)
             }
+            refreshPermWarn()
         })
+        val warn = Ui.text(c, "Surprise pauses can't speak in the background yet. Tap here and allow \"Alarms & reminders\" for PAUZFIRST.", 13f, Ui.RED, Ui.MED)
+        warn.setOnClickListener { askExactAlarm() }
+        permWarn = warn
+        card.addTo(warn, 8)
+        refreshPermWarn()
         card.addTo(options, 14)
         return card
     }

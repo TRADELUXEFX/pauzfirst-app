@@ -177,8 +177,14 @@ class LoginActivity : AppCompatActivity() {
                     goHome()
                 } else if (r.code == 0) {
                     setMsg("No internet connection. Please try again.", false)
-                } else {
+                } else if (r.code == 429) {
+                    setMsg("Too many attempts. Please wait a few minutes and try again.", false)
+                } else if (r.code >= 500) {
+                    setMsg("The server had a problem. Please try again in a moment.", false)
+                } else if (r.code == 400 || r.code == 401 || r.code == 403 || r.code == 422) {
                     setMsg("Invalid email or password. Please try again.", false)
+                } else {
+                    setMsg("Could not log in (error " + r.code + "). Please try again.", false)
                 }
             }
         }.start()

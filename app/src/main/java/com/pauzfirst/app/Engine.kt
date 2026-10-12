@@ -528,7 +528,7 @@ object Engine {
                 val base = StatsStore.merge(remote, StatsStore.local())
                 // a Surprise Pause counts as ONE training per day (and never as a mode); its questions and time still add up
                 val countIt = !surprise || Session.prefs.getString("sp_counted_day", "") != StatsStore.today()
-                val updated = StatsStore.addSession(base, q, secs, if (surprise) null else m, countIt)
+                val updated = StatsStore.addSession(base, q, secs, if (surprise) null else m, countIt, touchStreak = !surprise)
                 if (surprise && countIt) Session.prefs.edit().putString("sp_counted_day", StatsStore.today()).apply()
                 lastStreakUp = updated.optInt("dailyStreak", 0) > base.optInt("dailyStreak", 0)
                 lastStreak = updated.optInt("dailyStreak", 0)

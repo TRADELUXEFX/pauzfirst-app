@@ -61,8 +61,14 @@ object StatsStore {
         return out
     }
 
+    /** The streak to show right now: a streak not continued today or yesterday has ended, so it reads 0. */
+    fun currentStreak(s: JSONObject): Int {
+        val last = s.optString("lastPracticeDate", "")
+        return if (last == today() || last == yesterday()) s.optInt("dailyStreak", 0) else 0
+    }
+
     /** mode = null: no mode counter is touched (Surprise Pauses). countSession = false: questions and time are added but it is not counted as another training. */
-    fun addSession(base: JSONObject, questions: Int, seconds: Int, mode: String?, countSession: Boolean = true): JSONObject {
+    fun addSession(base: JSONObject, questions: Int, seconds: Int, mode: String?, countSession: Boolean = true, touchStreak: Boolean = true): JSONObject {
         val o = JSONObject(base.toString())
         if (countSession) o.put("lifetimeSessions", o.optLong("lifetimeSessions", 0L) + 1)
         o.put("lifetimeQuestions", o.optLong("lifetimeQuestions", 0L) + questions)
@@ -72,6 +78,9 @@ object StatsStore {
             ms.put(mode, ms.optInt(mode, 0) + 1)
             o.put("modeSessions", ms)
         }
+
+        // touchStreak = false (Surprise Pauses): the streak and the last practice day are left exactly as they were
+        if (!touchStreak) return o
 
         val last = o.optString("lastPracticeDate", "")
         val today = today()
