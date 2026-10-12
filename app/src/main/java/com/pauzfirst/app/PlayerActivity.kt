@@ -12,6 +12,7 @@ import android.widget.MediaController
 import android.widget.Toast
 import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -20,50 +21,69 @@ import com.pauzfirst.app.Ui.addTo
 /** Plays one saved training recording (audio or video) inside the app. */
 class PlayerActivity : AppCompatActivity() {
     private var video: VideoView? = null
+    private var chromeOn = true   // header, controls and system bars showing
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.edgeToEdge(this)
+        // dark player: light icons on the bottom navigation bar, which sits on black
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = false
         val c = this
         val uri = intent.getStringExtra("uri") ?: run { finish(); return }
         val isVideo = intent.getBooleanExtra("video", false)
 
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
-        page.setBackgroundColor(if (isVideo) Color.BLACK else Ui.BG)
+        page.setBackgroundColor(Color.BLACK)
         val header = Ui.header(c, if (isVideo) "Video recording" else "Audio recording") { finish() }
-        // audio: header above the stage. video: full screen, header floats over the picture
-        if (!isVideo) page.addView(header)
+        page.addView(header)
 
         val stage = FrameLayout(c)
         val vv = VideoView(c)
         video = vv
         stage.addView(vv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER))
         if (!isVideo) {
-            // audio only: a calm card in place of the picture
-            val note = Ui.text(c, "Playing your training audio", 14f, Ui.MUTED, Ui.MED)
+            // audio only: a calm note in place of the picture
+            val note = Ui.text(c, "Playing your training audio", 14f, Color.parseColor("#CBD5E1"), Ui.MED)
             note.gravity = Gravity.CENTER
             stage.addView(note, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         }
-        if (isVideo) stage.addView(header, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP))
         page.addView(stage, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        if (!isVideo) Ui.padInsets(page, bottom = true)
-        setContentView(page)
-        if (isVideo) {
-            // true full screen: hide the status and navigation bars (swipe from an edge to bring them back)
-            val ic = WindowCompat.getInsetsController(window, window.decorView)
-            ic.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            ic.hide(WindowInsetsCompat.Type.systemBars())
+        // bottom space for the navigation bar; frozen while the bars are hidden so the video never moves or resizes
+        var bottomPad = 0
+        ViewCompat.setOnApplyWindowInsetsListener(page) { v, insets ->
+            if (chromeOn) bottomPad = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()).bottom
+            v.setPadding(0, 0, 0, bottomPad)
+            insets
         }
+        ViewCompat.requestApplyInsets(page)
+        setContentView(page)
 
         val mc = MediaController(c)
         mc.setAnchorView(stage)
         vv.setMediaController(mc)
         if (isVideo) {
-            // tap toggles the controls; the header follows them
+            // like a gallery: tap the video to hide everything (header, controls, system bars) and tap again to bring it back
             vv.setOnTouchListener { _, e ->
-                if (e.action == MotionEvent.ACTION_UP) vv.post { header.visibility = if (mc.isShowing) View.VISIBLE else View.GONE }
-                false
+                if (e.action == MotionEvent.ACTION_UP) {
+                    chromeOn = !chromeOn
+                    val ic = WindowCompat.getInsetsController(window, window.decorView)
+                    if (chromeOn) {
+                        header.visibility = View.VISIBLE
+                        ic.show(WindowInsetsCompat.Type.systemBars())
+                        stage.post { mc.show(0) }
+                    } else {
+                        // keep the header's space (just invisible) so the video stays exactly where it is
+                        val lp = header.layoutParams
+                        lp.height = header.height
+                        header.layoutParams = lp
+                        header.visibility = View.INVISIBLE
+                        mc.hide()
+                        ic.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                        ic.hide(WindowInsetsCompat.Type.systemBars())
+                    }
+                }
+                true
             }
         }
         vv.setOnPreparedListener { it.isLooping = false; vv.start(); mc.show(0) }
