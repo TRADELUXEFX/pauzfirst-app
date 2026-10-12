@@ -61,14 +61,17 @@ object StatsStore {
         return out
     }
 
-    fun addSession(base: JSONObject, questions: Int, seconds: Int, mode: String): JSONObject {
+    /** mode = null: no mode counter is touched (Surprise Pauses). countSession = false: questions and time are added but it is not counted as another training. */
+    fun addSession(base: JSONObject, questions: Int, seconds: Int, mode: String?, countSession: Boolean = true): JSONObject {
         val o = JSONObject(base.toString())
-        o.put("lifetimeSessions", o.optLong("lifetimeSessions", 0L) + 1)
+        if (countSession) o.put("lifetimeSessions", o.optLong("lifetimeSessions", 0L) + 1)
         o.put("lifetimeQuestions", o.optLong("lifetimeQuestions", 0L) + questions)
         o.put("lifetimeTime", o.optLong("lifetimeTime", 0L) + seconds)
-        val ms = o.optJSONObject("modeSessions") ?: JSONObject()
-        ms.put(mode, ms.optInt(mode, 0) + 1)
-        o.put("modeSessions", ms)
+        if (mode != null && countSession) {
+            val ms = o.optJSONObject("modeSessions") ?: JSONObject()
+            ms.put(mode, ms.optInt(mode, 0) + 1)
+            o.put("modeSessions", ms)
+        }
 
         val last = o.optString("lastPracticeDate", "")
         val today = today()

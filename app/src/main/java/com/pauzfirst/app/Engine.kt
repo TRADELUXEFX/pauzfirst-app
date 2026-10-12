@@ -26,6 +26,11 @@ object Engine {
     private var gen = 0
     private var app: Context? = null
 
+    /** Called once from PauzApp so stopping always has a context, even before the first session. */
+    fun init(ctx: Context) {
+        app = ctx.applicationContext
+    }
+
     var phase: Phase = Phase.IDLE
         private set
     var questions: List<String> = emptyList()
@@ -521,7 +526,10 @@ object Engine {
             try {
                 val remote = Api.fetchStats()
                 val base = StatsStore.merge(remote, StatsStore.local())
-                val updated = StatsStore.addSession(base, q, secs, m)
+                // a Surprise Pause counts as ONE training per day (and never as a mode); its questions and time still add up
+                val countIt = !surprise || Session.prefs.getString("sp_counted_day", "") != StatsStore.today()
+                val updated = StatsStore.addSession(base, q, secs, if (surprise) null else m, countIt)
+                if (surprise && countIt) Session.prefs.edit().putString("sp_counted_day", StatsStore.today()).apply()
                 lastStreakUp = updated.optInt("dailyStreak", 0) > base.optInt("dailyStreak", 0)
                 lastStreak = updated.optInt("dailyStreak", 0)
                 lastBest = updated.optInt("lifetimeStreak", 0)
