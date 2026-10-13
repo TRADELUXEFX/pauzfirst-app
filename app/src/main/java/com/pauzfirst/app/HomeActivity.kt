@@ -32,6 +32,7 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var offlineBanner: TextView
     private lateinit var firstRunCard: LinearLayout
     private lateinit var goalCard: LinearLayout
+    private lateinit var presetBox: LinearLayout
     private lateinit var goalRing: GoalRing
     private lateinit var goalSub: TextView
     private val goalOptions = intArrayOf(0, 5, 10, 15, 30)
@@ -294,9 +295,31 @@ class HomeActivity : AppCompatActivity() {
         gLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
         body.addView(goalCard, gLp)
 
+        // presets: tap one to start training straight away with its settings and question list
+        val presetLbl = Ui.sectionTitle(c, "Presets")
+        val presetLblLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        presetLblLp.setMargins(Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 16), 0)
+        body.addView(presetLbl, presetLblLp)
+        presetBox = LinearLayout(c)
+        presetBox.orientation = LinearLayout.VERTICAL
+        val presetBoxLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        presetBoxLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 24))
+        body.addView(presetBox, presetBoxLp)
+        renderPresets()
+
         // ---------- training page: everything below lives on the Training tab ----------
         val trainBody = LinearLayout(c)
         trainBody.orientation = LinearLayout.VERTICAL
+
+        // Presets: saved training settings, opened from here
+        val presetRow = LinearLayout(c)
+        presetRow.gravity = Gravity.END
+        presetRow.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), 0)
+        val presetLink = Ui.text(c, "Presets  \u203A", 13f, Ui.BLUE, Ui.BOLD)
+        presetLink.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
+        presetRow.addView(presetLink)
+        trainBody.addView(presetRow)
+
 
         // ---------- questions source ----------
         val pad = Ui.dp(c, 16)
@@ -314,7 +337,7 @@ class HomeActivity : AppCompatActivity() {
         srcHead.gravity = Gravity.CENTER_VERTICAL
         srcHead.addView(Ui.sectionTitle(c, "Questions from"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         val listsLink = Ui.text(c, "Question lists  ›", 13f, Ui.BLUE, Ui.BOLD)
-        listsLink.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java)) }
+        listsLink.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java).putExtra(Nav.EXTRA_FROM_TRAINING, true)) }
         srcHead.addView(listsLink, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         srcCard.addTo(srcHead)
         val spinWrap = LinearLayout(c)
@@ -492,24 +515,6 @@ class HomeActivity : AppCompatActivity() {
         deepGroup.addView(deepBox, deepLp)
         trainBody.addView(deepGroup, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        // ---------- save settings / settings list ----------
-        val saveRow = LinearLayout(c)
-        saveRow.orientation = LinearLayout.HORIZONTAL
-        val saveBtn = Ui.pill(c, "Save settings")
-        saveBtn.textSize = 15f
-        val listBtn = Ui.pill(c, "Settings list", Ui.BLUE_SOFT, Ui.BLUE)
-        listBtn.textSize = 15f
-        Ui.fit(saveBtn, 15, 11)
-        Ui.fit(listBtn, 15, 11)
-        saveRow.addView(saveBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val listLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        listLp.leftMargin = Ui.dp(c, 10)
-        saveRow.addView(listBtn, listLp)
-        val saveLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        saveLp.setMargins(pad, Ui.dp(c, 20), pad, Ui.dp(c, 24))
-        trainBody.addView(saveRow, saveLp)
-        saveBtn.setOnClickListener { showSaveDialog() }
-        listBtn.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
 
         refresh = {
             val m = Settings.mode
@@ -544,7 +549,7 @@ class HomeActivity : AppCompatActivity() {
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.VERTICAL
         Ui.bottomBarBg(c, bar)
-        bar.elevation = Ui.dp(c, 8).toFloat()
+        Nav.lift(c, bar)
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         val start = Ui.pill(c, "Start training")
         start.textSize = 17f
@@ -552,9 +557,9 @@ class HomeActivity : AppCompatActivity() {
         trainPage = LinearLayout(c)
         trainPage.orientation = LinearLayout.VERTICAL
         trainPage.setBackgroundColor(Ui.BG)
-        trainPage.addView(Ui.header(c, "Training"))
+        trainPage.addView(Ui.header(c, "Training", trailing = saveButton()))
         trainPage.addView(trainScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        trainPage.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        trainPage.addView(bar, Nav.gap(c))
 
         // the two pages share one area; the nav bar sits under them on both
         val content = android.widget.FrameLayout(c)
@@ -597,6 +602,50 @@ class HomeActivity : AppCompatActivity() {
         start.setOnClickListener { startTraining() }
     }
 
+    /** Floppy icon in the Training header, like Presence. Opens the save pop-up. */
+    private fun saveButton(): android.widget.FrameLayout {
+        val c = this
+        val box = android.widget.FrameLayout(c)
+        val circle = GradientDrawable()
+        circle.shape = GradientDrawable.OVAL
+        circle.setColor(Color.parseColor("#33FFFFFF"))
+        box.background = circle
+        box.contentDescription = "Save"
+        box.addView(FsIconView(c, Icons.SAVE, Ui.WHITE), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22), Gravity.CENTER))
+        box.setOnClickListener { chooseSave() }
+        return box
+    }
+
+    /** Save pop-up: Save as default above Save as preset. */
+    private fun chooseSave() {
+        if (isFinishing) return
+        val d = android.app.Dialog(this)
+        d.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val card = Ui.card(this)
+        card.setPadding(Ui.dp(this, 22), Ui.dp(this, 22), Ui.dp(this, 22), Ui.dp(this, 22))
+        card.addView(Ui.text(this, "Save", 18f, Ui.TEXT, Ui.BOLD))
+        val hint = Ui.text(this, "Save these settings as your default, or keep them as a named preset.", 14f, Ui.MUTED, Ui.REG)
+        hint.setLineSpacing(0f, 1.25f)
+        card.addTo(hint, 8)
+        val asDefault = Ui.pill(this, "Save as default", Ui.SOFT, Ui.TEXT)
+        asDefault.setOnClickListener {
+            d.dismiss()
+            // settings are already kept between sessions, so they are the default as soon as they change
+            Toast.makeText(this, "Saved as default", Toast.LENGTH_SHORT).show()
+        }
+        card.addTo(asDefault, 20)
+        val asList = Ui.pill(this, "Save as preset")
+        asList.setOnClickListener {
+            d.dismiss()
+            showSaveDialog()
+        }
+        card.addTo(asList, 10)
+        d.setContentView(card)
+        d.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        d.window?.setLayout((resources.displayMetrics.widthPixels * 0.9f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        d.show()
+    }
+
     private fun showSaveDialog() {
         val c = this
         val input = EditText(c)
@@ -614,7 +663,7 @@ class HomeActivity : AppCompatActivity() {
         box.addView(input, Ui.lp(c))
         AppDialog.show(
             this,
-            "Save settings",
+            "Save preset",
             message = "Saves your training settings and the selected question list under a name.",
             content = box,
             buttons = listOf(
@@ -669,6 +718,7 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         if (!Session.loggedIn()) return
         if (!::tileSessions.isInitialized) return
+        renderPresets()
         // ratings and presets: send waiting changes, or take newer ones from another phone
         Thread { ExtrasSync.pull() }.start()
         if (Presets.justApplied) {
@@ -929,6 +979,34 @@ class HomeActivity : AppCompatActivity() {
     }
 
     /** Sets up recording (if chosen in the options) before the session begins. */
+    /** One card per preset. Tapping it applies the preset (settings and question list) and starts the training. */
+    private fun renderPresets() {
+        if (!::presetBox.isInitialized) return
+        val c = this
+        presetBox.removeAllViews()
+        val list = Presets.load()
+        if (list.isEmpty()) {
+            presetBox.addView(Ui.note(c, "No presets yet. Set things up on Training, then tap the save icon."))
+            return
+        }
+        for (p in list) {
+            val card = Ui.card(c)
+            card.orientation = LinearLayout.HORIZONTAL
+            card.gravity = Gravity.CENTER_VERTICAL
+            val col = LinearLayout(c)
+            col.orientation = LinearLayout.VERTICAL
+            col.addView(Ui.text(c, p.name, 15f, Ui.TEXT, Ui.BOLD))
+            col.addView(Ui.text(c, Presets.summary(p), 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
+            card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            card.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
+            card.setOnClickListener {
+                Presets.apply(p)
+                startTraining()
+            }
+            presetBox.addView(card, Ui.lp(c, 10))
+        }
+    }
+
     private fun startTraining() {
         if (!Settings.recordAudio && !Settings.recordScreen) {
             launchTraining()

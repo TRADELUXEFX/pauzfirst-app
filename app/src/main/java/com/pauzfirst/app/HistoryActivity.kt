@@ -118,14 +118,14 @@ class HistoryActivity : AppCompatActivity() {
         exportBar = LinearLayout(c)
         exportBar.orientation = LinearLayout.HORIZONTAL
         Ui.bottomBarBg(c, exportBar)
-        exportBar.elevation = Ui.dp(c, 8).toFloat()
+        Nav.lift(c, exportBar)
         exportBar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         val exportBtn = Ui.pill(c, "Export history")
         exportBtn.textSize = 15f
         exportBtn.setOnClickListener { chooseExportRange() }
         exportBar.addView(exportBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         exportBar.visibility = android.view.View.GONE
-        page.addView(exportBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        page.addView(exportBar, Nav.gap(c))
         page.addView(Nav.bar(this, Nav.HISTORY), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         setContentView(page)
     }

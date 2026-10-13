@@ -12,7 +12,7 @@ import com.pauzfirst.app.AppDialog.Btn
 import com.pauzfirst.app.AppDialog.Kind
 import com.pauzfirst.app.Ui.addTo
 
-/** Saved settings: tap one to preview every value, then Use it or Delete it. */
+/** Presets: saved training settings. Tap one to preview every value, then Use it or Delete it. */
 class PresetsActivity : AppCompatActivity() {
     private lateinit var holder: LinearLayout
     private var expanded: String? = null
@@ -33,7 +33,7 @@ class PresetsActivity : AppCompatActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "Saved settings") { finish() })
+        page.addView(Ui.header(c, "Presets"))
 
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
@@ -44,6 +44,7 @@ class PresetsActivity : AppCompatActivity() {
         Ui.noClip(holder, scroll)
         Ui.padInsets(holder, bottom = true)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        page.addView(Nav.bar(this, Nav.NONE), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         setContentView(page)
     }
 
@@ -52,7 +53,7 @@ class PresetsActivity : AppCompatActivity() {
         holder.removeAllViews()
         val list = Presets.load()
         if (list.isEmpty()) {
-            holder.addView(Ui.note(c, "No saved settings yet. Set things up on the main screen, then tap Save settings."))
+            holder.addView(Ui.note(c, "No presets yet. Set things up on the Training screen, then tap the save icon."))
             return
         }
         for (p in list) holder.addTo(card(p), 12)
@@ -152,7 +153,7 @@ class PresetsActivity : AppCompatActivity() {
         use.setOnClickListener {
             Presets.apply(p)
             Toast.makeText(this, "Loaded \"" + p.name + "\"", Toast.LENGTH_SHORT).show()
-            finish()
+            onBackPressed()
         }
         del.setOnClickListener { confirmDelete(p) }
         return card

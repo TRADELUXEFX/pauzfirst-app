@@ -9,19 +9,24 @@ import android.widget.LinearLayout
 import androidx.core.view.WindowCompat
 
 /**
- * Bottom bar: Home, Training (middle) and History. Blue like the header, with curved top corners; the tab you are on is white.
+ * Bottom bar: Home, Training, List and History. Blue like the header, with curved top corners; the tab you are on is white.
  * Home and Training are two pages of the Home screen, so [inPage] switches between them instantly.
  * From other screens (no [inPage]) the tab opens Home on the right page.
  */
 object Nav {
     const val HOME = 0
     const val TRAINING = 1
-    const val HISTORY = 2
+    const val LIST = 2
+    const val HISTORY = 3
     const val NONE = -1
+
+    /** Set when Lists or Presets is opened from Training, so its back button returns to Training. */
+    const val EXTRA_FROM_TRAINING = "from_training"
 
     fun bar(a: Activity, active: Int, inPage: ((Int) -> Unit)? = null): LinearLayout {
         // the phone's navigation strip sits under this blue bar, so its icons must be light
         WindowCompat.getInsetsController(a.window, a.window.decorView).isAppearanceLightNavigationBars = false
+        a.window.navigationBarColor = Ui.BLUE_DARK
         val bar = LinearLayout(a)
         bar.orientation = LinearLayout.HORIZONTAL
         val g = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
@@ -30,8 +35,8 @@ object Nav {
         bar.background = g
         bar.setPadding(0, Ui.dp(a, 8), 0, Ui.dp(a, 8))
         Ui.padInsets(bar, bottom = true)
-        val icons = listOf(Icons.HOME, Icons.PLAY, Icons.CHART)
-        val labels = listOf("Home", "Training", "History")
+        val icons = listOf(Icons.HOME, Icons.PLAY, Icons.LIST, Icons.CHART)
+        val labels = listOf("Home", "Training", "Lists", "History")
         for (i in icons.indices) {
             val on = i == active
             val col = if (on) Color.WHITE else Color.argb(170, 255, 255, 255)
@@ -51,12 +56,15 @@ object Nav {
             tab.addView(label, labelLp)
             tab.setOnClickListener {
                 if (on) return@setOnClickListener
-                if (inPage != null && i != HISTORY) {
+                if (inPage != null && i <= TRAINING) {
                     inPage(i)
                     return@setOnClickListener
                 }
-                val target = if (i == HISTORY) Intent(a, HistoryActivity::class.java)
-                             else Intent(a, HomeActivity::class.java).putExtra(HomeActivity.EXTRA_PAGE, i)
+                val target = when (i) {
+                    HISTORY -> Intent(a, HistoryActivity::class.java)
+                    LIST -> Intent(a, ListsActivity::class.java)
+                    else -> Intent(a, HomeActivity::class.java).putExtra(HomeActivity.EXTRA_PAGE, i)
+                }
                 a.startActivity(target.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
                 fade(a)
                 a.finish()
@@ -73,6 +81,22 @@ object Nav {
         fade(a)
         a.finish()
         fade(a)
+    }
+
+    /** A bar that sits right above the nav: white card, rounded on all corners, no shadow, so it never runs into the blue bar. */
+    fun lift(c: android.content.Context, bar: LinearLayout) {
+        bar.elevation = 0f
+        val g = GradientDrawable()
+        g.setColor(Ui.SURFACE)
+        g.cornerRadius = Ui.dp(c, 24).toFloat()
+        bar.background = g
+    }
+
+    /** Layout for a bar above the nav: a small gap on every side. */
+    fun gap(c: android.content.Context): LinearLayout.LayoutParams {
+        val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        lp.setMargins(Ui.dp(c, 12), Ui.dp(c, 8), Ui.dp(c, 12), Ui.dp(c, 8))
+        return lp
     }
 
     /** No animation between tabs: the switch is instant. */

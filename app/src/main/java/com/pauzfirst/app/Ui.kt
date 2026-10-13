@@ -83,6 +83,11 @@ object Ui {
             insets
         }
         ViewCompat.requestApplyInsets(v)
+        // bars are built before the screen is attached to the window; the first request is dropped, so ask again on attach
+        v.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(view: View) { ViewCompat.requestApplyInsets(view) }
+            override fun onViewDetachedFromWindow(view: View) {}
+        })
     }
 
     /** Solid blue strip over the status bar that fades in as content scrolls under it. */
@@ -292,8 +297,8 @@ object Ui {
         return row
     }
 
-    /** Blue top bar with the title centered. Pass onBack only where a back arrow is wanted; main tabs have none. */
-    fun header(c: Context, title: String, onBack: (() -> Unit)? = null): LinearLayout {
+    /** Blue top bar with the title centered. [onBack] adds the round back arrow; [trailing] puts an action on the right. Main tabs use neither. */
+    fun header(c: Context, title: String, trailing: View? = null, onBack: (() -> Unit)? = null): LinearLayout {
         val h = LinearLayout(c)
         h.orientation = LinearLayout.HORIZONTAL
         h.gravity = Gravity.CENTER_VERTICAL
@@ -305,6 +310,7 @@ object Ui {
         padInsets(h, top = true)
 
         val size = dp(c, 40)
+        // left slot: the back arrow, or an empty box of the same size so the title stays centered
         if (onBack != null) {
             val back = FrameLayout(c)
             val circle = GradientDrawable()
@@ -316,6 +322,8 @@ object Ui {
             val arrow = FsIconView(c, "M15 18l-6-6 6-6", WHITE)
             back.addView(arrow, FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
             h.addView(back, LinearLayout.LayoutParams(size, size))
+        } else {
+            h.addView(View(c), LinearLayout.LayoutParams(size, size))
         }
 
         val t = text(c, title, 20f, WHITE, BOLD)
@@ -324,10 +332,9 @@ object Ui {
         t.ellipsize = android.text.TextUtils.TruncateAt.END
         h.addView(t, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
-        if (onBack != null) {
-            // empty box the same size as the arrow, so the title sits in the true center
-            h.addView(View(c), LinearLayout.LayoutParams(size, size))
-        }
+        // right slot: the trailing action, or an empty box of the same size
+        if (trailing != null) h.addView(trailing, LinearLayout.LayoutParams(size, size))
+        else h.addView(View(c), LinearLayout.LayoutParams(size, size))
         return h
     }
 

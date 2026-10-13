@@ -160,7 +160,7 @@ class ListsActivity : AppCompatActivity() {
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.HORIZONTAL
         Ui.bottomBarBg(c, bar)
-        bar.elevation = Ui.dp(c, 8).toFloat()
+        Nav.lift(c, bar)
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         val newBtn = Ui.pill(c, "New list")
         newBtn.textSize = 15f
@@ -172,8 +172,8 @@ class ListsActivity : AppCompatActivity() {
         val ip = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         ip.leftMargin = Ui.dp(c, 10)
         bar.addView(importBtn, ip)
-        page.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        page.addView(Nav.bar(this, Nav.NONE), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        page.addView(bar, Nav.gap(c))
+        page.addView(Nav.bar(this, Nav.LIST), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         setContentView(page)
 
@@ -222,7 +222,7 @@ class ListsActivity : AppCompatActivity() {
         selected.retainAll(raw.keys)
         if (raw.isEmpty()) {
             selectMode = false
-            holder.addView(Ui.note(c, "No saved lists yet. Tap New list to write your own, or Import by code."))
+            holder.addView(Ui.note(c, "No question lists yet. Tap New list to write your own, or Import by code."))
             updateSelectBar()
             return
         }
@@ -264,8 +264,10 @@ class ListsActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        // Lists opens from the Training link, so back returns to Training (Home stays underneath)
-        if (selectMode) setSelectMode(false) else super.onBackPressed()
+        // opened from Training: back returns there; from the Lists tab: back goes to Home
+        if (selectMode) setSelectMode(false)
+        else if (intent?.getBooleanExtra(Nav.EXTRA_FROM_TRAINING, false) == true) super.onBackPressed()
+        else Nav.goHome(this)
     }
 
     private fun listTexts(name: String): List<String> {
