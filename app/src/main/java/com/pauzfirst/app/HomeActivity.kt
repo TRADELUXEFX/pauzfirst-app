@@ -33,10 +33,9 @@ class HomeActivity : BaseActivity() {
     private lateinit var presetBox: LinearLayout
     private lateinit var trainTitle: TextView
     // the Training page starts with only the question list and the four modes; the rest shows once a mode is chosen
-    private var modeChosen = false
+    private var modeChosen = true   // the Training page always shows the same layout, whatever screen it was opened from
     private var lowerBox: LinearLayout? = null
     private var startBar: LinearLayout? = null
-    private var startTimeSlot: LinearLayout? = null   // the Training time card sits here, inside the start bar
     private var refreshTrain: (() -> Unit)? = null
     private var timeValue: TextView? = null
     private lateinit var trainBody: LinearLayout
@@ -123,7 +122,7 @@ class HomeActivity : BaseActivity() {
     private fun showPage(i: Int) {
         pageIdx = i
         if (i == 1) {
-            modeChosen = Presets.loaded != null
+            modeChosen = true
             refreshTrain?.invoke()
             // the question list chosen on the Questions screen shows in the card at once
             if (::sourceText.isInitialized) showSource()
@@ -397,11 +396,11 @@ class HomeActivity : BaseActivity() {
         Ui.bottomBarBg(c, bar)
         Nav.lift(c, bar)
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
-        // the Training time card goes above the button, inside the same white bar
-        val timeSlot = LinearLayout(c)
-        timeSlot.orientation = LinearLayout.VERTICAL
-        startTimeSlot = timeSlot
-        bar.addView(timeSlot, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // the settings scroll under the bar; their bottom space matches the bar's height, so the last card
+        // (Training time) can be scrolled fully into view above it and never sits under the bar
+        bar.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            trainBody.setPadding(0, 0, 0, bar.height + Ui.dp(this, 16))
+        }
         val start = Ui.pill(c, "Start training")
         start.textSize = 17f
         bar.addTo(start)
@@ -1186,10 +1185,7 @@ class HomeActivity : BaseActivity() {
         value.gravity = Gravity.CENTER
         timeValue = value
         timeCard.addView(value)
-        startTimeSlot?.let { slot ->
-            slot.removeAllViews()
-            slot.addView(timeCard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, Ui.dp(c, 10)) })
-        }
+        lower.addView(timeCard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), 0) })
         refresh()
 
     }
