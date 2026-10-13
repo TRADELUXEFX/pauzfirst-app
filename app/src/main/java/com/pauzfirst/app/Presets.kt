@@ -205,6 +205,7 @@ object Presets {
 
     /** Plus on the preset list: Training starts with the standard values and no preset loaded, so a new preset is built from scratch. */
     fun startFresh() {
+        remember()
         Settings.mode = "eyes-closed"
         Settings.deepPause = false
         Settings.total = 5
@@ -221,7 +222,68 @@ object Presets {
         loaded = null
     }
 
+
+    // ---- what Training showed before a preset was opened, so leaving the preset puts it back ----
+    private const val BASE_KEY = "s_settings_before_preset"
+
+    /** Keeps the current settings the first time a preset is opened or a new one is started; later calls keep the first copy. */
+    private fun remember() {
+        if (Session.prefs.contains(BASE_KEY)) return
+        val o = JSONObject()
+        o.put("mode", Settings.mode)
+        o.put("deep", Settings.deepPause)
+        o.put("total", Settings.total)
+        o.put("pause", Settings.pauseTime)
+        o.put("answer", Settings.answerTime)
+        o.put("voice", Settings.voice)
+        o.put("tip", Settings.tip)
+        o.put("tipInterval", Settings.tipInterval)
+        o.put("threeWhy", Settings.threeWhy)
+        o.put("phaseGuide", Settings.phaseGuide)
+        o.put("recAudio", Settings.recordAudio)
+        o.put("recScreen", Settings.recordScreen)
+        o.put("source", Settings.source)
+        Session.prefs.edit().putString(BASE_KEY, o.toString()).apply()
+    }
+
+    /**
+     * Training is left (or opened from another screen) without starting: the opened preset, or the new one being built,
+     * goes away and the settings come back as they were before it. Does nothing when no preset was opened.
+     */
+    fun discard() {
+        val raw = Session.prefs.getString(BASE_KEY, null)
+        loaded = null
+        if (raw == null) return
+        try {
+            val o = JSONObject(raw)
+            Settings.mode = o.optString("mode", Settings.mode)
+            Settings.deepPause = o.optBoolean("deep", Settings.deepPause)
+            Settings.total = o.optInt("total", Settings.total)
+            Settings.pauseTime = o.optInt("pause", Settings.pauseTime)
+            Settings.answerTime = o.optInt("answer", Settings.answerTime)
+            Settings.voice = o.optBoolean("voice", Settings.voice)
+            Settings.tip = o.optBoolean("tip", Settings.tip)
+            Settings.tipInterval = o.optInt("tipInterval", Settings.tipInterval)
+            Settings.threeWhy = o.optBoolean("threeWhy", Settings.threeWhy)
+            Settings.phaseGuide = o.optBoolean("phaseGuide", Settings.phaseGuide)
+            Settings.recordAudio = o.optBoolean("recAudio", Settings.recordAudio)
+            Settings.recordScreen = o.optBoolean("recScreen", Settings.recordScreen)
+            Settings.source = o.optString("source", Settings.source)
+        } catch (e: Exception) {
+        }
+        Session.prefs.edit().remove(BASE_KEY).apply()
+    }
+
+    /** The current settings are the ones to keep (a training started, or Save as default): nothing to put back later. */
+    fun keepCurrent() {
+        Session.prefs.edit().remove(BASE_KEY).apply()
+    }
+
+    /** True while a preset is open, or a new one is being built, on Training. */
+    fun isOpen(): Boolean = Session.prefs.contains(BASE_KEY)
+
     fun apply(p: Preset) {
+        remember()
         Settings.mode = p.mode
         Settings.deepPause = p.deep
         Settings.total = p.total

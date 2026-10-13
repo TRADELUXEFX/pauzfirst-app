@@ -81,7 +81,7 @@ class TrainingDetailActivity : BaseActivity() {
         dateText.gravity = Gravity.CENTER
         body.addView(dateText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        // the details, two to a row; a last one with no partner sits in the middle
+        // the details, two to a row; a last one with no partner takes the full row
         val cells = ArrayList<Pair<String, String>>()
         cells.add("Questions" to o.optInt("questions", 0).toString())
         cells.add("Time" to StatsStore.formatDuration(o.optInt("time", 0).toLong()))
@@ -94,9 +94,7 @@ class TrainingDetailActivity : BaseActivity() {
                 line.addView(cell(cells[i].first, cells[i].second), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
                 line.addView(cell(cells[i + 1].first, cells[i + 1].second), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = Ui.dp(c, 8) })
             } else {
-                line.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
-                line.addView(cell(cells[i].first, cells[i].second), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f).apply { leftMargin = Ui.dp(c, 4); rightMargin = Ui.dp(c, 4) })
-                line.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
+                line.addView(cell(cells[i].first, cells[i].second), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
             }
             body.addView(line, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = if (i == 0) Ui.dp(c, 14) else Ui.dp(c, 8) })
             i += 2

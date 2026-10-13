@@ -61,6 +61,9 @@ class HomeActivity : BaseActivity() {
             goLogin()
             return
         }
+        // a preset left open earlier (no training started from it) is put away unless this launch brings one
+        if (!arrivesWithPreset(intent)) Presets.discard()
+        presetOpened = intent?.getBooleanExtra(EXTRA_LOAD_PRESET, false) == true
         buildUi()
         if (intent?.hasExtra(EXTRA_PAGE) == true) showPage(intent.getIntExtra(EXTRA_PAGE, 0))
         // opened from the Presets screen's + button: go straight to the save dialog
@@ -68,6 +71,12 @@ class HomeActivity : BaseActivity() {
         if (intent?.getBooleanExtra(EXTRA_AGAIN, false) != true) askAllPermissions()
         handleTrainAgain()
     }
+
+    /** True when an intent hands over a preset, a new-preset setup, or a chosen question list, so Training must keep what it shows. */
+    private fun arrivesWithPreset(i: Intent?): Boolean =
+        i != null && (i.getBooleanExtra(EXTRA_LOAD_PRESET, false) ||
+            i.getBooleanExtra(EXTRA_NEW_PRESET, false) ||
+            i.getBooleanExtra(EXTRA_KEEP, false))
 
     /** "Train again" on the finish page comes back here and starts a fresh session with the same settings. */
     private fun handleTrainAgain() {
@@ -80,6 +89,7 @@ class HomeActivity : BaseActivity() {
     override fun onNewIntent(i: Intent?) {
         super.onNewIntent(i)
         if (i != null) setIntent(i)
+        if (i != null && !arrivesWithPreset(i)) Presets.discard()
         if (i != null && i.getBooleanExtra(EXTRA_LOAD_PRESET, false)) {
             // a preset was just applied from another screen: rebuild the Training page and show it
             presetOpened = true
@@ -121,6 +131,15 @@ class HomeActivity : BaseActivity() {
         trainTitle.text = Presets.loaded ?: "Training"
     }
 
+    /** A tap on Home or Training in the nav bar. Training from the nav bar always shows the default Training, never a preset. */
+    private fun openFromNav(p: Int) {
+        if (p == 1 && Presets.isOpen()) {
+            Presets.discard()
+            buildTrainBody()
+        }
+        showPage(p)
+    }
+
     private fun showPage(i: Int) {
         pageIdx = i
         if (i == 1) {
@@ -133,7 +152,7 @@ class HomeActivity : BaseActivity() {
         homePage.visibility = if (i == 0) View.VISIBLE else View.GONE
         trainPage.visibility = if (i == 1) View.VISIBLE else View.GONE
         navHolder.removeAllViews()
-        navHolder.addView(Nav.bar(this, i, inPage = { p -> showPage(p) }))
+        navHolder.addView(Nav.bar(this, i, inPage = { p -> openFromNav(p) }))
         showTrainTitle()
         updateStartLabel()
     }
@@ -143,6 +162,8 @@ class HomeActivity : BaseActivity() {
         const val EXTRA_PAGE = "page"
         const val EXTRA_LOAD_PRESET = "load_preset"
         const val EXTRA_NEW_PRESET = "new_preset"
+        /** Open Training exactly as it is now (a new preset was just started, or a question list was just chosen). */
+        const val EXTRA_KEEP = "keep_settings"
     }
 
     private fun granted(perm: String): Boolean =
@@ -401,9 +422,25 @@ class HomeActivity : BaseActivity() {
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         // the settings scroll under the bar; their bottom space matches the bar's height, so the last card
         // (Training time) can be scrolled fully into view above it and never sits under the bar
-        bar.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            trainBody.setPadding(0, 0, 0, bar.height + Ui.dp(this, 16))
+        // when the settings are short enough to fit on screen, the bar follows the last card instead of
+        // sitting at the very bottom with a big empty gap above it; once they overflow, it stays pinned
+        val fitBar = Runnable {
+            val viewport = trainScroll.height
+            if (viewport > 0 && bar.height > 0) {
+                val pad = trainBody.paddingBottom
+                val contentH = trainBody.height - pad
+                val gap = Ui.dp(this, 16)
+                val naturalTop = viewport + Ui.dp(this, 8)   // the bar's top margin sits under the scroll area
+                val fits = trainScroll.scrollY == 0 && contentH + gap < naturalTop
+                val wantPad = if (fits) 0 else bar.height + gap
+                bar.translationY = if (fits) (contentH + gap - naturalTop).toFloat() else 0f
+                if (pad != wantPad) trainBody.setPadding(0, 0, 0, wantPad)
+            }
         }
+        val refit = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> bar.post(fitBar) }
+        bar.addOnLayoutChangeListener(refit)
+        trainBody.addOnLayoutChangeListener(refit)
+        trainScroll.addOnLayoutChangeListener(refit)
         val start = Ui.pill(c, "Start training")
         start.textSize = 17f
         bar.addTo(start)
@@ -556,6 +593,7 @@ class HomeActivity : BaseActivity() {
         asDefault.setOnClickListener {
             d.dismiss()
             // settings are already kept between sessions, so they are the default as soon as they change
+            Presets.keepCurrent()
             Toast.makeText(this, "Saved as default", Toast.LENGTH_SHORT).show()
         }
         card.addTo(asDefault, 20)
@@ -1248,6 +1286,7 @@ class HomeActivity : BaseActivity() {
             Presets.loaded = null
             showTrainTitle()
         }
+        Presets.keepCurrent()
         if (!Settings.recordAudio && !Settings.recordScreen) {
             launchTraining()
             return

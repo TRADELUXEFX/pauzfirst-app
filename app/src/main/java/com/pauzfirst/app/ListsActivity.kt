@@ -364,9 +364,9 @@ class ListsActivity : BaseActivity() {
         return box
     }
 
-    /** Opens Training so a new preset can be set up from the standard values. Nothing is saved until Save is tapped there. */
+    /** Opens the default Training so a new preset can be set up. Nothing is saved until Save is tapped there. */
     private fun openNewPreset() {
-        Presets.startFresh()
+        // same as tapping Training in the nav bar: the default Training, no preset
         startActivity(
             Intent(this, HomeActivity::class.java)
                 .putExtra(HomeActivity.EXTRA_PAGE, 1)
@@ -670,6 +670,7 @@ class ListsActivity : BaseActivity() {
             startActivity(
                 Intent(this, HomeActivity::class.java)
                     .putExtra(HomeActivity.EXTRA_PAGE, 1)
+                    .putExtra(HomeActivity.EXTRA_KEEP, true)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             )
             finish()
