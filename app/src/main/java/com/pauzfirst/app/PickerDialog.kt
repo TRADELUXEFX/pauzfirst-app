@@ -35,7 +35,7 @@ object PickerDialog {
     ) {
         val c: Context = activity
         val dm = activity.resources.displayMetrics
-        val width = (dm.widthPixels * 0.88f).toInt()
+        val width = dm.widthPixels
         val maxListH = (dm.heightPixels * 0.55f).toInt()
 
         val dialog = Dialog(activity)
@@ -43,8 +43,19 @@ object PickerDialog {
 
         val card = LinearLayout(c)
         card.orientation = LinearLayout.VERTICAL
-        card.background = Ui.rounded(c, Ui.SURFACE, 28)
-        card.setPadding(Ui.dp(c, 12), Ui.dp(c, 20), Ui.dp(c, 12), Ui.dp(c, 12))
+        val top = Ui.dp(c, 26).toFloat()
+        card.background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(Ui.SURFACE)
+            cornerRadii = floatArrayOf(top, top, top, top, 0f, 0f, 0f, 0f)
+        }
+        card.setPadding(Ui.dp(c, 12), Ui.dp(c, 10), Ui.dp(c, 12), Ui.dp(c, 28))
+        // the small handle at the top of the sheet
+        val handle = View(c)
+        handle.background = Ui.rounded(c, Ui.LINE, 3)
+        card.addView(handle, LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 5)).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            bottomMargin = Ui.dp(c, 10)
+        })
 
         val heading = Ui.text(c, title, 18f, Ui.TEXT, Ui.BOLD)
         heading.setPadding(Ui.dp(c, 10), 0, Ui.dp(c, 10), 0)
@@ -112,16 +123,11 @@ object PickerDialog {
             w.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             w.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             w.setDimAmount(0.5f)
-            w.setGravity(Gravity.CENTER)
+            w.setGravity(Gravity.BOTTOM)
             w.setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
 
-        // soft pop-in
-        card.alpha = 0f
-        card.scaleX = 0.92f
-        card.scaleY = 0.92f
         dialog.show()
-        card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(170).start()
 
         // bring the current list into view
         selectedRow?.let { row ->
