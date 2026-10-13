@@ -203,6 +203,24 @@ object Presets {
         write(load().filter { it.name != name })
     }
 
+    /** Plus on the preset list: Training starts with the standard values and no preset loaded, so a new preset is built from scratch. */
+    fun startFresh() {
+        Settings.mode = "eyes-closed"
+        Settings.deepPause = false
+        Settings.total = 5
+        Settings.pauseTime = 10
+        Settings.answerTime = 5
+        Settings.voice = true
+        Settings.tip = true
+        Settings.tipInterval = 30
+        Settings.threeWhy = false
+        Settings.phaseGuide = true
+        Settings.recordAudio = false
+        Settings.recordScreen = false
+        Settings.source = Settings.DEFAULT_SOURCE
+        loaded = null
+    }
+
     fun apply(p: Preset) {
         Settings.mode = p.mode
         Settings.deepPause = p.deep

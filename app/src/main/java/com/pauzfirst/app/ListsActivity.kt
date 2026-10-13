@@ -364,8 +364,9 @@ class ListsActivity : BaseActivity() {
         return box
     }
 
-    /** Opens Training so a new preset can be set up. Nothing is saved until Save is tapped there. */
+    /** Opens Training so a new preset can be set up from the standard values. Nothing is saved until Save is tapped there. */
     private fun openNewPreset() {
+        Presets.startFresh()
         startActivity(
             Intent(this, HomeActivity::class.java)
                 .putExtra(HomeActivity.EXTRA_PAGE, 1)
