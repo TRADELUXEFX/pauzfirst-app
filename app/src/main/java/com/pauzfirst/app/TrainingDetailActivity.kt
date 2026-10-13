@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date

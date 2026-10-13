@@ -12,7 +12,6 @@ import android.view.Window
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.TextView
 
 /** Centered pop-up card with rounded corners and a scrollable list. Used to pick the question list. */
 object PickerDialog {

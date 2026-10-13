@@ -1,14 +1,10 @@
 package com.pauzfirst.app
 
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import com.pauzfirst.app.AppDialog.Btn
 import com.pauzfirst.app.AppDialog.Kind
 import com.pauzfirst.app.Ui.addTo
@@ -33,7 +29,8 @@ class PresetsActivity : BaseActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "Presets"))
+        // + on the left: save the current training settings as a new preset (same as Save on Training)
+        page.addView(Ui.header(c, "Presets", leading = Ui.headerIcon(c, Icons.PLUS, "New preset") { openNewPreset() }))
 
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
@@ -80,6 +77,17 @@ class PresetsActivity : BaseActivity() {
             true
         }
         return card
+    }
+
+    /** Opens Training with the save dialog, so the current settings can be saved as a new preset. */
+    private fun openNewPreset() {
+        startActivity(
+            Intent(this, HomeActivity::class.java)
+                .putExtra(HomeActivity.EXTRA_PAGE, 1)
+                .putExtra(HomeActivity.EXTRA_NEW_PRESET, true)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        )
+        finish()
     }
 
     /** Opens the preset on Training so its settings and question list can be checked; Start training begins it. */

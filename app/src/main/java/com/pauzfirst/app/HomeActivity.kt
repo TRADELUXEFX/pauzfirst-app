@@ -16,9 +16,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
 import com.pauzfirst.app.AppDialog.Btn
 import com.pauzfirst.app.AppDialog.Kind
 import com.pauzfirst.app.Ui.addTo
@@ -33,6 +31,8 @@ class HomeActivity : BaseActivity() {
     private lateinit var firstRunCard: LinearLayout
     private lateinit var goalCard: LinearLayout
     private lateinit var presetBox: LinearLayout
+    private lateinit var trainTitle: TextView
+    private var timeValue: TextView? = null
     private lateinit var trainBody: LinearLayout
     private lateinit var goalRing: GoalRing
     private lateinit var goalSub: TextView
@@ -57,6 +57,8 @@ class HomeActivity : BaseActivity() {
         }
         buildUi()
         if (intent?.hasExtra(EXTRA_PAGE) == true) showPage(intent.getIntExtra(EXTRA_PAGE, 0))
+        // opened from the Presets screen's + button: go straight to the save dialog
+        if (intent?.getBooleanExtra(EXTRA_NEW_PRESET, false) == true) showSaveDialog()
         if (intent?.getBooleanExtra(EXTRA_AGAIN, false) != true) askAllPermissions()
         handleTrainAgain()
     }
@@ -78,6 +80,11 @@ class HomeActivity : BaseActivity() {
             showPage(1)
             return
         }
+        if (i != null && i.getBooleanExtra(EXTRA_NEW_PRESET, false)) {
+            showPage(1)
+            showSaveDialog()
+            return
+        }
         if (i != null && i.hasExtra(EXTRA_PAGE)) showPage(i.getIntExtra(EXTRA_PAGE, 0))
         handleTrainAgain()
     }
@@ -87,18 +94,41 @@ class HomeActivity : BaseActivity() {
         if (pageIdx == 1) showPage(0) else super.onBackPressed()
     }
 
+    /**
+     * The Training time card, as Presence shows it: "1m 35s (incl. 4s rest)".
+     * Each question takes its pause and answer time; between questions the engine waits 2s (3s in Deep Pause) — that is the rest.
+     * In Deep Pause the pause is user-paced, so it is not counted.
+     */
+    private fun updateStartLabel() {
+        val v = timeValue ?: return
+        val n = Settings.total
+        val gap = if (Settings.deepPause) 3 else 2
+        val rest = Math.max(0, n - 1) * gap
+        val pause = if (Settings.deepPause) 0 else Settings.pauseTime
+        val secs = n * (pause + Settings.answerTime) + rest
+        v.text = StatsStore.formatDuration(secs.toLong()) + (if (rest > 0) " (incl. " + rest + "s rest)" else "")
+    }
+
+    /** The Training header shows the loaded preset's name, or "Training" when none is loaded. */
+    private fun showTrainTitle() {
+        trainTitle.text = Presets.loaded ?: "Training"
+    }
+
     private fun showPage(i: Int) {
         pageIdx = i
         homePage.visibility = if (i == 0) View.VISIBLE else View.GONE
         trainPage.visibility = if (i == 1) View.VISIBLE else View.GONE
         navHolder.removeAllViews()
         navHolder.addView(Nav.bar(this, i, inPage = { p -> showPage(p) }))
+        showTrainTitle()
+        updateStartLabel()
     }
 
     companion object {
         const val EXTRA_AGAIN = "train_again"
         const val EXTRA_PAGE = "page"
         const val EXTRA_LOAD_PRESET = "load_preset"
+        const val EXTRA_NEW_PRESET = "new_preset"
     }
 
     private fun granted(perm: String): Boolean =
@@ -361,7 +391,9 @@ class HomeActivity : BaseActivity() {
         trainPage = LinearLayout(c)
         trainPage.orientation = LinearLayout.VERTICAL
         trainPage.setBackgroundColor(Ui.BG)
-        trainPage.addView(Ui.header(c, "Training", leading = presetsButton(), trailing = saveButton()))
+        val trainHeader = Ui.header(c, "Training", leading = presetsButton(), trailing = saveButton())
+        trainTitle = trainHeader.getChildAt(1) as TextView   // the title in the middle of the header
+        trainPage.addView(trainHeader)
         trainPage.addView(trainScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         trainPage.addView(bar, Nav.gap(c))
 
@@ -528,41 +560,55 @@ class HomeActivity : BaseActivity() {
         d.show()
     }
 
+    /** The name step after "Save as preset", as Presence does it: a small card, the suggested name in the box, Cancel and Save. */
     private fun showSaveDialog() {
         val c = this
-        val input = EditText(c)
-        input.hint = "e.g. Mirror Intense, Quick 5Q"
-        input.setHintTextColor(Color.parseColor("#94A3B8"))
-        input.setTextColor(Ui.TEXT)
-        input.textSize = 15f
-        input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-        input.setSingleLine(true)
-        Ui.setFont(c, input, Ui.MED)
-        input.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
-        input.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 14))
-        val box = LinearLayout(c)
-        box.orientation = LinearLayout.VERTICAL
-        box.addView(input, Ui.lp(c))
-        AppDialog.show(
-            this,
-            "Save preset",
-            message = "Saves your training settings and the selected question list under a name.",
-            content = box,
-            buttons = listOf(
-                Btn("Cancel", Kind.SOFT),
-                Btn("Save", Kind.PRIMARY) { saveNamed(input.text.toString()) }
-            ),
-            showKeyboard = true
-        )
-        input.requestFocus()
+        if (isFinishing) return
+        val d = android.app.Dialog(c)
+        d.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val card = Ui.card(c)
+        card.setPadding(Ui.dp(c, 22), Ui.dp(c, 22), Ui.dp(c, 22), Ui.dp(c, 18))
+        card.addView(Ui.text(c, "Name your preset", 18f, Ui.TEXT, Ui.BOLD))
+        val suggested = autoPresetName()
+        val hint = Ui.text(c, "Name this preset, or leave it empty and it is saved as \"" + suggested + "\".", 14f, Ui.MUTED, Ui.REG)
+        hint.setLineSpacing(0f, 1.25f)
+        card.addView(hint, Ui.lp(c, 8))
+        val field = EditText(c)
+        field.setText(suggested)
+        field.setTextColor(Ui.TEXT)
+        field.textSize = 15f
+        field.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        field.setSingleLine(true)
+        Ui.setFont(c, field, Ui.MED)
+        field.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
+        field.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 14))
+        card.addView(field, Ui.lp(c, 16))
+        // only Save: tapping outside the card or Back closes it without saving
+        val save = Ui.pill(c, "Save")
+        save.setOnClickListener {
+            d.dismiss()
+            saveNamed(field.text.toString())
+        }
+        card.addView(save, Ui.lp(c, 20))
+        d.setContentView(card)
+        d.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        d.window?.setLayout((resources.displayMetrics.widthPixels * 0.9f).toInt(), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        d.show()
+        field.requestFocus()
+    }
+
+    /** The suggested name, as Presence does it: the mode's name plus the first free number, "Eyes closed 1", "Eyes closed 2"... */
+    private fun autoPresetName(): String {
+        val base = Presets.modeName(Settings.mode)
+        var i = 1
+        while (Presets.exists("$base $i")) i++
+        return "$base $i"
     }
 
     private fun saveNamed(raw: String) {
-        val name = raw.trim()
-        if (name.isEmpty()) {
-            Toast.makeText(this, "Give your settings a name.", Toast.LENGTH_SHORT).show()
-            return
-        }
+        // the name is optional: an empty one gets an automatic name
+        val typed = raw.trim()
+        val name = if (typed.isEmpty()) autoPresetName() else typed
         val replaced = Presets.exists(name)
         Presets.save(name)
         Toast.makeText(this, (if (replaced) "Updated \"" else "Saved \"") + name + "\"", Toast.LENGTH_SHORT).show()
@@ -963,12 +1009,12 @@ class HomeActivity : BaseActivity() {
 
         // ---------- timing ----------
         val timing = Ui.card(c)
-        timing.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it }, 1, 50, 1) { it.toString() }, 0)
+        timing.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it; updateStartLabel() }, 1, 50, 1) { it.toString() }, 0)
         // Pause and Respond times do not apply in Deep Pause (no time limit)
         val timeBox = LinearLayout(c)
         timeBox.orientation = LinearLayout.VERTICAL
-        timeBox.addTo(Ui.stepper(c, "Pause", { Settings.pauseTime }, { Settings.pauseTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
-        timeBox.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
+        timeBox.addTo(Ui.stepper(c, "Pause", { Settings.pauseTime }, { Settings.pauseTime = it; updateStartLabel() }, 1, 60, 1) { it.toString() + "s" }, 12)
+        timeBox.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it; updateStartLabel() }, 1, 60, 1) { it.toString() + "s" }, 12)
         timing.addTo(timeBox)
         val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         timingLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
@@ -1069,7 +1115,22 @@ class HomeActivity : BaseActivity() {
             timeBox.visibility = if (deep) View.GONE else View.VISIBLE
             guideRow.visibility = if (Settings.mirror && !deep) View.VISIBLE else View.GONE
             deepGroup.visibility = if (deep) View.VISIBLE else View.GONE
+            updateStartLabel()
         }
+        // the training time sits at the end of the settings, as in Presence, and scrolls with them
+        val timeCard = LinearLayout(c)
+        timeCard.orientation = LinearLayout.VERTICAL
+        timeCard.gravity = Gravity.CENTER_HORIZONTAL
+        timeCard.background = Ui.rounded(c, Ui.BLUE_SOFT, 22)
+        timeCard.setPadding(Ui.dp(c, 18), Ui.dp(c, 14), Ui.dp(c, 18), Ui.dp(c, 14))
+        val timeLabel = Ui.text(c, "Training time", 12f, Ui.MUTED, Ui.MED)
+        timeLabel.gravity = Gravity.CENTER
+        timeCard.addView(timeLabel)
+        val value = Ui.text(c, "", 22f, Ui.BLUE, Ui.BOLD)
+        value.gravity = Gravity.CENTER
+        timeValue = value
+        timeCard.addView(value)
+        trainBody.addView(timeCard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), 0) })
         refresh()
 
     }
@@ -1125,6 +1186,7 @@ class HomeActivity : BaseActivity() {
         Presets.loaded?.let {
             Presets.markUsed(it)
             Presets.loaded = null
+            showTrainTitle()
         }
         if (!Settings.recordAudio && !Settings.recordScreen) {
             launchTraining()

@@ -3,7 +3,6 @@ package com.pauzfirst.app
 import android.app.NotificationManager
 import android.app.TimePickerDialog
 import android.content.Context
-import android.graphics.Color
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.Gravity
@@ -12,7 +11,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import com.pauzfirst.app.Ui.addTo
 
 /** Daily reminder settings, opened from the bell icon on the main screen. */

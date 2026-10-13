@@ -12,7 +12,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import com.pauzfirst.app.Ui.addTo
 
 /** Its own screen: type your email, tap Send reset link. */

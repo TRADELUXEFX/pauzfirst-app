@@ -3,7 +3,6 @@ package com.pauzfirst.app
 import android.os.Bundle
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import androidx.appcompat.app.AppCompatActivity
 import com.pauzfirst.app.Ui.addTo
 
 /** Every question in the shared bank that Default mode draws from, with the ones you've already used marked. */

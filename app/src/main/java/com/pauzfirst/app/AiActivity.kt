@@ -13,8 +13,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.WindowCompat
 import com.pauzfirst.app.Ui.addTo
 import org.json.JSONArray
 

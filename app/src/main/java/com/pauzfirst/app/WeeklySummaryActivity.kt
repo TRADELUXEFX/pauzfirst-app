@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import androidx.appcompat.app.AppCompatActivity
 import java.util.Calendar
 
 /** Your week: trainings, questions and time, compared with the week before, and a share card. */
