@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -80,9 +81,19 @@ class ListsActivity : BaseActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "My questions",
+        // the blue top: the title row, and the search box inside it
+        val header = Ui.header(c, "My questions",
             leading = Ui.headerIcon(c, Icons.PLUS, "New list") { if (!needsNet()) startActivity(Intent(this, ListEditActivity::class.java)) },
-            trailing = Ui.headerIcon(c, Icons.DOWNLOAD, "Import by code") { if (!needsNet()) showImportDialog() }))
+            trailing = Ui.headerIcon(c, Icons.DOWNLOAD, "Import by code") { if (!needsNet()) showImportDialog() })
+        header.background = null
+        val top = LinearLayout(c)
+        top.orientation = LinearLayout.VERTICAL
+        val topBg = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
+        val topR = Ui.dp(c, 24).toFloat()
+        topBg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, topR, topR, topR, topR)
+        top.background = topBg
+        top.addView(header)
+        page.addView(top)
 
         val aiCard = Ui.card(c)
         val aiRow = LinearLayout(c)
@@ -152,11 +163,12 @@ class ListsActivity : BaseActivity() {
         search.hint = "Search lists"
         search.setSingleLine(true)
         search.textSize = 15f
-        search.setTextColor(Ui.TEXT)
-        search.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"))
+        search.setTextColor(Ui.WHITE)
+        search.setHintTextColor(android.graphics.Color.parseColor("#CCFFFFFF"))
         Ui.setFont(c, search, Ui.MED)
-        search.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
-        search.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        // the magnifier sits inside the search box, on its left; the box is the rounded field
+        search.background = null
+        search.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 12))
         search.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -166,8 +178,17 @@ class ListsActivity : BaseActivity() {
             }
         })
         val searchLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        searchLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), 0)
-        page.addView(search, searchLp)
+        searchLp.setMargins(Ui.dp(c, 16), 0, Ui.dp(c, 16), Ui.dp(c, 16))
+        val searchBox = LinearLayout(c)
+        searchBox.orientation = LinearLayout.HORIZONTAL
+        searchBox.gravity = Gravity.CENTER_VERTICAL
+        searchBox.background = Ui.rounded(c, android.graphics.Color.parseColor("#33FFFFFF"), 16)
+        searchBox.setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 16), 0)
+        searchBox.addView(FsIconView(c, Icons.SEARCH, Ui.WHITE), LinearLayout.LayoutParams(Ui.dp(c, 18), Ui.dp(c, 18)))
+        val typeLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        typeLp.leftMargin = Ui.dp(c, 10)
+        searchBox.addView(search, typeLp)
+        top.addView(searchBox, searchLp)
 
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
