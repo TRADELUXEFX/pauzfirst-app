@@ -548,7 +548,7 @@ class HomeActivity : BaseActivity() {
             Toast.makeText(this, "Saved as default", Toast.LENGTH_SHORT).show()
         }
         card.addTo(asDefault, 20)
-        val asList = Ui.pill(this, "Save as preset")
+        val asList = Ui.pill(this, "Save preset list")
         asList.setOnClickListener {
             d.dismiss()
             showSaveDialog()
@@ -584,7 +584,7 @@ class HomeActivity : BaseActivity() {
         field.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 14))
         card.addView(field, Ui.lp(c, 16))
         // only Save: tapping outside the card or Back closes it without saving
-        val save = Ui.pill(c, "Save")
+        val save = Ui.pill(c, "Save preset list")
         save.setOnClickListener {
             d.dismiss()
             saveNamed(field.text.toString())

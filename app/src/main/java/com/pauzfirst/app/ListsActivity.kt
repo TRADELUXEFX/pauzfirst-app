@@ -207,7 +207,7 @@ class ListsActivity : BaseActivity() {
         // search: finds lists by name; the matching lists replace the list cards while typing
         val search = EditText(c)
         searchField = search
-        search.hint = "Search lists"
+        search.hint = "Search question list"
         search.setSingleLine(true)
         search.textSize = 15f
         search.setTextColor(Ui.WHITE)
@@ -215,7 +215,10 @@ class ListsActivity : BaseActivity() {
         Ui.setFont(c, search, Ui.MED)
         // the magnifier sits inside the search box, on its left; the box is the rounded field
         search.background = null
-        search.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 12))
+        search.minHeight = 0
+        search.minimumHeight = 0
+        search.setPadding(0, 0, 0, 0)
+        search.gravity = Gravity.CENTER_VERTICAL
         search.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -224,16 +227,20 @@ class ListsActivity : BaseActivity() {
                 if (tab == 0) renderPresets() else render()
             }
         })
-        val searchLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        // one fixed-height row: the icon and the typed text are centered on the same line
+        val searchLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 46))
         searchLp.setMargins(Ui.dp(c, 16), 0, Ui.dp(c, 16), Ui.dp(c, 16))
         val searchBox = LinearLayout(c)
         searchBox.orientation = LinearLayout.HORIZONTAL
         searchBox.gravity = Gravity.CENTER_VERTICAL
         searchBox.background = Ui.rounded(c, android.graphics.Color.parseColor("#33FFFFFF"), 16)
         searchBox.setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 16), 0)
-        searchBox.addView(FsIconView(c, Icons.SEARCH, Ui.WHITE), LinearLayout.LayoutParams(Ui.dp(c, 18), Ui.dp(c, 18)))
+        val iconLp = LinearLayout.LayoutParams(Ui.dp(c, 18), Ui.dp(c, 18))
+        iconLp.gravity = Gravity.CENTER_VERTICAL
+        searchBox.addView(FsIconView(c, Icons.SEARCH, Ui.WHITE), iconLp)
         val typeLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         typeLp.leftMargin = Ui.dp(c, 10)
+        typeLp.gravity = Gravity.CENTER_VERTICAL
         searchBox.addView(search, typeLp)
         top.addView(searchBox, searchLp)
 
@@ -297,7 +304,7 @@ class ListsActivity : BaseActivity() {
         questionTop.visibility = if (i == 1) View.VISIBLE else View.GONE
         importIcon.visibility = View.VISIBLE   // import by code works for lists and presets
         headerTitle.text = if (i == 0) "My presets" else "My questions"
-        searchField.hint = if (i == 0) "Search presets" else "Search lists"
+        searchField.hint = if (i == 0) "Search preset list" else "Search question list"
         if (changed && searchField.text.isNotEmpty()) searchField.setText("")   // the text watcher re-renders
         if (i == 0) renderPresets()
     }
@@ -357,12 +364,11 @@ class ListsActivity : BaseActivity() {
         return box
     }
 
-    /** Opens Training with the save dialog, so the current settings can be saved as a new preset. */
+    /** Opens Training so a new preset can be set up. Nothing is saved until Save is tapped there. */
     private fun openNewPreset() {
         startActivity(
             Intent(this, HomeActivity::class.java)
                 .putExtra(HomeActivity.EXTRA_PAGE, 1)
-                .putExtra(HomeActivity.EXTRA_NEW_PRESET, true)
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         )
         finish()
@@ -838,7 +844,7 @@ class ListsActivity : BaseActivity() {
     }
 
     private fun showCode(name: String, code: String) {
-        val msg = "Try my PauzFirst list \"" + name + "\". In the app open Question lists > Import by code and enter: " + code
+        val msg = "Try my PauzFirst list \"" + name + "\". In the app open List > Import by code and enter: " + code
         AppDialog.show(
             this,
             "Share code: " + code,
@@ -896,7 +902,7 @@ class ListsActivity : BaseActivity() {
     }
 
     private fun showPresetCode(name: String, code: String) {
-        val msg = "Try my PauzFirst preset \"" + name + "\". In the app open Questions > Import by code and enter: " + code
+        val msg = "Try my PauzFirst preset \"" + name + "\". In the app open List > Import by code and enter: " + code
         AppDialog.show(
             this,
             "Share code: " + code,
@@ -994,8 +1000,8 @@ class ListsActivity : BaseActivity() {
         box.addView(input, Ui.lp(c))
         AppDialog.show(
             this,
-            "Import by code",
-            message = "Enter a question list or preset share code.",
+            if (tab == 0) "Import preset list" else "Import question list",
+            message = "Enter the share code you were sent.",
             content = box,
             buttons = listOf(
                 Btn("Cancel", Kind.SOFT),

@@ -90,7 +90,7 @@ class ListEditActivity : BaseActivity() {
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
         Ui.padInsets(bar, bottom = true)
-        save = Ui.pill(c, "Save list")
+        save = Ui.pill(c, "Save question list")
         save.textSize = 17f
         save.isEnabled = false
         save.alpha = 0.5f
