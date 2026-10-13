@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Toast
 import com.pauzfirst.app.AppDialog.Btn
 import com.pauzfirst.app.AppDialog.Kind
 import com.pauzfirst.app.Ui.addTo
