@@ -129,7 +129,7 @@ class ListEditActivity : AppCompatActivity() {
                     return@runOnUiThread
                 }
                 raw = r
-                loadingRing?.let { body.removeView(it) }
+                loadingRing?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }
                 loadingRing = null
                 formCard?.visibility = android.view.View.VISIBLE
                 val old = oldName
