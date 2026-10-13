@@ -32,6 +32,11 @@ class HomeActivity : BaseActivity() {
     private lateinit var goalCard: LinearLayout
     private lateinit var presetBox: LinearLayout
     private lateinit var trainTitle: TextView
+    // the Training page starts with only the question list and the four modes; the rest shows once a mode is chosen
+    private var modeChosen = false
+    private var lowerBox: LinearLayout? = null
+    private var startBar: LinearLayout? = null
+    private var refreshTrain: (() -> Unit)? = null
     private var timeValue: TextView? = null
     private lateinit var trainBody: LinearLayout
     private lateinit var goalRing: GoalRing
@@ -116,6 +121,12 @@ class HomeActivity : BaseActivity() {
 
     private fun showPage(i: Int) {
         pageIdx = i
+        if (i == 1) {
+            modeChosen = Presets.loaded != null
+            refreshTrain?.invoke()
+            // the question list chosen on the Questions screen shows in the card at once
+            if (::sourceText.isInitialized) showSource()
+        }
         homePage.visibility = if (i == 0) View.VISIBLE else View.GONE
         trainPage.visibility = if (i == 1) View.VISIBLE else View.GONE
         navHolder.removeAllViews()
@@ -391,10 +402,11 @@ class HomeActivity : BaseActivity() {
         trainPage = LinearLayout(c)
         trainPage.orientation = LinearLayout.VERTICAL
         trainPage.setBackgroundColor(Ui.BG)
-        val trainHeader = Ui.header(c, "Training", leading = presetsButton(), trailing = saveButton())
+        val trainHeader = Ui.header(c, "Training", trailing = saveButton())
         trainTitle = trainHeader.getChildAt(1) as TextView   // the title in the middle of the header
         trainPage.addView(trainHeader)
         trainPage.addView(trainScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        startBar = bar
         trainPage.addView(bar, Nav.gap(c))
 
         // the two pages share one area; the nav bar sits under them on both
@@ -436,18 +448,6 @@ class HomeActivity : BaseActivity() {
             startActivity(Intent(this, TrainingActivity::class.java))
         }
         start.setOnClickListener { startTraining() }
-    }
-
-    /** "Presets" text button on the left of the Training header, in a rounded container like the save button's circle. */
-    private fun presetsButton(): TextView {
-        val c = this
-        val b = Ui.text(c, "Presets", 13f, Ui.WHITE, Ui.BOLD)
-        b.gravity = Gravity.CENTER
-        b.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)
-        b.setPadding(Ui.dp(c, 14), Ui.dp(c, 8), Ui.dp(c, 14), Ui.dp(c, 8))
-        b.contentDescription = "Presets"
-        b.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
-        return b
     }
 
     /** Floppy icon in the Training header, like Presence. Opens the save pop-up. */
@@ -625,6 +625,31 @@ class HomeActivity : BaseActivity() {
         names.addAll(Settings.order(lists.keys))
         sourceNames = names
         showSource()
+    }
+
+    /** The Presets button: a pop-up list of the saved presets. The one picked is loaded onto Training. */
+    private fun openPresetPicker() {
+        val all = Presets.load()
+        if (all.isEmpty()) {
+            Toast.makeText(this, "No presets yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        PickerDialog.show(
+            this,
+            "Presets",
+            all.map { it.name },
+            all.map { false },
+            -1,
+            subtitle = "Tap a preset to load it"
+        ) { index ->
+            if (index >= 0 && index < all.size) {
+                val p = all[index]
+                Presets.apply(p)
+                Presets.loaded = p.name
+                buildTrainBody()
+                showPage(1)
+            }
+        }
     }
 
     private fun openSourcePicker() {
@@ -923,9 +948,6 @@ class HomeActivity : BaseActivity() {
         srcHead.orientation = LinearLayout.HORIZONTAL
         srcHead.gravity = Gravity.CENTER_VERTICAL
         srcHead.addView(Ui.sectionTitle(c, "Questions from"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val listsLink = Ui.text(c, "Question lists  ›", 13f, Ui.BLUE, Ui.BOLD)
-        listsLink.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java).putExtra(Nav.EXTRA_FROM_TRAINING, true)) }
-        srcHead.addView(listsLink, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         srcCard.addTo(srcHead)
         val spinWrap = LinearLayout(c)
         spinWrap.orientation = LinearLayout.HORIZONTAL
@@ -941,6 +963,20 @@ class HomeActivity : BaseActivity() {
         spinWrap.addView(chevron, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         spinWrap.setOnClickListener { openSourcePicker() }
         srcCard.addTo(spinWrap, 10)
+        // two buttons: each opens a pop-up list to choose from
+        val pickRow = LinearLayout(c)
+        pickRow.orientation = LinearLayout.HORIZONTAL
+        val presetsBtn = Ui.pill(c, "Presets", Ui.SOFT, Ui.TEXT)
+        presetsBtn.textSize = 14f
+        presetsBtn.setOnClickListener { openPresetPicker() }
+        pickRow.addView(presetsBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val listsBtn = Ui.pill(c, "Question lists", Ui.SOFT, Ui.TEXT)
+        listsBtn.textSize = 14f
+        listsBtn.setOnClickListener { openSourcePicker() }
+        val listsBtnLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        listsBtnLp.leftMargin = Ui.dp(c, 8)
+        pickRow.addView(listsBtn, listsBtnLp)
+        srcCard.addTo(pickRow, 10)
         val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         srcLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
         trainBody.addView(groupLabel("Training"))
@@ -996,6 +1032,7 @@ class HomeActivity : BaseActivity() {
                 chips.add(chip)
                 chip.setOnClickListener {
                     Settings.mode = modeKeys[i]
+                    modeChosen = true
                     refresh()
                 }
             }
@@ -1006,6 +1043,12 @@ class HomeActivity : BaseActivity() {
         val modeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         modeLp.setMargins(pad, Ui.dp(c, 12), pad, 0)
         trainBody.addView(modeCard, modeLp)
+
+        // everything below the modes: shown only once a mode is chosen
+        val lower = LinearLayout(c)
+        lower.orientation = LinearLayout.VERTICAL
+        lowerBox = lower
+        trainBody.addView(lower, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // ---------- timing ----------
         val timing = Ui.card(c)
@@ -1018,8 +1061,8 @@ class HomeActivity : BaseActivity() {
         timing.addTo(timeBox)
         val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         timingLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        trainBody.addView(groupLabel("Timing"))
-        trainBody.addView(timing, timingLp)
+        lower.addView(groupLabel("Timing"))
+        lower.addView(timing, timingLp)
 
         // ---------- sound ----------
         val sound = Ui.card(c)
@@ -1029,8 +1072,8 @@ class HomeActivity : BaseActivity() {
         sound.addTo(guideRow, 14)
         val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        trainBody.addView(groupLabel("Sound"))
-        trainBody.addView(sound, soundLp)
+        lower.addView(groupLabel("Sound"))
+        lower.addView(sound, soundLp)
 
         // ---------- recording ----------
         val recCard = Ui.card(c)
@@ -1086,8 +1129,8 @@ class HomeActivity : BaseActivity() {
         recCard.addTo(recRow, 14)
         val recCardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         recCardLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        trainBody.addView(groupLabel("Recording"))
-        trainBody.addView(recCard, recCardLp)
+        lower.addView(groupLabel("Recording"))
+        lower.addView(recCard, recCardLp)
 
         // ---------- Deep Pause (only shown while Deep Pause is on) ----------
         val deepGroup = LinearLayout(c)
@@ -1100,23 +1143,27 @@ class HomeActivity : BaseActivity() {
         val deepLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         deepLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
         deepGroup.addView(deepBox, deepLp)
-        trainBody.addView(deepGroup, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        lower.addView(deepGroup, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
 
         refresh = {
             val m = Settings.mode
             val deep = Settings.deepPause
             for (i in modeKeys.indices) {
-                val on = modeKeys[i] == m
+                val on = modeChosen && modeKeys[i] == m
                 chips[i].background = Ui.rounded(c, if (on) Ui.BLUE else Ui.SOFT, 14)
                 chips[i].setTextColor(if (on) Ui.WHITE else Ui.MUTED)
             }
             modeDesc.text = modeDescs[Math.max(0, modeKeys.indexOf(m))]
+            modeDesc.visibility = if (modeChosen) View.VISIBLE else View.GONE
+            lower.visibility = if (modeChosen) View.VISIBLE else View.GONE
+            startBar?.visibility = if (modeChosen) View.VISIBLE else View.GONE
             timeBox.visibility = if (deep) View.GONE else View.VISIBLE
             guideRow.visibility = if (Settings.mirror && !deep) View.VISIBLE else View.GONE
             deepGroup.visibility = if (deep) View.VISIBLE else View.GONE
             updateStartLabel()
         }
+        refreshTrain = refresh
         // the training time sits at the end of the settings, as in Presence, and scrolls with them
         val timeCard = LinearLayout(c)
         timeCard.orientation = LinearLayout.VERTICAL
@@ -1130,7 +1177,7 @@ class HomeActivity : BaseActivity() {
         value.gravity = Gravity.CENTER
         timeValue = value
         timeCard.addView(value)
-        trainBody.addView(timeCard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), 0) })
+        lower.addView(timeCard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), 0) })
         refresh()
 
     }
@@ -1141,7 +1188,7 @@ class HomeActivity : BaseActivity() {
         val t = Ui.text(c, "Presets  \u203A", 13f, Ui.BLUE, Ui.BOLD)
         t.background = Ui.rounded(c, Ui.BLUE_SOFT, 14)
         t.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
-        t.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
+        t.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java).putExtra(ListsActivity.EXTRA_TAB, 0)) }
         return t
     }
 

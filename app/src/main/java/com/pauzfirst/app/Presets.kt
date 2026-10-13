@@ -155,6 +155,50 @@ object Presets {
         return copy
     }
 
+    /** One preset's settings as JSON, for sharing by code. */
+    fun toJson(p: Preset): JSONObject = JSONObject()
+        .put("mode", p.mode)
+        .put("deep", p.deep)
+        .put("total", p.total)
+        .put("pause", p.pause)
+        .put("answer", p.answer)
+        .put("voice", p.voice)
+        .put("tip", p.tip)
+        .put("tipInterval", p.tipInterval)
+        .put("threeWhy", p.threeWhy)
+        .put("phaseGuide", p.phaseGuide)
+        .put("recordAudio", p.recordAudio)
+        .put("recordScreen", p.recordScreen)
+
+    /** Adds a preset that came in by share code, at the top. A taken name gets a number. Returns the name it was saved as. */
+    fun addShared(name: String, s: JSONObject, source: String): String {
+        val base = name.trim().ifEmpty { "Shared preset" }
+        var finalName = base
+        var n = 2
+        while (exists(finalName)) {
+            finalName = base + " (" + n + ")"
+            n++
+        }
+        val p = Preset(
+            finalName,
+            s.optString("mode", "eyes-closed"),
+            s.optBoolean("deep", false),
+            s.optInt("total", 5),
+            s.optInt("pause", 10),
+            s.optInt("answer", 5),
+            s.optBoolean("voice", true),
+            s.optBoolean("tip", true),
+            s.optInt("tipInterval", 30),
+            s.optBoolean("threeWhy", false),
+            s.optBoolean("phaseGuide", true),
+            source,
+            s.optBoolean("recordAudio", false),
+            s.optBoolean("recordScreen", false)
+        )
+        write(listOf(p) + load())
+        return finalName
+    }
+
     fun delete(name: String) {
         write(load().filter { it.name != name })
     }

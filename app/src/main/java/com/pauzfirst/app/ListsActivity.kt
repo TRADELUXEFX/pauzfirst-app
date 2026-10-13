@@ -21,7 +21,22 @@ import com.pauzfirst.app.Ui.addTo
 import org.json.JSONArray
 
 class ListsActivity : BaseActivity() {
+    companion object {
+        /** Open on this tab: 0 = Preset list, 1 = Question list (default). */
+        const val EXTRA_TAB = "lists_tab"
+    }
+
     private lateinit var holder: LinearLayout
+    private lateinit var presetHolder: LinearLayout
+    private lateinit var questionScroll: ScrollView
+    private lateinit var presetScroll: ScrollView
+    private lateinit var questionTop: LinearLayout     // AI card, question bank, offline note, select row: Question list only
+    private lateinit var tabPresets: TextView
+    private lateinit var tabQuestions: TextView
+    private lateinit var searchField: EditText
+    private lateinit var headerTitle: TextView
+    private lateinit var importIcon: android.widget.FrameLayout
+    private var tab = 1                 // 0 = Preset list, 1 = Question list
     private var raw: Map<String, JSONArray> = emptyMap()
     private var loadedOnce = false
     private lateinit var offlineNote: TextView
@@ -52,11 +67,19 @@ class ListsActivity : BaseActivity() {
             return
         }
         buildUi()
+        showTab(if (intent?.getIntExtra(EXTRA_TAB, 1) == 0) 0 else 1)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (::holder.isInitialized) showTab(if (intent?.getIntExtra(EXTRA_TAB, 1) == 0) 0 else 1)
     }
 
     override fun onResume() {
         super.onResume()
         if (!::holder.isInitialized) return
+        renderPresets()
         load()
         net = NetWatch(this) { online ->
             offlineNote.visibility = if (online) View.GONE else View.VISIBLE
@@ -82,9 +105,14 @@ class ListsActivity : BaseActivity() {
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
         // the blue top: the title row, and the search box inside it
-        val header = Ui.header(c, "My questions",
-            leading = Ui.headerIcon(c, Icons.PLUS, "New list") { if (!needsNet()) startActivity(Intent(this, ListEditActivity::class.java)) },
-            trailing = Ui.headerIcon(c, Icons.DOWNLOAD, "Import by code") { if (!needsNet()) showImportDialog() })
+        // + is a new preset on the Preset list and a new question list on the Question list
+        val plusIcon = Ui.headerIcon(c, Icons.PLUS, "New list") {
+            if (tab == 0) openNewPreset()
+            else if (!needsNet()) startActivity(Intent(this, ListEditActivity::class.java))
+        }
+        importIcon = Ui.headerIcon(c, Icons.DOWNLOAD, "Import by code") { if (!needsNet()) showImportDialog() }
+        val header = Ui.header(c, "My questions", leading = plusIcon, trailing = importIcon)
+        headerTitle = header.getChildAt(1) as TextView
         header.background = null
         val top = LinearLayout(c)
         top.orientation = LinearLayout.VERTICAL
@@ -94,6 +122,24 @@ class ListsActivity : BaseActivity() {
         top.background = topBg
         top.addView(header)
         page.addView(top)
+
+        // the two-way toggle: Preset list | Question list (same look as Training Stats | Training History)
+        val toggle = LinearLayout(c)
+        toggle.orientation = LinearLayout.HORIZONTAL
+        toggle.background = Ui.rounded(c, Ui.CARD_TINT, 14)
+        toggle.setPadding(Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4))
+        tabPresets = toggleTab("Preset list") { showTab(0) }
+        tabQuestions = toggleTab("Question list") { showTab(1) }
+        toggle.addView(tabPresets, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        toggle.addView(tabQuestions, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val tgLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        tgLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 4))
+        page.addView(toggle, tgLp)
+
+        // everything that belongs to the Question list only sits in one box, so the Preset list can hide it in one go
+        questionTop = LinearLayout(c)
+        questionTop.orientation = LinearLayout.VERTICAL
+        page.addView(questionTop, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         val aiCard = Ui.card(c)
         val aiRow = LinearLayout(c)
@@ -109,7 +155,7 @@ class ListsActivity : BaseActivity() {
         aiCard.setOnClickListener { if (!needsNet()) startActivity(Intent(this, AiActivity::class.java)) }
         val aiLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         aiLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 4))
-        page.addView(aiCard, aiLp)
+        questionTop.addView(aiCard, aiLp)
 
         // the shared question bank that Default mode draws from
         val bankCard = Ui.card(c)
@@ -126,7 +172,7 @@ class ListsActivity : BaseActivity() {
         bankCard.setOnClickListener { startActivity(Intent(this, BankActivity::class.java)) }
         val bankLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         bankLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 4))
-        page.addView(bankCard, bankLp)
+        questionTop.addView(bankCard, bankLp)
 
         selectRow = LinearLayout(c)
         selectRow.orientation = LinearLayout.HORIZONTAL
@@ -155,11 +201,12 @@ class ListsActivity : BaseActivity() {
         offlineNote = Ui.banner(c, "You're offline. Showing the copy saved on this phone. You can view and use your lists, but changing them needs internet.")
         val onLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         onLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), 0)
-        page.addView(offlineNote, onLp)
-        page.addView(selectRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        questionTop.addView(offlineNote, onLp)
+        questionTop.addView(selectRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // search: finds lists by name; the matching lists replace the list cards while typing
         val search = EditText(c)
+        searchField = search
         search.hint = "Search lists"
         search.setSingleLine(true)
         search.textSize = 15f
@@ -174,7 +221,7 @@ class ListsActivity : BaseActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
                 searchQuery = s?.toString()?.trim() ?: ""
-                render()
+                if (tab == 0) renderPresets() else render()
             }
         })
         val searchLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -198,12 +245,162 @@ class ListsActivity : BaseActivity() {
         val scroll = ScrollView(c)
         scroll.addView(holder)
         Ui.noClip(holder, scroll)
-        page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        questionScroll = scroll
+
+        // the Preset list has its own body and scroll view, so each tab keeps its own scroll position
+        presetHolder = LinearLayout(c)
+        presetHolder.orientation = LinearLayout.VERTICAL
+        presetHolder.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 24))
+        presetScroll = ScrollView(c)
+        presetScroll.addView(presetHolder)
+        Ui.noClip(presetHolder, presetScroll)
+
+        val host = android.widget.FrameLayout(c)
+        host.addView(questionScroll, android.widget.FrameLayout.LayoutParams(-1, -1))
+        host.addView(presetScroll, android.widget.FrameLayout.LayoutParams(-1, -1))
+        page.addView(host, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         page.addView(Nav.bar(this, Nav.LIST), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         setContentView(page)
 
+    }
+
+    private fun toggleTab(label: String, onTap: () -> Unit): TextView {
+        val t = Ui.text(this, label, 13f, Ui.MUTED, Ui.BOLD)
+        t.gravity = Gravity.CENTER
+        t.setPadding(Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10))
+        Ui.fit(t, 13)
+        t.setOnClickListener { onTap() }
+        return t
+    }
+
+    private fun styleTab(t: TextView, selected: Boolean) {
+        if (selected) {
+            t.background = Ui.rounded(this, Ui.BLUE, 11)
+            t.setTextColor(Ui.WHITE)
+        } else {
+            t.background = null
+            t.setTextColor(Ui.c("#3F5F8F", "#94A3B8"))
+        }
+    }
+
+    /** 0 = Preset list, 1 = Question list. Switching clears the search and leaves select mode. */
+    private fun showTab(i: Int) {
+        if (selectMode) setSelectMode(false)
+        val changed = i != tab
+        tab = i
+        styleTab(tabPresets, i == 0)
+        styleTab(tabQuestions, i == 1)
+        presetScroll.visibility = if (i == 0) View.VISIBLE else View.GONE
+        questionScroll.visibility = if (i == 1) View.VISIBLE else View.GONE
+        questionTop.visibility = if (i == 1) View.VISIBLE else View.GONE
+        importIcon.visibility = View.VISIBLE   // import by code works for lists and presets
+        headerTitle.text = if (i == 0) "My presets" else "My questions"
+        searchField.hint = if (i == 0) "Search presets" else "Search lists"
+        if (changed && searchField.text.isNotEmpty()) searchField.setText("")   // the text watcher re-renders
+        if (i == 0) renderPresets()
+    }
+
+    // ---- Preset list (saved training settings, same cards as the old Presets screen)
+
+    private fun renderPresets() {
+        val c = this
+        presetHolder.removeAllViews()
+        val all = Presets.load()
+        if (all.isEmpty()) {
+            presetHolder.addView(Ui.note(c, "No presets yet. Set things up on the Training screen, then tap the save icon."))
+            return
+        }
+        val q = if (tab == 0) searchQuery.lowercase() else ""
+        var found = 0
+        for (p in all) {
+            if (q.isNotEmpty() && !p.name.lowercase().contains(q)) continue
+            found++
+            presetHolder.addTo(presetCard(p), 12)
+        }
+        if (found == 0) presetHolder.addView(Ui.note(c, "No presets match \"" + searchQuery + "\"."))
+    }
+
+    /** One preset per row. Tap opens it on Training to check before starting; the icons copy or delete it. */
+    private fun presetCard(p: Preset): LinearLayout {
+        val c = this
+        val card = Ui.card(c)
+        card.orientation = LinearLayout.HORIZONTAL
+        card.gravity = Gravity.CENTER_VERTICAL
+        val col = LinearLayout(c)
+        col.orientation = LinearLayout.VERTICAL
+        val title = Ui.text(c, p.name, 15f, Ui.TEXT, Ui.BOLD)
+        title.maxLines = 1
+        title.ellipsize = android.text.TextUtils.TruncateAt.END
+        col.addView(title)
+        col.addView(Ui.text(c, Presets.summary(p), 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
+        card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        card.addView(presetIconButton(Icons.SHARE, "Share preset") { if (!needsNet()) doSharePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
+        card.addView(presetIconButton(Icons.COPY, "Duplicate preset") { duplicatePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
+        card.addView(presetIconButton(Icons.TRASH, "Delete preset") { confirmDeletePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
+        // only the name and summary open the preset; the icons beside them do their own action
+        col.setOnClickListener { openPreset(p) }
+        return card
+    }
+
+    /** A small round icon button, drawn in the app's blue on the card. */
+    private fun presetIconButton(path: String, desc: String, onClick: () -> Unit): android.widget.FrameLayout {
+        val box = android.widget.FrameLayout(this)
+        val circle = GradientDrawable()
+        circle.shape = GradientDrawable.OVAL
+        circle.setColor(Ui.BLUE_SOFT)
+        box.background = circle
+        box.contentDescription = desc
+        box.addView(FsIconView(this, path, Ui.BLUE), android.widget.FrameLayout.LayoutParams(Ui.dp(this, 18), Ui.dp(this, 18), Gravity.CENTER))
+        box.setOnClickListener { onClick() }
+        return box
+    }
+
+    /** Opens Training with the save dialog, so the current settings can be saved as a new preset. */
+    private fun openNewPreset() {
+        startActivity(
+            Intent(this, HomeActivity::class.java)
+                .putExtra(HomeActivity.EXTRA_PAGE, 1)
+                .putExtra(HomeActivity.EXTRA_NEW_PRESET, true)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        )
+        finish()
+    }
+
+    /** Opens the preset on Training so its settings and question list can be checked; Start training begins it. */
+    private fun openPreset(p: Preset) {
+        Presets.apply(p)
+        Presets.loaded = p.name
+        startActivity(
+            Intent(this, HomeActivity::class.java)
+                .putExtra(HomeActivity.EXTRA_PAGE, 1)
+                .putExtra(HomeActivity.EXTRA_LOAD_PRESET, true)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        )
+        finish()
+    }
+
+    /** Duplicate icon: the preset is copied under the next free name, and the list shows it. */
+    private fun duplicatePreset(p: Preset) {
+        val copy = Presets.duplicate(p.name)
+        if (copy != null) Toast.makeText(this, "Duplicated as \"" + copy + "\"", Toast.LENGTH_SHORT).show()
+        renderPresets()
+    }
+
+    private fun confirmDeletePreset(p: Preset) {
+        AppDialog.show(
+            this,
+            "Delete \"" + p.name + "\"?",
+            message = "This removes the saved setup from this phone.",
+            buttons = listOf(
+                Btn("Cancel", Kind.SOFT),
+                Btn("Delete", Kind.DANGER) {
+                    Presets.delete(p.name)
+                    renderPresets()
+                }
+            )
+        )
     }
 
     private fun toast(s: String) {
@@ -462,6 +659,12 @@ class ListsActivity : BaseActivity() {
         use.setOnClickListener {
             Settings.source = name
             Toast.makeText(this, "Using \"" + name + "\"", Toast.LENGTH_SHORT).show()
+            // open Training with this list chosen. Home is opened first, so closing this screen never leaves the app with nothing underneath it
+            startActivity(
+                Intent(this, HomeActivity::class.java)
+                    .putExtra(HomeActivity.EXTRA_PAGE, 1)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            )
             finish()
         }
         edit.setOnClickListener {
@@ -657,6 +860,121 @@ class ListsActivity : BaseActivity() {
         )
     }
 
+    // ---------- preset share ----------
+
+    /** Share icon on a preset: publishes its settings, plus its question list when it uses one, under a new code. */
+    private fun doSharePreset(p: Preset) {
+        var listName: String? = null
+        var qs: JSONArray? = null
+        if (p.source != Settings.DEFAULT_SOURCE) {
+            val src = raw[p.source]
+            if (src != null) {
+                val lines = JSONArray()
+                for (i in 0 until src.length()) {
+                    val t = Api.questionText(src.opt(i)).trim()
+                    if (t.isNotEmpty()) lines.put(t)
+                }
+                if (lines.length() > 0) {
+                    listName = p.source
+                    qs = lines
+                }
+            }
+        }
+        val sendList = listName
+        val sendQs = qs
+        Thread {
+            val code = Api.sharePreset(p.name, Presets.toJson(p), sendList, sendQs)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (code == null) {
+                    Toast.makeText(this, "Couldn't create a share code. Try again.", Toast.LENGTH_LONG).show()
+                } else {
+                    showPresetCode(p.name, code)
+                }
+            }
+        }.start()
+    }
+
+    private fun showPresetCode(name: String, code: String) {
+        val msg = "Try my PauzFirst preset \"" + name + "\". In the app open Questions > Import by code and enter: " + code
+        AppDialog.show(
+            this,
+            "Share code: " + code,
+            message = "Anyone with this code can import a copy of the preset \"" + name + "\".",
+            buttons = listOf(
+                Btn("Share", Kind.PRIMARY) {
+                    val i = Intent(Intent.ACTION_SEND)
+                    i.type = "text/plain"
+                    i.putExtra(Intent.EXTRA_TEXT, msg)
+                    startActivity(Intent.createChooser(i, "Share preset"))
+                },
+                Btn("Copy code", Kind.SOFT) {
+                    val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("PauzFirst code", code))
+                    Toast.makeText(this, "Code copied", Toast.LENGTH_SHORT).show()
+                },
+                Btn("Close", Kind.SOFT)
+            )
+        )
+    }
+
+    /**
+     * Imports a preset code. Runs on a background thread. Adds the preset to this phone; if it came with
+     * a question list this phone doesn't have, that list is added too. If a list with the same name
+     * already exists here, the preset uses that list.
+     */
+    private fun importPresetCode(code: String) {
+        val res = Api.fetchSharedPreset(code)
+        if (!res.ok) {
+            toast("Couldn't reach the server. Try again.")
+            return
+        }
+        val sp = res.shared
+        if (sp == null) {
+            toast("Code not found.")
+            return
+        }
+        var source = Settings.DEFAULT_SOURCE
+        var note = ""
+        val wanted: String = sp.listName ?: ""
+        if (wanted.isNotBlank()) {
+            val fresh = Api.fetchListsRaw()
+            if (fresh == null) {
+                toast("Couldn't reach the server. Try again.")
+                return
+            }
+            val have = fresh.keys.firstOrNull { it.equals(wanted, ignoreCase = true) }
+            val qs = sp.questions
+            if (have != null) {
+                source = have
+            } else if (qs != null && qs.length() > 0) {
+                val lines = ArrayList<String>()
+                for (i in 0 until qs.length()) {
+                    val t = Api.questionText(qs.opt(i)).trim()
+                    if (t.isNotEmpty()) lines.add(t)
+                }
+                val style = Api.questionStyle(fresh.values)
+                if (lines.isNotEmpty() && Api.createList(wanted, Api.buildQuestions(lines, style))) {
+                    source = wanted
+                    runOnUiThread { if (!isFinishing && !isDestroyed) load() }
+                } else {
+                    toast("Couldn't save the question list. Try again.")
+                    return
+                }
+            } else {
+                note = " Its question list isn't on this phone, so it uses the default questions."
+            }
+        }
+        val finalSource = source
+        val finalNote = note
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            val name = Presets.addShared(sp.name, sp.settings, finalSource)
+            Toast.makeText(this, "Added preset \"" + name + "\"." + finalNote, Toast.LENGTH_LONG).show()
+            renderPresets()
+        }
+    }
+
     // ---------- import ----------
 
     private fun showImportDialog() {
@@ -677,7 +995,7 @@ class ListsActivity : BaseActivity() {
         AppDialog.show(
             this,
             "Import by code",
-            message = "Enter the share code you were sent.",
+            message = "Enter a question list or preset share code.",
             content = box,
             buttons = listOf(
                 Btn("Cancel", Kind.SOFT),
@@ -702,7 +1020,8 @@ class ListsActivity : BaseActivity() {
             }
             val shared = res.shared
             if (shared == null) {
-                toast("Code not found.")
+                // not a question list code: try it as a preset code
+                importPresetCode(code)
                 return@Thread
             }
             val fresh = Api.fetchListsRaw()
@@ -730,6 +1049,8 @@ class ListsActivity : BaseActivity() {
             val style = Api.questionStyle(fresh.values)
             val ok = Api.createList(finalName, Api.buildQuestions(lines, style))
             if (ok) {
+                // remember the code it came with, so sharing it again reuses that code
+                Api.setListShareCode(finalName, code, lines)
                 toast("Added \"" + finalName + "\"")
                 runOnUiThread { if (!isFinishing && !isDestroyed) load() }
             } else {

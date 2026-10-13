@@ -255,31 +255,31 @@ object Api {
         return authed("PATCH", path, body, "return=minimal").ok
     }
 
-    /** Publishes a copy of the list (same table the website uses) under a new code. Null if it failed. */
+    /**
+     * Shares a question list. The database decides the code: the owner keeps one code for the list,
+     * and someone who imported it reuses the code it came with while the questions are unchanged.
+     * Null if it failed.
+     */
     fun shareList(name: String, lines: List<String>): String? {
-        val rnd = java.security.SecureRandom()
         val qs = JSONArray()
         for (l in lines) qs.put(l)
-        for (attempt in 0 until 5) {
-            val sb = StringBuilder()
-            for (i in 0 until 6) sb.append(CODE_CHARS[rnd.nextInt(CODE_CHARS.length)])
-            val code = sb.toString()
-            val body = JSONObject()
-                .put("code", code)
-                .put("user_id", Session.userId)
-                .put("list_name", name)
-                .put("questions", qs)
-                .toString()
-            val r = authed("POST", "/rest/v1/shared_lists", body, "return=minimal")
-            if (r.ok) {
-                // Remember the code on the list, like the website does. Not critical if it fails.
-                val patch = JSONObject().put("share_code", code).toString()
-                authed("PATCH", "/rest/v1/question_lists?user_id=eq." + Session.userId + "&name=eq." + enc(name), patch, "return=minimal")
-                return code
-            }
-            if (r.code != 409) return null
-        }
-        return null
+        val body = JSONObject()
+            .put("p_name", name)
+            .put("p_questions", qs)
+            .toString()
+        val r = authed("POST", "/rest/v1/rpc/share_list", body, null)
+        if (!r.ok) return null
+        val code = r.body.trim().removeSurrounding("\"")
+        return if (code.length == 6) code else null
+    }
+
+    /** Links an imported list to the code it came with, so sharing it again reuses that code while it is unchanged. */
+    fun setListShareCode(name: String, code: String, lines: List<String>): Boolean {
+        val qs = JSONArray()
+        for (l in lines) qs.put(l)
+        val body = JSONObject().put("p_name", name).put("p_code", code).put("p_questions", qs).toString()
+        val r = authed("POST", "/rest/v1/rpc/link_imported_list", body, null)
+        return r.ok && r.body.trim() == "true"
     }
 
     class Shared(val name: String, val questions: JSONArray)
@@ -309,6 +309,61 @@ object Api {
         if (!first.ok || first.shared != null) return first
         val up = code.uppercase()
         return if (up != code) fetchSharedExact(up) else first
+    }
+
+    // ---------- preset sharing (shared_presets table; read by exact code through a function) ----------
+
+    class SharedPreset(val name: String, val settings: JSONObject, val listName: String?, val questions: JSONArray?)
+
+    /** ok=false: request failed. ok=true and shared=null: no such code. */
+    class SharedPresetResult(val ok: Boolean, val shared: SharedPreset?)
+
+    /**
+     * Shares one preset. The database decides the code: the same preset always gets the same code
+     * (and its shared copy is refreshed); a new preset gets a new code. Null if it failed.
+     */
+    fun sharePreset(name: String, settings: JSONObject, listName: String?, questions: JSONArray?): String? {
+        val body = JSONObject()
+            .put("p_name", name)
+            .put("p_settings", settings)
+            .put("p_list_name", listName ?: JSONObject.NULL)
+            .put("p_questions", questions ?: JSONObject.NULL)
+            .toString()
+        val r = authed("POST", "/rest/v1/rpc/share_preset", body, null)
+        if (!r.ok) return null
+        val code = r.body.trim().removeSurrounding("\"")
+        return if (code.length == 6) code else null
+    }
+
+    private fun fetchSharedPresetExact(code: String): SharedPresetResult {
+        val body = JSONObject().put("p_code", code).toString()
+        val r = authed("POST", "/rest/v1/rpc/get_shared_preset", body, null)
+        if (!r.ok) return SharedPresetResult(false, null)
+        return try {
+            val arr = JSONArray(r.body)
+            if (arr.length() == 0) {
+                SharedPresetResult(true, null)
+            } else {
+                val o = arr.getJSONObject(0)
+                val list = if (o.isNull("list_name")) null else o.optString("list_name")
+                SharedPresetResult(true, SharedPreset(
+                    o.getString("preset_name"),
+                    o.optJSONObject("settings") ?: JSONObject(),
+                    list,
+                    o.optJSONArray("questions")
+                ))
+            }
+        } catch (e: Exception) {
+            SharedPresetResult(false, null)
+        }
+    }
+
+    /** Tries the code as typed, then in capitals. */
+    fun fetchSharedPreset(code: String): SharedPresetResult {
+        val first = fetchSharedPresetExact(code)
+        if (!first.ok || first.shared != null) return first
+        val up = code.uppercase()
+        return if (up != code) fetchSharedPresetExact(up) else first
     }
 
     // ---------- session history ----------
