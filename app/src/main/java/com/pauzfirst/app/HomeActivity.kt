@@ -42,6 +42,10 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var resumeBtn: Button
     private var lists: Map<String, List<String>> = emptyMap()
     private var sourceNames: List<String> = listOf(Settings.DEFAULT_SOURCE)
+    private lateinit var homePage: LinearLayout
+    private lateinit var trainPage: LinearLayout
+    private lateinit var navHolder: android.widget.FrameLayout
+    private var pageIdx = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +55,7 @@ class HomeActivity : AppCompatActivity() {
         }
         Ui.edgeToEdge(this)
         buildUi()
+        if (intent?.hasExtra(EXTRA_PAGE) == true) showPage(intent.getIntExtra(EXTRA_PAGE, 0))
         if (intent?.getBooleanExtra(EXTRA_AGAIN, false) != true) askAllPermissions()
         handleTrainAgain()
     }
@@ -66,11 +71,26 @@ class HomeActivity : AppCompatActivity() {
     override fun onNewIntent(i: Intent?) {
         super.onNewIntent(i)
         if (i != null) setIntent(i)
+        if (i != null && i.hasExtra(EXTRA_PAGE)) showPage(i.getIntExtra(EXTRA_PAGE, 0))
         handleTrainAgain()
+    }
+
+    /** Back on Training goes to Home; back on Home leaves the app. */
+    override fun onBackPressed() {
+        if (pageIdx == 1) showPage(0) else super.onBackPressed()
+    }
+
+    private fun showPage(i: Int) {
+        pageIdx = i
+        homePage.visibility = if (i == 0) View.VISIBLE else View.GONE
+        trainPage.visibility = if (i == 1) View.VISIBLE else View.GONE
+        navHolder.removeAllViews()
+        navHolder.addView(Nav.bar(this, i, inPage = { p -> showPage(p) }))
     }
 
     companion object {
         const val EXTRA_AGAIN = "train_again"
+        const val EXTRA_PAGE = "page"
     }
 
     private fun granted(perm: String): Boolean =
@@ -248,7 +268,7 @@ class HomeActivity : AppCompatActivity() {
         // brand-new account: a friendly box instead of a screen of zeros (hidden once there is a first training)
         firstRunCard = Ui.card(c)
         firstRunCard.addTo(Ui.text(c, "Start your first training", 16f, Ui.TEXT, Ui.BOLD))
-        firstRunCard.addTo(Ui.text(c, "Pick a mode below and press Start training. Your numbers, streak and history will show up here after your first one.", 13f, Ui.MUTED, Ui.REG), 6)
+        firstRunCard.addTo(Ui.text(c, "Open Training, pick a mode and press Start training. Your numbers, streak and history will show up here after your first one.", 13f, Ui.MUTED, Ui.REG), 6)
         firstRunCard.visibility = View.GONE
         val frLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         frLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
@@ -273,6 +293,10 @@ class HomeActivity : AppCompatActivity() {
         val gLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         gLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
         body.addView(goalCard, gLp)
+
+        // ---------- training page: everything below lives on the Training tab ----------
+        val trainBody = LinearLayout(c)
+        trainBody.orientation = LinearLayout.VERTICAL
 
         // ---------- questions source ----------
         val pad = Ui.dp(c, 16)
@@ -309,8 +333,8 @@ class HomeActivity : AppCompatActivity() {
         srcCard.addTo(spinWrap, 10)
         val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         srcLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        body.addView(groupLabel("Training"))
-        body.addView(srcCard, srcLp)
+        trainBody.addView(groupLabel("Training"))
+        trainBody.addView(srcCard, srcLp)
 
         var refresh: () -> Unit = {}
 
@@ -371,7 +395,7 @@ class HomeActivity : AppCompatActivity() {
         modeCard.addTo(modeDesc, 10)
         val modeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         modeLp.setMargins(pad, Ui.dp(c, 12), pad, 0)
-        body.addView(modeCard, modeLp)
+        trainBody.addView(modeCard, modeLp)
 
         // ---------- timing ----------
         val timing = Ui.card(c)
@@ -384,8 +408,8 @@ class HomeActivity : AppCompatActivity() {
         timing.addTo(timeBox)
         val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         timingLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        body.addView(groupLabel("Timing"))
-        body.addView(timing, timingLp)
+        trainBody.addView(groupLabel("Timing"))
+        trainBody.addView(timing, timingLp)
 
         // ---------- sound ----------
         val sound = Ui.card(c)
@@ -395,8 +419,8 @@ class HomeActivity : AppCompatActivity() {
         sound.addTo(guideRow, 14)
         val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        body.addView(groupLabel("Sound"))
-        body.addView(sound, soundLp)
+        trainBody.addView(groupLabel("Sound"))
+        trainBody.addView(sound, soundLp)
 
         // ---------- recording ----------
         val recCard = Ui.card(c)
@@ -452,8 +476,8 @@ class HomeActivity : AppCompatActivity() {
         recCard.addTo(recRow, 14)
         val recCardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         recCardLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        body.addView(groupLabel("Recording"))
-        body.addView(recCard, recCardLp)
+        trainBody.addView(groupLabel("Recording"))
+        trainBody.addView(recCard, recCardLp)
 
         // ---------- Deep Pause (only shown while Deep Pause is on) ----------
         val deepGroup = LinearLayout(c)
@@ -466,7 +490,7 @@ class HomeActivity : AppCompatActivity() {
         val deepLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         deepLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
         deepGroup.addView(deepBox, deepLp)
-        body.addView(deepGroup, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        trainBody.addView(deepGroup, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // ---------- save settings / settings list ----------
         val saveRow = LinearLayout(c)
@@ -483,7 +507,7 @@ class HomeActivity : AppCompatActivity() {
         saveRow.addView(listBtn, listLp)
         val saveLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         saveLp.setMargins(pad, Ui.dp(c, 20), pad, Ui.dp(c, 24))
-        body.addView(saveRow, saveLp)
+        trainBody.addView(saveRow, saveLp)
         saveBtn.setOnClickListener { showSaveDialog() }
         listBtn.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
 
@@ -507,19 +531,38 @@ class HomeActivity : AppCompatActivity() {
         scroll.clipToPadding = false
         scroll.addView(body)
         Ui.noClip(body, scroll)
-        page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        homePage = LinearLayout(c)
+        homePage.orientation = LinearLayout.VERTICAL
+        homePage.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        // ---------- sticky start bar ----------
+        // ---------- training page: header, settings and the sticky start bar ----------
+        val trainScroll = ScrollView(c)
+        trainScroll.isFillViewport = false
+        trainScroll.clipToPadding = false
+        trainScroll.addView(trainBody)
+        Ui.noClip(trainBody, trainScroll)
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.VERTICAL
         Ui.bottomBarBg(c, bar)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
-        Ui.padInsets(bar, bottom = true)
         val start = Ui.pill(c, "Start training")
         start.textSize = 17f
         bar.addTo(start)
-        page.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        trainPage = LinearLayout(c)
+        trainPage.orientation = LinearLayout.VERTICAL
+        trainPage.setBackgroundColor(Ui.BG)
+        trainPage.addView(Ui.header(c, "Training"))
+        trainPage.addView(trainScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        trainPage.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
+        // the two pages share one area; the nav bar sits under them on both
+        val content = android.widget.FrameLayout(c)
+        content.addView(homePage, android.widget.FrameLayout.LayoutParams(-1, -1))
+        content.addView(trainPage, android.widget.FrameLayout.LayoutParams(-1, -1))
+        page.addView(content, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        navHolder = android.widget.FrameLayout(c)
+        page.addView(navHolder, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         val scrim = Ui.statusScrim(c)
         scroll.setOnScrollChangeListener { _, _, y, _, _ ->
@@ -529,6 +572,7 @@ class HomeActivity : AppCompatActivity() {
         frame.addView(page, android.widget.FrameLayout.LayoutParams(-1, -1))
         frame.addView(scrim)
         setContentView(frame)
+        showPage(0)
         refreshSpinner()
 
         logout.setOnClickListener {

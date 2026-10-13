@@ -1,0 +1,82 @@
+package com.pauzfirst.app
+
+import android.app.Activity
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.view.Gravity
+import android.widget.LinearLayout
+import androidx.core.view.WindowCompat
+
+/**
+ * Bottom bar: Home, Training (middle) and History. Blue like the header, with curved top corners; the tab you are on is white.
+ * Home and Training are two pages of the Home screen, so [inPage] switches between them instantly.
+ * From other screens (no [inPage]) the tab opens Home on the right page.
+ */
+object Nav {
+    const val HOME = 0
+    const val TRAINING = 1
+    const val HISTORY = 2
+    const val NONE = -1
+
+    fun bar(a: Activity, active: Int, inPage: ((Int) -> Unit)? = null): LinearLayout {
+        // the phone's navigation strip sits under this blue bar, so its icons must be light
+        WindowCompat.getInsetsController(a.window, a.window.decorView).isAppearanceLightNavigationBars = false
+        val bar = LinearLayout(a)
+        bar.orientation = LinearLayout.HORIZONTAL
+        val g = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
+        val r = Ui.dp(a, 22).toFloat()
+        g.cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+        bar.background = g
+        bar.setPadding(0, Ui.dp(a, 8), 0, Ui.dp(a, 8))
+        Ui.padInsets(bar, bottom = true)
+        val icons = listOf(Icons.HOME, Icons.PLAY, Icons.CHART)
+        val labels = listOf("Home", "Training", "History")
+        for (i in icons.indices) {
+            val on = i == active
+            val col = if (on) Color.WHITE else Color.argb(170, 255, 255, 255)
+            val tab = LinearLayout(a)
+            tab.orientation = LinearLayout.VERTICAL
+            tab.gravity = Gravity.CENTER
+            tab.setPadding(0, Ui.dp(a, 4), 0, Ui.dp(a, 4))
+            val icon = FsIconView(a, icons[i], col)
+            val iconLp = LinearLayout.LayoutParams(Ui.dp(a, 22), Ui.dp(a, 22))
+            iconLp.gravity = Gravity.CENTER_HORIZONTAL
+            tab.addView(icon, iconLp)
+            val label = Ui.text(a, labels[i], 11f, col, if (on) Ui.BOLD else Ui.MED)
+            label.gravity = Gravity.CENTER
+            val labelLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            labelLp.gravity = Gravity.CENTER_HORIZONTAL
+            labelLp.topMargin = Ui.dp(a, 2)
+            tab.addView(label, labelLp)
+            tab.setOnClickListener {
+                if (on) return@setOnClickListener
+                if (inPage != null && i != HISTORY) {
+                    inPage(i)
+                    return@setOnClickListener
+                }
+                val target = if (i == HISTORY) Intent(a, HistoryActivity::class.java)
+                             else Intent(a, HomeActivity::class.java).putExtra(HomeActivity.EXTRA_PAGE, i)
+                a.startActivity(target.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                fade(a)
+                a.finish()
+                fade(a)
+            }
+            bar.addView(tab, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        return bar
+    }
+
+    /** Back on Lists or History goes here: Home. */
+    fun goHome(a: Activity) {
+        a.startActivity(Intent(a, HomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        fade(a)
+        a.finish()
+        fade(a)
+    }
+
+    /** No animation between tabs: the switch is instant. */
+    fun fade(a: Activity) {
+        a.overridePendingTransition(0, 0)
+    }
+}

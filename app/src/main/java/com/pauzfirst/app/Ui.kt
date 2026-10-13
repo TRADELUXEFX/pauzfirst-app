@@ -292,8 +292,8 @@ object Ui {
         return row
     }
 
-    /** Blue top bar with a round arrow-only Back button and the title centered. */
-    fun header(c: Context, title: String, onBack: () -> Unit): LinearLayout {
+    /** Blue top bar with the title centered. Pass onBack only where a back arrow is wanted; main tabs have none. */
+    fun header(c: Context, title: String, onBack: (() -> Unit)? = null): LinearLayout {
         val h = LinearLayout(c)
         h.orientation = LinearLayout.HORIZONTAL
         h.gravity = Gravity.CENTER_VERTICAL
@@ -305,16 +305,18 @@ object Ui {
         padInsets(h, top = true)
 
         val size = dp(c, 40)
-        val back = FrameLayout(c)
-        val circle = GradientDrawable()
-        circle.shape = GradientDrawable.OVAL
-        circle.setColor(Color.parseColor("#33FFFFFF"))
-        back.background = circle
-        back.contentDescription = "Back"
-        back.setOnClickListener { onBack() }
-        val arrow = FsIconView(c, "M15 18l-6-6 6-6", WHITE)
-        back.addView(arrow, FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
-        h.addView(back, LinearLayout.LayoutParams(size, size))
+        if (onBack != null) {
+            val back = FrameLayout(c)
+            val circle = GradientDrawable()
+            circle.shape = GradientDrawable.OVAL
+            circle.setColor(Color.parseColor("#33FFFFFF"))
+            back.background = circle
+            back.contentDescription = "Back"
+            back.setOnClickListener { onBack() }
+            val arrow = FsIconView(c, "M15 18l-6-6 6-6", WHITE)
+            back.addView(arrow, FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
+            h.addView(back, LinearLayout.LayoutParams(size, size))
+        }
 
         val t = text(c, title, 20f, WHITE, BOLD)
         t.gravity = Gravity.CENTER
@@ -322,8 +324,10 @@ object Ui {
         t.ellipsize = android.text.TextUtils.TruncateAt.END
         h.addView(t, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
-        // empty box the same size as the arrow, so the title sits in the true center
-        h.addView(View(c), LinearLayout.LayoutParams(size, size))
+        if (onBack != null) {
+            // empty box the same size as the arrow, so the title sits in the true center
+            h.addView(View(c), LinearLayout.LayoutParams(size, size))
+        }
         return h
     }
 

@@ -82,7 +82,7 @@ class ListsActivity : AppCompatActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "My question lists") { finish() })
+        page.addView(Ui.header(c, "My question lists"))
 
         val aiCard = Ui.card(c)
         val aiRow = LinearLayout(c)
@@ -162,7 +162,6 @@ class ListsActivity : AppCompatActivity() {
         Ui.bottomBarBg(c, bar)
         bar.elevation = Ui.dp(c, 8).toFloat()
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
-        Ui.padInsets(bar, bottom = true)
         val newBtn = Ui.pill(c, "New list")
         newBtn.textSize = 15f
         val importBtn = Ui.pill(c, "Import by code", Ui.BLUE_SOFT, Ui.BLUE)
@@ -174,6 +173,7 @@ class ListsActivity : AppCompatActivity() {
         ip.leftMargin = Ui.dp(c, 10)
         bar.addView(importBtn, ip)
         page.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        page.addView(Nav.bar(this, Nav.NONE), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         setContentView(page)
 
@@ -264,6 +264,7 @@ class ListsActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
+        // Lists opens from the Training link, so back returns to Training (Home stays underneath)
         if (selectMode) setSelectMode(false) else super.onBackPressed()
     }
 

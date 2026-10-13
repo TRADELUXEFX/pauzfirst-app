@@ -74,7 +74,7 @@ class HistoryActivity : AppCompatActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "Your progress") { finish() })
+        page.addView(Ui.header(c, "Your progress"))
 
         // the two-way toggle: Training Stats | Training History
         val toggle = LinearLayout(c)
@@ -120,18 +120,22 @@ class HistoryActivity : AppCompatActivity() {
         Ui.bottomBarBg(c, exportBar)
         exportBar.elevation = Ui.dp(c, 8).toFloat()
         exportBar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
-        Ui.padInsets(exportBar, bottom = true)
         val exportBtn = Ui.pill(c, "Export history")
         exportBtn.textSize = 15f
         exportBtn.setOnClickListener { chooseExportRange() }
         exportBar.addView(exportBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         exportBar.visibility = android.view.View.GONE
         page.addView(exportBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        page.addView(Nav.bar(this, Nav.HISTORY), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         setContentView(page)
     }
 
+    override fun onBackPressed() {
+        Nav.goHome(this)
+    }
+
     private fun applyBodyPad() {
-        body.setPadding(body.paddingLeft, body.paddingTop, body.paddingRight, Ui.dp(this, 24) + (if (tab == 0) navBottom else 0))
+        body.setPadding(body.paddingLeft, body.paddingTop, body.paddingRight, Ui.dp(this, 24))
     }
 
     private fun toggleTab(label: String, onTap: () -> Unit): TextView {
@@ -471,7 +475,7 @@ class HistoryActivity : AppCompatActivity() {
     private fun firstTrainingBox(): LinearLayout {
         val box = Ui.card(this)
         box.addTo(Ui.text(this, "Start your first training", 16f, Ui.TEXT, Ui.BOLD))
-        box.addTo(Ui.text(this, "Go back, pick a mode and press Start training. Your numbers, streak and history will show up here after your first one.", 13f, Ui.MUTED, Ui.REG), 6)
+        box.addTo(Ui.text(this, "Head to Training, pick a mode and press Start training. Your numbers, streak and history will show up here after your first one.", 13f, Ui.MUTED, Ui.REG), 6)
         return box
     }
 
