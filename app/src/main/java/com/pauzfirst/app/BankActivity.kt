@@ -20,7 +20,7 @@ class BankActivity : BaseActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "Question bank") { finish() })
+        page.addView(Ui.header(c, "Default questions") { finish() })
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
         holder.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 24))
@@ -50,7 +50,10 @@ class BankActivity : BaseActivity() {
         val sum = Ui.card(c)
         sum.addTo(Ui.sectionTitle(c, "Default mode"))
         sum.addTo(Ui.text(c, pool.size.toString() + " questions", 24f, Ui.TEXT, Ui.BOLD), 6)
-        sum.addTo(Ui.text(c, left.toString() + " left before the bank starts over, " + usedCount + " used", 13f, Ui.MUTED, Ui.MED), 4)
+        sum.addTo(Ui.text(c, left.toString() + " left before the list starts over, " + usedCount + " used", 13f, Ui.MUTED, Ui.MED), 4)
+        val about = Ui.text(c, "Ready-made questions from us.", 13f, Ui.MUTED, Ui.REG)
+        about.setLineSpacing(0f, 1.2f)
+        sum.addTo(about, 12)
         holder.addView(sum)
 
         val unused = pool.filter { !used.contains(it) }

@@ -164,8 +164,8 @@ class ListsActivity : BaseActivity() {
         bankRow.gravity = Gravity.CENTER_VERTICAL
         val bankCol = LinearLayout(c)
         bankCol.orientation = LinearLayout.VERTICAL
-        bankCol.addView(Ui.text(c, "Question bank", 15f, Ui.TEXT, Ui.BOLD))
-        bankCol.addView(Ui.text(c, Defaults.pool(c).distinct().size.toString() + " questions in Default mode", 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
+        bankCol.addView(Ui.text(c, "Default questions", 15f, Ui.TEXT, Ui.BOLD))
+        bankCol.addView(Ui.text(c, Defaults.pool(c).distinct().size.toString() + " ready-made questions from us", 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
         bankRow.addView(bankCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         bankRow.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
         bankCard.addView(bankRow)
