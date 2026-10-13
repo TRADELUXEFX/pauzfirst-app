@@ -24,7 +24,7 @@ class HistoryActivity : AppCompatActivity() {
     private lateinit var tabStats: TextView
     private lateinit var tabHistory: TextView
     private var tab = 0               // 0 = Training Stats, 1 = Training History
-    private lateinit var exportBar: LinearLayout
+    private lateinit var exportIcon: android.widget.FrameLayout
     private var navBottom = 0        // height of the system navigation bar, added under the Stats list
     private var history: JSONArray? = null
     private var historyLoaded = false
@@ -74,7 +74,8 @@ class HistoryActivity : AppCompatActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "Your progress"))
+        exportIcon = Ui.headerIcon(c, Icons.UPLOAD, "Export history") { chooseExportRange() }
+        page.addView(Ui.header(c, "Your progress", trailing = exportIcon))
 
         // the two-way toggle: Training Stats | Training History
         val toggle = LinearLayout(c)
@@ -104,7 +105,6 @@ class HistoryActivity : AppCompatActivity() {
             }
         }
         scroll.clipToOutline = true
-        // The system bar space is added under the list only on Stats; on History the fixed bar below handles it.
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(body) { _, insets ->
             val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
             navBottom = bars.bottom
@@ -114,18 +114,6 @@ class HistoryActivity : AppCompatActivity() {
         androidx.core.view.ViewCompat.requestApplyInsets(body)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        // fixed bottom bar with Export, always visible on the History tab (same idea as New list / Import on the lists screen)
-        exportBar = LinearLayout(c)
-        exportBar.orientation = LinearLayout.HORIZONTAL
-        Ui.bottomBarBg(c, exportBar)
-        Nav.lift(c, exportBar)
-        exportBar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
-        val exportBtn = Ui.pill(c, "Export history")
-        exportBtn.textSize = 15f
-        exportBtn.setOnClickListener { chooseExportRange() }
-        exportBar.addView(exportBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        exportBar.visibility = android.view.View.GONE
-        page.addView(exportBar, Nav.gap(c))
         page.addView(Nav.bar(this, Nav.HISTORY), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         setContentView(page)
     }
@@ -161,7 +149,7 @@ class HistoryActivity : AppCompatActivity() {
         tab = i
         styleTab(tabStats, i == 0)
         styleTab(tabHistory, i == 1)
-        exportBar.visibility = if (i == 1) android.view.View.VISIBLE else android.view.View.GONE
+        exportIcon.visibility = android.view.View.VISIBLE   // export is in the banner on both tabs
         applyBodyPad()
         if (i == 0) {
             renderStats()

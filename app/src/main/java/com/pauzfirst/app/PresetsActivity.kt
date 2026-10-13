@@ -1,5 +1,6 @@
 package com.pauzfirst.app
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
@@ -88,75 +89,40 @@ class PresetsActivity : AppCompatActivity() {
         return b
     }
 
+    /** One preset per row. Tap opens it on Training to check before starting; long press deletes it. */
     private fun card(p: Preset): LinearLayout {
         val c = this
         val card = Ui.card(c)
-        val open = expanded == p.name
-        if (open) card.background = Ui.rounded(c, Ui.SURFACE, 22, Ui.BLUE, 2)
-
+        card.orientation = LinearLayout.HORIZONTAL
+        card.gravity = Gravity.CENTER_VERTICAL
+        val col = LinearLayout(c)
+        col.orientation = LinearLayout.VERTICAL
         val title = Ui.text(c, p.name, 15f, Ui.TEXT, Ui.BOLD)
         title.maxLines = 1
         title.ellipsize = android.text.TextUtils.TruncateAt.END
-        card.addTo(title)
-        card.addTo(Ui.text(c, Presets.summary(p), 12f, Ui.MUTED, Ui.REG), 3)
-        card.setOnClickListener {
-            expanded = if (open) null else p.name
-            render()
+        col.addView(title)
+        col.addView(Ui.text(c, Presets.summary(p), 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
+        card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        card.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
+        card.setOnClickListener { openPreset(p) }
+        card.setOnLongClickListener {
+            confirmDelete(p)
+            true
         }
-        if (!open) return card
-
-        // ---- preview: every saved value
-        val ex = LinearLayout(c)
-        ex.orientation = LinearLayout.VERTICAL
-        ex.setOnClickListener { }
-
-        val pg = LinearLayout(c)
-        pg.orientation = LinearLayout.VERTICAL
-        pg.background = Ui.rounded(c, Ui.FIELD, 14, Ui.LINE, 1)
-        pg.setPadding(Ui.dp(c, 14), Ui.dp(c, 12), Ui.dp(c, 14), Ui.dp(c, 12))
-        var first = true
-        fun add(label: String, value: String) {
-            pg.addTo(detailRow(label, value), if (first) 0 else 9)
-            first = false
-        }
-        add("Mode", Presets.modeName(p.mode))
-        add("Questions", p.total.toString())
-        add("Deep Pause", onOff(p.deep))
-        if (!p.deep) {
-            add("Pause", p.pause.toString() + "s")
-            add("Respond", p.answer.toString() + "s")
-        }
-        add("Voice guidance", onOff(p.voice))
-        if (p.deep) {
-            add("Voice tip", if (!p.tip) "Off" else if (p.tipInterval == 0) "Once" else "Every " + p.tipInterval + "s")
-            add("3 Why Challenge", onOff(p.threeWhy))
-        }
-        if (!p.deep && (p.mode == "mirror" || p.mode == "animated-eyes")) {
-            add("Show phases", onOff(p.phaseGuide))
-        }
-        add("Question list", p.source)
-        ex.addTo(pg)
-
-        // ---- Use + Delete
-        val row = LinearLayout(c)
-        row.orientation = LinearLayout.HORIZONTAL
-        val h = Ui.dp(c, 44)
-        val use = actionBtn("Use", Icons.PLAY, Ui.BLUE, Ui.WHITE)
-        val del = actionBtn(null, Icons.TRASH, Ui.c("#FEE2E2", "#3D1818"), Ui.RED)
-        row.addView(use, LinearLayout.LayoutParams(0, h, 1f))
-        val dl = LinearLayout.LayoutParams(Ui.dp(c, 52), h)
-        dl.leftMargin = Ui.dp(c, 8)
-        row.addView(del, dl)
-        ex.addTo(row, 12)
-        card.addTo(ex, 12)
-
-        use.setOnClickListener {
-            Presets.apply(p)
-            Toast.makeText(this, "Loaded \"" + p.name + "\"", Toast.LENGTH_SHORT).show()
-            onBackPressed()
-        }
-        del.setOnClickListener { confirmDelete(p) }
         return card
+    }
+
+    /** Opens the preset on Training so its settings and question list can be checked; Start training begins it. */
+    private fun openPreset(p: Preset) {
+        Presets.apply(p)
+        Presets.loaded = p.name
+        startActivity(
+            Intent(this, HomeActivity::class.java)
+                .putExtra(HomeActivity.EXTRA_PAGE, 1)
+                .putExtra(HomeActivity.EXTRA_LOAD_PRESET, true)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        )
+        finish()
     }
 
     private fun confirmDelete(p: Preset) {

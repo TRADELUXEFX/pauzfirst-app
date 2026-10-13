@@ -155,4 +155,35 @@ object Presets {
         if (p.recordScreen) parts.add("Video rec") else if (p.recordAudio) parts.add("Audio rec")
         return parts.joinToString("  ·  ")
     }
+
+    /** The preset opened on Training and not started yet. Marked as recent only when its training starts. */
+    var loaded: String? = null
+
+    private const val RECENT_KEY = "s_recent_presets"
+    private const val RECENT_MAX = 20
+
+    private fun recentNames(): List<String> = try {
+        val a = JSONArray(Session.prefs.getString(RECENT_KEY, "[]") ?: "[]")
+        (0 until a.length()).map { a.optString(it) }
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    /** Called whenever a preset is started: it moves to the front of the recent list. */
+    fun markUsed(name: String) {
+        val names = recentNames().filter { !it.equals(name, ignoreCase = true) }.toMutableList()
+        names.add(0, name)
+        val a = JSONArray()
+        for (n in names.take(RECENT_MAX)) a.put(n)
+        Session.prefs.edit().putString(RECENT_KEY, a.toString()).apply()
+    }
+
+    /** Home's Recent section: most recently started first, then the rest in saved order, at most [max]. */
+    fun recent(all: List<Preset>, max: Int = 3): List<Preset> {
+        val used = recentNames()
+        return all.sortedBy { p ->
+            val i = used.indexOfFirst { it.equals(p.name, ignoreCase = true) }
+            if (i < 0) Int.MAX_VALUE else i
+        }.take(max)
+    }
 }

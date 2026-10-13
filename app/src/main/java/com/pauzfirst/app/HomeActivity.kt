@@ -72,6 +72,11 @@ class HomeActivity : AppCompatActivity() {
     override fun onNewIntent(i: Intent?) {
         super.onNewIntent(i)
         if (i != null) setIntent(i)
+        if (i != null && i.getBooleanExtra(EXTRA_LOAD_PRESET, false)) {
+            // a preset was just applied: rebuild so every control shows its settings
+            recreate()
+            return
+        }
         if (i != null && i.hasExtra(EXTRA_PAGE)) showPage(i.getIntExtra(EXTRA_PAGE, 0))
         handleTrainAgain()
     }
@@ -92,6 +97,7 @@ class HomeActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_AGAIN = "train_again"
         const val EXTRA_PAGE = "page"
+        const val EXTRA_LOAD_PRESET = "load_preset"
     }
 
     private fun granted(perm: String): Boolean =
@@ -295,11 +301,24 @@ class HomeActivity : AppCompatActivity() {
         gLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
         body.addView(goalCard, gLp)
 
-        // presets: tap one to start training straight away with its settings and question list
-        val presetLbl = Ui.sectionTitle(c, "Presets")
-        val presetLblLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        presetLblLp.setMargins(Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 16), 0)
-        body.addView(presetLbl, presetLblLp)
+        // recent presets: tap one to start training straight away; the Presets pill opens the full list
+        val presetHead = LinearLayout(c)
+        presetHead.orientation = LinearLayout.HORIZONTAL
+        presetHead.gravity = Gravity.CENTER_VERTICAL
+        // "Recent" with a clock icon on its left
+        val recentLbl = LinearLayout(c)
+        recentLbl.orientation = LinearLayout.HORIZONTAL
+        recentLbl.gravity = Gravity.CENTER_VERTICAL
+        recentLbl.addView(FsIconView(c, Icons.CLOCK, Ui.MUTED), LinearLayout.LayoutParams(Ui.dp(c, 15), Ui.dp(c, 15)))
+        val recentTxt = Ui.sectionTitle(c, "Recent")
+        val recentTxtLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        recentTxtLp.leftMargin = Ui.dp(c, 6)
+        recentLbl.addView(recentTxt, recentTxtLp)
+        presetHead.addView(recentLbl, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        presetHead.addView(presetsPill(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val presetHeadLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        presetHeadLp.setMargins(Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 16), 0)
+        body.addView(presetHead, presetHeadLp)
         presetBox = LinearLayout(c)
         presetBox.orientation = LinearLayout.VERTICAL
         val presetBoxLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -310,16 +329,8 @@ class HomeActivity : AppCompatActivity() {
         // ---------- training page: everything below lives on the Training tab ----------
         val trainBody = LinearLayout(c)
         trainBody.orientation = LinearLayout.VERTICAL
-
-        // Presets: saved training settings, opened from here
-        val presetRow = LinearLayout(c)
-        presetRow.gravity = Gravity.END
-        presetRow.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), 0)
-        val presetLink = Ui.text(c, "Presets  \u203A", 13f, Ui.BLUE, Ui.BOLD)
-        presetLink.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
-        presetRow.addView(presetLink)
-        trainBody.addView(presetRow)
-
+        // room below the last card, so it scrolls clear of the Start training bar
+        trainBody.setPadding(0, 0, 0, Ui.dp(c, 24))
 
         // ---------- questions source ----------
         val pad = Ui.dp(c, 16)
@@ -557,7 +568,7 @@ class HomeActivity : AppCompatActivity() {
         trainPage = LinearLayout(c)
         trainPage.orientation = LinearLayout.VERTICAL
         trainPage.setBackgroundColor(Ui.BG)
-        trainPage.addView(Ui.header(c, "Training", trailing = saveButton()))
+        trainPage.addView(Ui.header(c, "Training", leading = presetsButton(), trailing = saveButton()))
         trainPage.addView(trainScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         trainPage.addView(bar, Nav.gap(c))
 
@@ -602,6 +613,18 @@ class HomeActivity : AppCompatActivity() {
         start.setOnClickListener { startTraining() }
     }
 
+    /** "Presets" text button on the left of the Training header, in a rounded container like the save button's circle. */
+    private fun presetsButton(): TextView {
+        val c = this
+        val b = Ui.text(c, "Presets", 13f, Ui.WHITE, Ui.BOLD)
+        b.gravity = Gravity.CENTER
+        b.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)
+        b.setPadding(Ui.dp(c, 14), Ui.dp(c, 8), Ui.dp(c, 14), Ui.dp(c, 8))
+        b.contentDescription = "Presets"
+        b.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
+        return b
+    }
+
     /** Floppy icon in the Training header, like Presence. Opens the save pop-up. */
     private fun saveButton(): android.widget.FrameLayout {
         val c = this
@@ -611,9 +634,32 @@ class HomeActivity : AppCompatActivity() {
         circle.setColor(Color.parseColor("#33FFFFFF"))
         box.background = circle
         box.contentDescription = "Save"
+        // the circle is 40dp, like the back button elsewhere
+        box.minimumWidth = Ui.dp(c, 40)
+        box.minimumHeight = Ui.dp(c, 40)
         box.addView(FsIconView(c, Icons.SAVE, Ui.WHITE), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22), Gravity.CENTER))
-        box.setOnClickListener { chooseSave() }
+        box.setOnClickListener {
+            // a preset is open: Save updates it; otherwise ask whether to save as default or as preset
+            val open = Presets.loaded
+            if (open != null) confirmUpdatePreset(open) else chooseSave()
+        }
         return box
+    }
+
+    /** Save on an open preset: update that preset with the current settings and question list. */
+    private fun confirmUpdatePreset(name: String) {
+        AppDialog.show(
+            this,
+            "Update preset?",
+            message = "Update \"" + name + "\" with the current settings and question list?",
+            buttons = listOf(
+                Btn("Cancel", Kind.SOFT),
+                Btn("Update", Kind.PRIMARY) {
+                    Presets.save(name)
+                    Toast.makeText(this, "Updated \"" + name + "\"", Toast.LENGTH_SHORT).show()
+                }
+            )
+        )
     }
 
     /** Save pop-up: Save as default above Save as preset. */
@@ -979,12 +1025,22 @@ class HomeActivity : AppCompatActivity() {
     }
 
     /** Sets up recording (if chosen in the options) before the session begins. */
-    /** One card per preset. Tapping it applies the preset (settings and question list) and starts the training. */
+    /** The Presets pill on the right of the Recent heading: opens the full list. */
+    private fun presetsPill(): TextView {
+        val c = this
+        val t = Ui.text(c, "Presets  \u203A", 13f, Ui.BLUE, Ui.BOLD)
+        t.background = Ui.rounded(c, Ui.BLUE_SOFT, 14)
+        t.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
+        t.setOnClickListener { startActivity(Intent(this, PresetsActivity::class.java)) }
+        return t
+    }
+
+    /** Up to three recent presets. Tapping one applies it and starts that training. */
     private fun renderPresets() {
         if (!::presetBox.isInitialized) return
         val c = this
         presetBox.removeAllViews()
-        val list = Presets.load()
+        val list = Presets.recent(Presets.load(), 3)
         if (list.isEmpty()) {
             presetBox.addView(Ui.note(c, "No presets yet. Set things up on Training, then tap the save icon."))
             return
@@ -1000,14 +1056,21 @@ class HomeActivity : AppCompatActivity() {
             card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             card.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
             card.setOnClickListener {
+                // open the preset on Training: check its settings and question list, then Start training
                 Presets.apply(p)
-                startTraining()
+                Presets.loaded = p.name
+                intent.putExtra(EXTRA_PAGE, 1)
+                recreate()
             }
             presetBox.addView(card, Ui.lp(c, 10))
         }
     }
 
     private fun startTraining() {
+        Presets.loaded?.let {
+            Presets.markUsed(it)
+            Presets.loaded = null
+        }
         if (!Settings.recordAudio && !Settings.recordScreen) {
             launchTraining()
             return

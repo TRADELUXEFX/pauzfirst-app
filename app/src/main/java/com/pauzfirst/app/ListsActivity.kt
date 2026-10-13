@@ -82,7 +82,9 @@ class ListsActivity : AppCompatActivity() {
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL
         page.setBackgroundColor(Ui.BG)
-        page.addView(Ui.header(c, "My question lists"))
+        page.addView(Ui.header(c, "My questions",
+            leading = Ui.headerIcon(c, Icons.PLUS, "New list") { if (!needsNet()) startActivity(Intent(this, ListEditActivity::class.java)) },
+            trailing = Ui.headerIcon(c, Icons.DOWNLOAD, "Import by code") { if (!needsNet()) showImportDialog() }))
 
         val aiCard = Ui.card(c)
         val aiRow = LinearLayout(c)
@@ -122,7 +124,7 @@ class ListsActivity : AppCompatActivity() {
         selectRow.gravity = Gravity.CENTER_VERTICAL
         selectRow.setPadding(Ui.dp(c, 20), Ui.dp(c, 10), Ui.dp(c, 16), Ui.dp(c, 12))
         selectRow.visibility = View.GONE
-        selLabel = Ui.sectionTitle(c, "Your lists")
+        selLabel = Ui.sectionTitle(c, "Your questions")
         selectRow.addView(selLabel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         allChip = Ui.chip(c, "All", Ui.BLUE, Ui.BLUE_SOFT)
         cancelChip = Ui.chip(c, "Cancel", Ui.MUTED, Ui.SOFT)
@@ -149,7 +151,7 @@ class ListsActivity : AppCompatActivity() {
 
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
-        holder.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 20))
+        holder.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 24))
         holder.addView(Loading.page(c))
 
         val scroll = ScrollView(c)
@@ -157,28 +159,10 @@ class ListsActivity : AppCompatActivity() {
         Ui.noClip(holder, scroll)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        val bar = LinearLayout(c)
-        bar.orientation = LinearLayout.HORIZONTAL
-        Ui.bottomBarBg(c, bar)
-        Nav.lift(c, bar)
-        bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
-        val newBtn = Ui.pill(c, "New list")
-        newBtn.textSize = 15f
-        val importBtn = Ui.pill(c, "Import by code", Ui.BLUE_SOFT, Ui.BLUE)
-        importBtn.textSize = 15f
-        Ui.fit(newBtn, 15, 11)
-        Ui.fit(importBtn, 15, 11)
-        bar.addView(newBtn, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val ip = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        ip.leftMargin = Ui.dp(c, 10)
-        bar.addView(importBtn, ip)
-        page.addView(bar, Nav.gap(c))
         page.addView(Nav.bar(this, Nav.LIST), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         setContentView(page)
 
-        newBtn.setOnClickListener { if (!needsNet()) startActivity(Intent(this, ListEditActivity::class.java)) }
-        importBtn.setOnClickListener { if (!needsNet()) showImportDialog() }
     }
 
     private fun toast(s: String) {
@@ -222,7 +206,7 @@ class ListsActivity : AppCompatActivity() {
         selected.retainAll(raw.keys)
         if (raw.isEmpty()) {
             selectMode = false
-            holder.addView(Ui.note(c, "No question lists yet. Tap New list to write your own, or Import by code."))
+            holder.addView(Ui.note(c, "No questions yet. Tap + to write your own, or the import icon to add a code."))
             updateSelectBar()
             return
         }
@@ -253,7 +237,7 @@ class ListsActivity : AppCompatActivity() {
             mainChip.background = Ui.rounded(c, Ui.RED, 20)
             mainChip.alpha = if (selected.isEmpty()) 0.45f else 1f
         } else {
-            selLabel.text = "YOUR LISTS"
+            selLabel.text = "YOUR QUESTIONS"
             allChip.visibility = View.GONE
             cancelChip.visibility = View.GONE
             mainChip.text = "Select"

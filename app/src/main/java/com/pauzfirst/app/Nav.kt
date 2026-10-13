@@ -36,7 +36,7 @@ object Nav {
         bar.setPadding(0, Ui.dp(a, 8), 0, Ui.dp(a, 8))
         Ui.padInsets(bar, bottom = true)
         val icons = listOf(Icons.HOME, Icons.PLAY, Icons.LIST, Icons.CHART)
-        val labels = listOf("Home", "Training", "Lists", "History")
+        val labels = listOf("Home", "Training", "Questions", "History")
         for (i in icons.indices) {
             val on = i == active
             val col = if (on) Color.WHITE else Color.argb(170, 255, 255, 255)

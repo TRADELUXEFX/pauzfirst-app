@@ -298,7 +298,7 @@ object Ui {
     }
 
     /** Blue top bar with the title centered. [onBack] adds the round back arrow; [trailing] puts an action on the right. Main tabs use neither. */
-    fun header(c: Context, title: String, trailing: View? = null, onBack: (() -> Unit)? = null): LinearLayout {
+    fun header(c: Context, title: String, leading: View? = null, trailing: View? = null, onBack: (() -> Unit)? = null): LinearLayout {
         val h = LinearLayout(c)
         h.orientation = LinearLayout.HORIZONTAL
         h.gravity = Gravity.CENTER_VERTICAL
@@ -310,7 +310,8 @@ object Ui {
         padInsets(h, top = true)
 
         val size = dp(c, 40)
-        // left slot: the back arrow, or an empty box of the same size so the title stays centered
+        // with a leading or trailing action both side slots are the same width, so the title stays centered
+        val side = if (leading != null || trailing != null) dp(c, 96) else size
         if (onBack != null) {
             val back = FrameLayout(c)
             val circle = GradientDrawable()
@@ -322,8 +323,10 @@ object Ui {
             val arrow = FsIconView(c, "M15 18l-6-6 6-6", WHITE)
             back.addView(arrow, FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
             h.addView(back, LinearLayout.LayoutParams(size, size))
+        } else if (leading != null) {
+            h.addView(slotBox(c, leading, Gravity.START or Gravity.CENTER_VERTICAL), LinearLayout.LayoutParams(side, size))
         } else {
-            h.addView(View(c), LinearLayout.LayoutParams(size, size))
+            h.addView(View(c), LinearLayout.LayoutParams(side, size))
         }
 
         val t = text(c, title, 20f, WHITE, BOLD)
@@ -332,10 +335,32 @@ object Ui {
         t.ellipsize = android.text.TextUtils.TruncateAt.END
         h.addView(t, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 
-        // right slot: the trailing action, or an empty box of the same size
-        if (trailing != null) h.addView(trailing, LinearLayout.LayoutParams(size, size))
-        else h.addView(View(c), LinearLayout.LayoutParams(size, size))
+        // right slot: the trailing action, or an empty box of the same width
+        if (trailing != null) h.addView(slotBox(c, trailing, Gravity.END or Gravity.CENTER_VERTICAL), LinearLayout.LayoutParams(side, size))
+        else h.addView(View(c), LinearLayout.LayoutParams(side, size))
         return h
+    }
+
+    /** Round 40dp icon button for a header edge: the same look as Save on Training. */
+    fun headerIcon(c: Context, path: String, desc: String, onClick: () -> Unit): FrameLayout {
+        val box = FrameLayout(c)
+        val circle = GradientDrawable()
+        circle.shape = GradientDrawable.OVAL
+        circle.setColor(Color.parseColor("#33FFFFFF"))
+        box.background = circle
+        box.contentDescription = desc
+        box.minimumWidth = dp(c, 40)
+        box.minimumHeight = dp(c, 40)
+        box.addView(FsIconView(c, path, WHITE), FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
+        box.setOnClickListener { onClick() }
+        return box
+    }
+
+    /** Puts an action at one edge of a header slot. */
+    private fun slotBox(c: Context, v: View, gravity: Int): FrameLayout {
+        val f = FrameLayout(c)
+        f.addView(v, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, gravity))
+        return f
     }
 
     /** Small rounded tap target used for list actions. */
