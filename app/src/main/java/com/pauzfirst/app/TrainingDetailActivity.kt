@@ -3,14 +3,16 @@ package com.pauzfirst.app
 import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** One finished training, opened from a history card: its details, how it felt, and Do again. */
+/** One finished training, opened from a history card: its details, how it felt, and Do again. Laid out as Presence's detail screen. */
 class TrainingDetailActivity : BaseActivity() {
 
     companion object {
@@ -40,14 +42,13 @@ class TrainingDetailActivity : BaseActivity() {
         else -> m
     }
 
-    private fun row(label: String, value: String): LinearLayout {
-        val r = LinearLayout(this)
-        r.orientation = LinearLayout.HORIZONTAL
-        r.gravity = Gravity.CENTER_VERTICAL
-        r.addView(Ui.text(this, label, 14f, Ui.MUTED_TINT, Ui.REG), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        r.addView(Ui.text(this, value, 14f, Ui.TEXT, Ui.MED))
-        r.setPadding(0, Ui.dp(this, 8), 0, Ui.dp(this, 8))
-        return r
+    /** One detail cell: a small label above the value, as in Presence. */
+    private fun cell(label: String, value: String): LinearLayout {
+        val card = Ui.card(this)
+        card.setPadding(Ui.dp(this, 14), Ui.dp(this, 12), Ui.dp(this, 14), Ui.dp(this, 12))
+        card.addView(Ui.text(this, label.uppercase(), 10f, Ui.MUTED, Ui.MED))
+        card.addView(Ui.text(this, value, 15f, Ui.TEXT, Ui.BOLD), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = Ui.dp(this@TrainingDetailActivity, 3) })
+        return card
     }
 
     private fun build(o: JSONObject) {
@@ -55,38 +56,81 @@ class TrainingDetailActivity : BaseActivity() {
         val date = o.optString("date", "")
         val mode = o.optString("mode", "")
         val isSurprise = mode == HistoryStore.SURPRISE
+        val ms = HistoryStore.parseIso(date)
+        val whenText = if (ms > 0L) SimpleDateFormat("EEE d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(ms)) else date
 
-        val page = LinearLayout(c)
-        page.orientation = LinearLayout.VERTICAL
-        page.setBackgroundColor(Ui.BG)
-        // no back arrow: the system back button returns to History
-        page.addView(Ui.header(c, "Training"))
+        // header: the mode's name, back arrow on the left, the mode's eye icon on the right (as Presence)
+        val modeIcon: View? = if (isSurprise) null else {
+            val path = when (mode) {
+                "eyes-closed" -> Icons.EYE_OFF
+                "mirror" -> Icons.MIRROR
+                else -> Icons.EYE
+            }
+            Ui.headerIcon(c, path, modeLabel(mode)) { }
+        }
+        val root = LinearLayout(c)
+        root.orientation = LinearLayout.VERTICAL
+        root.setBackgroundColor(Ui.BG)
+        root.addView(Ui.header(c, modeLabel(mode), trailing = modeIcon, onBack = { finish() }))
 
         val body = LinearLayout(c)
         body.orientation = LinearLayout.VERTICAL
-        body.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 24))
+        body.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 24))
 
-        val ms = HistoryStore.parseIso(date)
-        val whenText = if (ms > 0L) SimpleDateFormat("EEE d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(ms)) else date
-        val card = Ui.card(c)
-        card.orientation = LinearLayout.VERTICAL
-        card.addView(Ui.text(c, whenText, 16f, Ui.TEXT, Ui.BOLD))
-        card.addView(row("Mode", modeLabel(mode)), Ui.lp(c, 10))
-        val q = o.optInt("questions", 0)
-        card.addView(row("Questions", q.toString()), Ui.lp(c))
-        card.addView(row("Time", StatsStore.formatDuration(o.optInt("time", 0).toLong())), Ui.lp(c))
-        if (!isSurprise) {
-            card.addView(row("Deep Pause", if (o.optBoolean("deepPause", false)) "On" else "Off"), Ui.lp(c))
-            val rated = LocalExtras.allRatings().optInt(date, 0)
-            val felt = if (rated in 1..3) SummaryActivity.RATING_LABELS[rated - 1] else "Not rated"
-            card.addView(row("How it felt", felt), Ui.lp(c))
+        val dateText = Ui.text(c, whenText, 13f, Ui.MUTED, Ui.REG)
+        dateText.gravity = Gravity.CENTER
+        body.addView(dateText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
+        // the details, two to a row; a last one with no partner sits in the middle
+        val cells = ArrayList<Pair<String, String>>()
+        cells.add("Questions" to o.optInt("questions", 0).toString())
+        cells.add("Time" to StatsStore.formatDuration(o.optInt("time", 0).toLong()))
+        if (!isSurprise) cells.add("Deep Pause" to (if (o.optBoolean("deepPause", false)) "On" else "Off"))
+        var i = 0
+        while (i < cells.size) {
+            val line = LinearLayout(c)
+            line.orientation = LinearLayout.HORIZONTAL
+            if (i + 1 < cells.size) {
+                line.addView(cell(cells[i].first, cells[i].second), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                line.addView(cell(cells[i + 1].first, cells[i + 1].second), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = Ui.dp(c, 8) })
+            } else {
+                line.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
+                line.addView(cell(cells[i].first, cells[i].second), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f).apply { leftMargin = Ui.dp(c, 4); rightMargin = Ui.dp(c, 4) })
+                line.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
+            }
+            body.addView(line, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = if (i == 0) Ui.dp(c, 14) else Ui.dp(c, 8) })
+            i += 2
         }
-        body.addView(card, Ui.lp(c))
 
         if (!isSurprise) {
+            // how it felt: the three faces, the rating given is highlighted
+            val rated = LocalExtras.allRatings().optInt(date, 0)
+            val feltCard = Ui.card(c)
+            feltCard.setPadding(Ui.dp(c, 14), Ui.dp(c, 12), Ui.dp(c, 14), Ui.dp(c, 12))
+            val feltLabel = Ui.text(c, "HOW IT FELT", 10f, Ui.MUTED, Ui.MED)
+            feltLabel.gravity = Gravity.CENTER
+            feltCard.addView(feltLabel, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            val faces = arrayOf(Icons.FACE_SAD, Icons.FACE_OKAY, Icons.FACE_HAPPY)
+            val opts = LinearLayout(c)
+            opts.orientation = LinearLayout.HORIZONTAL
+            for ((n, label) in SummaryActivity.RATING_LABELS.withIndex()) {
+                val on = rated == n + 1
+                val fg = if (on) Ui.WHITE else Ui.TEXT
+                val pill = LinearLayout(c)
+                pill.orientation = LinearLayout.HORIZONTAL
+                pill.gravity = Gravity.CENTER
+                pill.background = Ui.rounded(c, if (on) Ui.BLUE else Ui.SOFT, 19)
+                pill.setPadding(Ui.dp(c, 6), Ui.dp(c, 9), Ui.dp(c, 6), Ui.dp(c, 9))
+                pill.addView(FsIconView(c, faces[n], fg), LinearLayout.LayoutParams(Ui.dp(c, 16), Ui.dp(c, 16)))
+                pill.addView(Ui.text(c, label, 12f, fg, Ui.BOLD), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = Ui.dp(c, 6) })
+                opts.addView(pill, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { if (n > 0) leftMargin = Ui.dp(c, 6) })
+            }
+            feltCard.addView(opts, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = Ui.dp(c, 10) })
+            body.addView(feltCard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = Ui.dp(c, 8) })
+
+            // Do again: the same mode and Deep Pause; the rest of the settings stay as they are now
             val again = Ui.pill(c, "Do again")
             again.setOnClickListener {
-                // same mode and Deep Pause as this training; the rest of the settings stay as they are now
                 Settings.mode = mode
                 Settings.deepPause = o.optBoolean("deepPause", false)
                 startActivity(
@@ -96,12 +140,14 @@ class TrainingDetailActivity : BaseActivity() {
                 )
                 finish()
             }
-            body.addView(again, Ui.lp(c, 18))
+            body.addView(again, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = Ui.dp(c, 22) })
         }
 
         val scroll = ScrollView(c)
+        scroll.isFillViewport = true
+        scroll.setBackgroundColor(Ui.BG)
         scroll.addView(body)
-        page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
-        setContentView(page)
+        root.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        setContentView(root)
     }
 }
