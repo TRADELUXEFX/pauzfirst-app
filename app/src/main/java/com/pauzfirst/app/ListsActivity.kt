@@ -219,6 +219,8 @@ class ListsActivity : BaseActivity() {
         search.minimumHeight = 0
         search.setPadding(0, 0, 0, 0)
         search.gravity = Gravity.CENTER_VERTICAL
+        // no extra font space above the text, so it sits on the same line as the magnifier
+        search.includeFontPadding = false
         search.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -238,9 +240,9 @@ class ListsActivity : BaseActivity() {
         val iconLp = LinearLayout.LayoutParams(Ui.dp(c, 18), Ui.dp(c, 18))
         iconLp.gravity = Gravity.CENTER_VERTICAL
         searchBox.addView(FsIconView(c, Icons.SEARCH, Ui.WHITE), iconLp)
-        val typeLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        // the field fills the box's height and centers its text, so icon and text share one centre line
+        val typeLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
         typeLp.leftMargin = Ui.dp(c, 10)
-        typeLp.gravity = Gravity.CENTER_VERTICAL
         searchBox.addView(search, typeLp)
         top.addView(searchBox, searchLp)
 

@@ -396,8 +396,8 @@ class HomeActivity : BaseActivity() {
         // ---------- training page: everything below lives on the Training tab ----------
         trainBody = LinearLayout(c)
         trainBody.orientation = LinearLayout.VERTICAL
-        // room below the last card, so it scrolls clear of the Start training bar
-        trainBody.setPadding(0, 0, 0, Ui.dp(c, 24))
+        // a small space between the last card and the Start training bar
+        trainBody.setPadding(0, 0, 0, Ui.dp(c, 8))
 
         buildTrainBody()
         val scroll = ScrollView(c)
@@ -420,37 +420,18 @@ class HomeActivity : BaseActivity() {
         Ui.bottomBarBg(c, bar)
         Nav.lift(c, bar)
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
-        // the settings scroll under the bar; their bottom space matches the bar's height, so the last card
-        // (Training time) can be scrolled fully into view above it and never sits under the bar
-        // when the settings are short enough to fit on screen, the bar follows the last card instead of
-        // sitting at the very bottom with a big empty gap above it; once they overflow, it stays pinned
-        val fitBar = Runnable {
-            val viewport = trainScroll.height
-            if (viewport > 0 && bar.height > 0) {
-                val pad = trainBody.paddingBottom
-                val contentH = trainBody.height - pad
-                val gap = Ui.dp(this, 16)
-                val naturalTop = viewport + Ui.dp(this, 8)   // the bar's top margin sits under the scroll area
-                val fits = trainScroll.scrollY == 0 && contentH + gap < naturalTop
-                val wantPad = if (fits) 0 else bar.height + gap
-                bar.translationY = if (fits) (contentH + gap - naturalTop).toFloat() else 0f
-                if (pad != wantPad) trainBody.setPadding(0, 0, 0, wantPad)
-            }
-        }
-        val refit = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> bar.post(fitBar) }
-        bar.addOnLayoutChangeListener(refit)
-        trainBody.addOnLayoutChangeListener(refit)
-        trainScroll.addOnLayoutChangeListener(refit)
+        // the settings scroll above the bar; FitColumn keeps the bar right under the last card when the settings
+        // are short, and pinned at the bottom (settings scrolling) when they are long
         val start = Ui.pill(c, "Start training")
         start.textSize = 17f
         bar.addTo(start)
-        trainPage = LinearLayout(c)
+        trainPage = FitColumn(c, trainScroll)
         trainPage.orientation = LinearLayout.VERTICAL
         trainPage.setBackgroundColor(Ui.BG)
         val trainHeader = Ui.header(c, "Training", trailing = saveButton())
         trainTitle = trainHeader.getChildAt(1) as TextView   // the title in the middle of the header
         trainPage.addView(trainHeader)
-        trainPage.addView(trainScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        trainPage.addView(trainScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         startBar = bar
         // same side margins as the settings cards (16dp), so the start bar lines up with them on both sides
         val barLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -999,20 +980,13 @@ class HomeActivity : BaseActivity() {
         srcHead.gravity = Gravity.CENTER_VERTICAL
         srcHead.addView(Ui.sectionTitle(c, "Questions from"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         srcCard.addTo(srcHead)
-        val spinWrap = LinearLayout(c)
-        spinWrap.orientation = LinearLayout.HORIZONTAL
-        spinWrap.gravity = Gravity.CENTER_VERTICAL
-        spinWrap.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
-        spinWrap.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
-        sourceText = Ui.text(c, Settings.source, 15f, Ui.TEXT, Ui.MED)
+        // the chosen question list is shown as plain text on the right of the heading (the dropdown field is gone)
+        sourceText = Ui.text(c, Settings.source, 13f, Ui.BLUE, Ui.BOLD)
         sourceText.maxLines = 1
-        sourceText.gravity = Gravity.CENTER_VERTICAL
+        sourceText.gravity = Gravity.END or Gravity.CENTER_VERTICAL
         sourceText.ellipsize = android.text.TextUtils.TruncateAt.END
-        spinWrap.addView(sourceText, LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f))
-        val chevron = Ui.text(c, "▾", 16f, Ui.MUTED, Ui.BOLD)
-        spinWrap.addView(chevron, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        spinWrap.setOnClickListener { openSourcePicker() }
-        srcCard.addTo(spinWrap, 10)
+        sourceText.maxWidth = (resources.displayMetrics.widthPixels * 0.5f).toInt()
+        srcHead.addView(sourceText, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         // two buttons: each opens a pop-up list to choose from
         val pickRow = LinearLayout(c)
         pickRow.orientation = LinearLayout.HORIZONTAL
@@ -1028,8 +1002,7 @@ class HomeActivity : BaseActivity() {
         pickRow.addView(listsBtn, listsBtnLp)
         srcCard.addTo(pickRow, 10)
         val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        srcLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        trainBody.addView(groupLabel("Training"))
+        srcLp.setMargins(pad, Ui.dp(c, 14), pad, 0)   // no "Training" label above: the header already says it
         trainBody.addView(srcCard, srcLp)
 
         var refresh: () -> Unit = {}
@@ -1322,5 +1295,29 @@ class HomeActivity : BaseActivity() {
             Engine.start(this, picked, bucket, pool)
         }
         startActivity(Intent(this, TrainingActivity::class.java))
+    }
+}
+
+/**
+ * A vertical column for the Training page: header on top, the settings (the scrolling part) in the middle, the Start
+ * bar under them. The header and the bar are measured first, then the settings get what is left. Short settings take
+ * only their own height, so the bar sits right under the last card; long settings fill the space and scroll, with
+ * the bar pinned at the bottom.
+ */
+class FitColumn(c: android.content.Context, private val flexible: View) : LinearLayout(c) {
+    override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+        val total = MeasureSpec.getSize(heightSpec)
+        var used = 0
+        for (i in 0 until childCount) {
+            val ch = getChildAt(i)
+            if (ch === flexible || ch.visibility == View.GONE) continue
+            measureChildWithMargins(ch, widthSpec, 0, heightSpec, used)
+            val lp = ch.layoutParams as android.view.ViewGroup.MarginLayoutParams
+            used += ch.measuredHeight + lp.topMargin + lp.bottomMargin
+        }
+        if (flexible.visibility != View.GONE) {
+            measureChildWithMargins(flexible, widthSpec, 0, MeasureSpec.makeMeasureSpec(total, MeasureSpec.AT_MOST), used)
+        }
+        setMeasuredDimension(resolveSize(MeasureSpec.getSize(widthSpec), widthSpec), total)
     }
 }
