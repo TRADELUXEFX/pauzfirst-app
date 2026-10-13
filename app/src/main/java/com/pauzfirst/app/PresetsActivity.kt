@@ -60,35 +60,6 @@ class PresetsActivity : AppCompatActivity() {
         for (p in list) holder.addTo(card(p), 12)
     }
 
-    private fun detailRow(label: String, value: String): LinearLayout {
-        val c = this
-        val r = LinearLayout(c)
-        r.orientation = LinearLayout.HORIZONTAL
-        r.addView(Ui.text(c, label, 13f, Ui.MUTED, Ui.MED), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val v = Ui.text(c, value, 13f, Ui.TEXT, Ui.BOLD)
-        v.gravity = Gravity.END
-        r.addView(v, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        return r
-    }
-
-    private fun onOff(b: Boolean): String = if (b) "On" else "Off"
-
-    private fun actionBtn(label: String?, icon: String, bg: Int, fg: Int): LinearLayout {
-        val c = this
-        val b = LinearLayout(c)
-        b.orientation = LinearLayout.HORIZONTAL
-        b.gravity = Gravity.CENTER
-        b.background = Ui.rounded(c, bg, 12)
-        b.addView(FsIconView(c, icon, fg), LinearLayout.LayoutParams(Ui.dp(c, 17), Ui.dp(c, 17)))
-        if (label != null) {
-            val t = Ui.text(c, label, 14f, fg, Ui.BOLD)
-            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            lp.leftMargin = Ui.dp(c, 6)
-            b.addView(t, lp)
-        }
-        return b
-    }
-
     /** One preset per row. Tap opens it on Training to check before starting; long press deletes it. */
     private fun card(p: Preset): LinearLayout {
         val c = this

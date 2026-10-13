@@ -4,7 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Keeps the "How did it feel?" ratings and the saved Settings list on the account
+ * Keeps the "How did it feel?" ratings and the saved presets on the account
  * (user_stats.extras), so they follow the user to a new phone. The phone stays the working copy: everything keeps
  * working offline, and a change that could not be sent waits until the next time it can.
  *

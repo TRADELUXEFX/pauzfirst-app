@@ -20,6 +20,8 @@ import org.json.JSONArray
 /** Create a list, or edit one (pass the list name as the "name" extra). One question per line. */
 class ListEditActivity : AppCompatActivity() {
     private var oldName: String? = null
+    private var formCard: android.view.View? = null
+    private var loadingRing: android.view.View? = null
     private lateinit var nameInput: EditText
     private lateinit var qInput: EditText
     private lateinit var count: TextView
@@ -70,6 +72,13 @@ class ListEditActivity : AppCompatActivity() {
 
         count = Ui.text(c, "0 questions", 12f, Ui.MUTED, Ui.MED)
         card.addTo(count, 10)
+        // editing an existing list: the loading ring shows until its questions arrive, then the form appears
+        if (oldName != null) {
+            formCard = card
+            card.visibility = android.view.View.GONE
+            loadingRing = Loading.page(c)
+            body.addView(loadingRing, Ui.lp(c))
+        }
         body.addView(card, Ui.lp(c))
 
         val scroll = ScrollView(c)
@@ -120,6 +129,9 @@ class ListEditActivity : AppCompatActivity() {
                     return@runOnUiThread
                 }
                 raw = r
+                loadingRing?.let { body.removeView(it) }
+                loadingRing = null
+                formCard?.visibility = android.view.View.VISIBLE
                 val old = oldName
                 if (old != null) {
                     val arr = r[old]

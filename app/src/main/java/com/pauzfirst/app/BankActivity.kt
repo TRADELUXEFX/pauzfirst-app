@@ -32,7 +32,8 @@ class BankActivity : AppCompatActivity() {
         Ui.padInsets(holder, bottom = true)
         page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(page)
-        render()
+        // nothing saved on this phone yet: show the loading ring until the questions arrive
+        if (Defaults.pool(c).isEmpty()) holder.addView(Loading.page(c)) else render()
         // pick up anything added since the last visit
         Thread {
             try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }

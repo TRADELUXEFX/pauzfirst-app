@@ -7,5 +7,7 @@
         <item name="android:windowBackground">@drawable/launch_bg</item>
         <item name="android:statusBarColor">#F1F5F9</item>
         <item name="android:windowLightStatusBar">true</item>
+        <!-- no slide between screens: they switch instantly, like the bottom nav -->
+        <item name="android:windowAnimationStyle">@null</item>
     </style>
 </resources>

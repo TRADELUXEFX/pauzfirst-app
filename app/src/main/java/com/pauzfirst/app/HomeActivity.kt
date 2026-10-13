@@ -33,6 +33,7 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var firstRunCard: LinearLayout
     private lateinit var goalCard: LinearLayout
     private lateinit var presetBox: LinearLayout
+    private lateinit var trainBody: LinearLayout
     private lateinit var goalRing: GoalRing
     private lateinit var goalSub: TextView
     private val goalOptions = intArrayOf(0, 5, 10, 15, 30)
@@ -73,8 +74,9 @@ class HomeActivity : AppCompatActivity() {
         super.onNewIntent(i)
         if (i != null) setIntent(i)
         if (i != null && i.getBooleanExtra(EXTRA_LOAD_PRESET, false)) {
-            // a preset was just applied: rebuild so every control shows its settings
-            recreate()
+            // a preset was just applied from another screen: rebuild the Training page and show it
+            buildTrainBody()
+            showPage(1)
             return
         }
         if (i != null && i.hasExtra(EXTRA_PAGE)) showPage(i.getIntExtra(EXTRA_PAGE, 0))
@@ -327,221 +329,12 @@ class HomeActivity : AppCompatActivity() {
         renderPresets()
 
         // ---------- training page: everything below lives on the Training tab ----------
-        val trainBody = LinearLayout(c)
+        trainBody = LinearLayout(c)
         trainBody.orientation = LinearLayout.VERTICAL
         // room below the last card, so it scrolls clear of the Start training bar
         trainBody.setPadding(0, 0, 0, Ui.dp(c, 24))
 
-        // ---------- questions source ----------
-        val pad = Ui.dp(c, 16)
-        // small heading above each group of settings
-        fun groupLabel(text: String): TextView {
-            val l = Ui.sectionTitle(c, text)
-            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            lp.setMargins(pad + Ui.dp(c, 4), Ui.dp(c, 20), pad, 0)
-            l.layoutParams = lp
-            return l
-        }
-        val srcCard = Ui.card(c)
-        val srcHead = LinearLayout(c)
-        srcHead.orientation = LinearLayout.HORIZONTAL
-        srcHead.gravity = Gravity.CENTER_VERTICAL
-        srcHead.addView(Ui.sectionTitle(c, "Questions from"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val listsLink = Ui.text(c, "Question lists  ›", 13f, Ui.BLUE, Ui.BOLD)
-        listsLink.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java).putExtra(Nav.EXTRA_FROM_TRAINING, true)) }
-        srcHead.addView(listsLink, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        srcCard.addTo(srcHead)
-        val spinWrap = LinearLayout(c)
-        spinWrap.orientation = LinearLayout.HORIZONTAL
-        spinWrap.gravity = Gravity.CENTER_VERTICAL
-        spinWrap.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
-        spinWrap.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
-        sourceText = Ui.text(c, Settings.source, 15f, Ui.TEXT, Ui.MED)
-        sourceText.maxLines = 1
-        sourceText.gravity = Gravity.CENTER_VERTICAL
-        sourceText.ellipsize = android.text.TextUtils.TruncateAt.END
-        spinWrap.addView(sourceText, LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f))
-        val chevron = Ui.text(c, "▾", 16f, Ui.MUTED, Ui.BOLD)
-        spinWrap.addView(chevron, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        spinWrap.setOnClickListener { openSourcePicker() }
-        srcCard.addTo(spinWrap, 10)
-        val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        srcLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        trainBody.addView(groupLabel("Training"))
-        trainBody.addView(srcCard, srcLp)
-
-        var refresh: () -> Unit = {}
-
-        // ---------- training mode ----------
-        val modeCard = Ui.card(c)
-        // heading row: "TRAINING MODE" on the left, Deep Pause + its switch on the right
-        val modeHead = LinearLayout(c)
-        modeHead.orientation = LinearLayout.HORIZONTAL
-        modeHead.gravity = Gravity.CENTER_VERTICAL
-        modeHead.addView(Ui.sectionTitle(c, "Training mode"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        modeHead.addView(Ui.text(c, "Deep Pause", 13f, Ui.TEXT, Ui.BOLD), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        val deepSwitch = androidx.appcompat.widget.SwitchCompat(c)
-        Ui.styleSwitch(deepSwitch)
-        deepSwitch.isChecked = Settings.deepPause
-        deepSwitch.setOnCheckedChangeListener { _, checked ->
-            Settings.deepPause = checked
-            refresh()
-        }
-        val dsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        dsLp.leftMargin = Ui.dp(c, 8)
-        modeHead.addView(deepSwitch, dsLp)
-        modeCard.addTo(modeHead)
-        val modeKeys = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")
-        val modeNames = listOf("Eyes Closed", "Eyes Open", "Mirror", "Animated Eyes")
-        val modeDescs = listOf(
-            "Close your eyes, listen to the question, pause, and answer aloud.",
-            "Keep your eyes open, read the question on screen, and answer aloud.",
-            "Practice in front of the camera and watch your facial expressions and body language.",
-            "Practice with a face that blinks and keeps eye contact with you."
-        )
-        val chips = ArrayList<TextView>()
-        val modeDesc = Ui.text(c, "", 12f, Ui.MUTED, Ui.REG)
-        modeDesc.gravity = Gravity.CENTER
-        modeDesc.setLineSpacing(0f, 1.2f)
-        val modeGrid = LinearLayout(c)
-        modeGrid.orientation = LinearLayout.VERTICAL
-        for (rowStart in 0 until modeKeys.size step 2) {
-            val chipRow = LinearLayout(c)
-            chipRow.orientation = LinearLayout.HORIZONTAL
-            for (j in 0..1) {
-                val i = rowStart + j
-                val chip = Ui.text(c, modeNames[i], 13f, Ui.TEXT, Ui.BOLD)
-                chip.gravity = Gravity.CENTER
-                chip.setPadding(Ui.dp(c, 4), Ui.dp(c, 12), Ui.dp(c, 4), Ui.dp(c, 12))
-                Ui.fit(chip, 13)
-                val clp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                if (j > 0) clp.leftMargin = Ui.dp(c, 8)
-                chipRow.addView(chip, clp)
-                chips.add(chip)
-                chip.setOnClickListener {
-                    Settings.mode = modeKeys[i]
-                    refresh()
-                }
-            }
-            modeGrid.addTo(chipRow, if (rowStart == 0) 0 else 8)
-        }
-        modeCard.addTo(modeGrid, 12)
-        modeCard.addTo(modeDesc, 10)
-        val modeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        modeLp.setMargins(pad, Ui.dp(c, 12), pad, 0)
-        trainBody.addView(modeCard, modeLp)
-
-        // ---------- timing ----------
-        val timing = Ui.card(c)
-        timing.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it }, 1, 50, 1) { it.toString() }, 0)
-        // Pause and Respond times do not apply in Deep Pause (no time limit)
-        val timeBox = LinearLayout(c)
-        timeBox.orientation = LinearLayout.VERTICAL
-        timeBox.addTo(Ui.stepper(c, "Pause", { Settings.pauseTime }, { Settings.pauseTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
-        timeBox.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
-        timing.addTo(timeBox)
-        val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        timingLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        trainBody.addView(groupLabel("Timing"))
-        trainBody.addView(timing, timingLp)
-
-        // ---------- sound ----------
-        val sound = Ui.card(c)
-        sound.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 0)
-        // Mirror and Animated eyes only
-        val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the screen", Settings.phaseGuide) { Settings.phaseGuide = it }
-        sound.addTo(guideRow, 14)
-        val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        trainBody.addView(groupLabel("Sound"))
-        trainBody.addView(sound, soundLp)
-
-        // ---------- recording ----------
-        val recCard = Ui.card(c)
-        // recording: a switch first. Only when it is on do the two boxes (audio / video) appear.
-        // Video includes the sound, so picking video also counts as audio. Turning the switch off stops recording.
-        val recRow = LinearLayout(c)
-        recRow.orientation = LinearLayout.HORIZONTAL
-        val recAudioChip = Ui.text(c, "Record audio", 13f, Ui.TEXT, Ui.BOLD)
-        val recVideoChip = Ui.text(c, "Record video", 13f, Ui.TEXT, Ui.BOLD)
-        fun paintRec() {
-            val audioOn = Settings.recordAudio && !Settings.recordScreen
-            val videoOn = Settings.recordScreen
-            recAudioChip.background = Ui.rounded(c, if (audioOn) Ui.BLUE else Ui.SOFT, 14)
-            recAudioChip.setTextColor(if (audioOn) Ui.WHITE else Ui.MUTED)
-            recVideoChip.background = Ui.rounded(c, if (videoOn) Ui.BLUE else Ui.SOFT, 14)
-            recVideoChip.setTextColor(if (videoOn) Ui.WHITE else Ui.MUTED)
-        }
-        for (chip in listOf(recAudioChip, recVideoChip)) {
-            chip.gravity = Gravity.CENTER
-            chip.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12))
-            Ui.fit(chip, 13)
-        }
-        recAudioChip.setOnClickListener {
-            Settings.recordAudio = true
-            Settings.recordScreen = false
-            paintRec()
-        }
-        recVideoChip.setOnClickListener {
-            Settings.recordScreen = true
-            Settings.recordAudio = true
-            paintRec()
-        }
-        recRow.addView(recAudioChip, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val recLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        recLp.leftMargin = Ui.dp(c, 8)
-        recRow.addView(recVideoChip, recLp)
-        paintRec()
-
-        val recOn = Settings.recordAudio || Settings.recordScreen
-        recRow.visibility = if (recOn) View.VISIBLE else View.GONE
-        recCard.addTo(Ui.switchRow(c, "Record training", "Save your session as audio or video", recOn) { on ->
-            if (on) {
-                // start with audio; the person can pick video in the boxes
-                Settings.recordAudio = true
-                Settings.recordScreen = false
-            } else {
-                Settings.recordAudio = false
-                Settings.recordScreen = false
-            }
-            paintRec()
-            recRow.visibility = if (on) View.VISIBLE else View.GONE
-        }, 0)
-        recCard.addTo(recRow, 14)
-        val recCardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        recCardLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        trainBody.addView(groupLabel("Recording"))
-        trainBody.addView(recCard, recCardLp)
-
-        // ---------- Deep Pause (only shown while Deep Pause is on) ----------
-        val deepGroup = LinearLayout(c)
-        deepGroup.orientation = LinearLayout.VERTICAL
-        val deepBox = Ui.card(c)
-        deepBox.addTo(Ui.switchRow(c, "Voice tip", "Says \"Answer when you feel ready\"", Settings.tip) { Settings.tip = it }, 0)
-        deepBox.addTo(Ui.stepper(c, "Repeat tip every", { Settings.tipInterval }, { Settings.tipInterval = it }, 0, 120, 5) { if (it == 0) "once" else it.toString() + "s" }, 14)
-        deepBox.addTo(Ui.switchRow(c, "3 Why Challenge", "Asks \"Why did you say that?\"", Settings.threeWhy) { Settings.threeWhy = it }, 14)
-        deepGroup.addView(groupLabel("Deep Pause"))
-        val deepLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        deepLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        deepGroup.addView(deepBox, deepLp)
-        trainBody.addView(deepGroup, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-
-
-        refresh = {
-            val m = Settings.mode
-            val deep = Settings.deepPause
-            for (i in modeKeys.indices) {
-                val on = modeKeys[i] == m
-                chips[i].background = Ui.rounded(c, if (on) Ui.BLUE else Ui.SOFT, 14)
-                chips[i].setTextColor(if (on) Ui.WHITE else Ui.MUTED)
-            }
-            modeDesc.text = modeDescs[Math.max(0, modeKeys.indexOf(m))]
-            timeBox.visibility = if (deep) View.GONE else View.VISIBLE
-            guideRow.visibility = if (Settings.mirror && !deep) View.VISIBLE else View.GONE
-            deepGroup.visibility = if (deep) View.VISIBLE else View.GONE
-        }
-        refresh()
-
+        buildTrainBody()
         val scroll = ScrollView(c)
         scroll.isFillViewport = false
         scroll.clipToPadding = false
@@ -767,12 +560,6 @@ class HomeActivity : AppCompatActivity() {
         renderPresets()
         // ratings and presets: send waiting changes, or take newer ones from another phone
         Thread { ExtrasSync.pull() }.start()
-        if (Presets.justApplied) {
-            // a saved setup was just loaded: rebuild the screen so every switch and number shows it
-            Presets.justApplied = false
-            recreate()
-            return
-        }
         resumeBtn.visibility = if (Engine.isActive()) View.VISIBLE else View.GONE
         if (lists.isEmpty()) {
             // no internet yet: use the copy of the lists saved on this phone
@@ -1025,6 +812,222 @@ class HomeActivity : AppCompatActivity() {
     }
 
     /** Sets up recording (if chosen in the options) before the session begins. */
+    /** Fills the Training page from the current settings. Runs again when a preset is loaded, so the screen never restarts. */
+    private fun buildTrainBody() {
+        val c = this
+        trainBody.removeAllViews()
+        // ---------- questions source ----------
+        val pad = Ui.dp(c, 16)
+        // small heading above each group of settings
+        fun groupLabel(text: String): TextView {
+            val l = Ui.sectionTitle(c, text)
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            lp.setMargins(pad + Ui.dp(c, 4), Ui.dp(c, 20), pad, 0)
+            l.layoutParams = lp
+            return l
+        }
+        val srcCard = Ui.card(c)
+        val srcHead = LinearLayout(c)
+        srcHead.orientation = LinearLayout.HORIZONTAL
+        srcHead.gravity = Gravity.CENTER_VERTICAL
+        srcHead.addView(Ui.sectionTitle(c, "Questions from"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val listsLink = Ui.text(c, "Question lists  ›", 13f, Ui.BLUE, Ui.BOLD)
+        listsLink.setOnClickListener { startActivity(Intent(this, ListsActivity::class.java).putExtra(Nav.EXTRA_FROM_TRAINING, true)) }
+        srcHead.addView(listsLink, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        srcCard.addTo(srcHead)
+        val spinWrap = LinearLayout(c)
+        spinWrap.orientation = LinearLayout.HORIZONTAL
+        spinWrap.gravity = Gravity.CENTER_VERTICAL
+        spinWrap.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
+        spinWrap.setPadding(Ui.dp(c, 16), Ui.dp(c, 2), Ui.dp(c, 16), Ui.dp(c, 2))
+        sourceText = Ui.text(c, Settings.source, 15f, Ui.TEXT, Ui.MED)
+        sourceText.maxLines = 1
+        sourceText.gravity = Gravity.CENTER_VERTICAL
+        sourceText.ellipsize = android.text.TextUtils.TruncateAt.END
+        spinWrap.addView(sourceText, LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f))
+        val chevron = Ui.text(c, "▾", 16f, Ui.MUTED, Ui.BOLD)
+        spinWrap.addView(chevron, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        spinWrap.setOnClickListener { openSourcePicker() }
+        srcCard.addTo(spinWrap, 10)
+        val srcLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        srcLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        trainBody.addView(groupLabel("Training"))
+        trainBody.addView(srcCard, srcLp)
+
+        var refresh: () -> Unit = {}
+
+        // ---------- training mode ----------
+        val modeCard = Ui.card(c)
+        // heading row: "TRAINING MODE" on the left, Deep Pause + its switch on the right
+        val modeHead = LinearLayout(c)
+        modeHead.orientation = LinearLayout.HORIZONTAL
+        modeHead.gravity = Gravity.CENTER_VERTICAL
+        modeHead.addView(Ui.sectionTitle(c, "Training mode"), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        modeHead.addView(Ui.text(c, "Deep Pause", 13f, Ui.TEXT, Ui.BOLD), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        val deepSwitch = androidx.appcompat.widget.SwitchCompat(c)
+        Ui.styleSwitch(deepSwitch)
+        deepSwitch.isChecked = Settings.deepPause
+        deepSwitch.setOnCheckedChangeListener { _, checked ->
+            Settings.deepPause = checked
+            refresh()
+        }
+        val dsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        dsLp.leftMargin = Ui.dp(c, 8)
+        modeHead.addView(deepSwitch, dsLp)
+        modeCard.addTo(modeHead)
+        val modeKeys = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")
+        val modeNames = listOf("Eyes Closed", "Eyes Open", "Mirror", "Animated Eyes")
+        val modeDescs = listOf(
+            "Close your eyes, listen to the question, pause, and answer aloud.",
+            "Keep your eyes open, read the question on screen, and answer aloud.",
+            "Practice in front of the camera and watch your facial expressions and body language.",
+            "Practice with a face that blinks and keeps eye contact with you."
+        )
+        val chips = ArrayList<TextView>()
+        val modeDesc = Ui.text(c, "", 12f, Ui.MUTED, Ui.REG)
+        modeDesc.gravity = Gravity.CENTER
+        modeDesc.setLineSpacing(0f, 1.2f)
+        val modeGrid = LinearLayout(c)
+        modeGrid.orientation = LinearLayout.VERTICAL
+        for (rowStart in 0 until modeKeys.size step 2) {
+            val chipRow = LinearLayout(c)
+            chipRow.orientation = LinearLayout.HORIZONTAL
+            for (j in 0..1) {
+                val i = rowStart + j
+                val chip = Ui.text(c, modeNames[i], 13f, Ui.TEXT, Ui.BOLD)
+                chip.gravity = Gravity.CENTER
+                chip.setPadding(Ui.dp(c, 4), Ui.dp(c, 12), Ui.dp(c, 4), Ui.dp(c, 12))
+                Ui.fit(chip, 13)
+                val clp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                if (j > 0) clp.leftMargin = Ui.dp(c, 8)
+                chipRow.addView(chip, clp)
+                chips.add(chip)
+                chip.setOnClickListener {
+                    Settings.mode = modeKeys[i]
+                    refresh()
+                }
+            }
+            modeGrid.addTo(chipRow, if (rowStart == 0) 0 else 8)
+        }
+        modeCard.addTo(modeGrid, 12)
+        modeCard.addTo(modeDesc, 10)
+        val modeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        modeLp.setMargins(pad, Ui.dp(c, 12), pad, 0)
+        trainBody.addView(modeCard, modeLp)
+
+        // ---------- timing ----------
+        val timing = Ui.card(c)
+        timing.addTo(Ui.stepper(c, "Questions", { Settings.total }, { Settings.total = it }, 1, 50, 1) { it.toString() }, 0)
+        // Pause and Respond times do not apply in Deep Pause (no time limit)
+        val timeBox = LinearLayout(c)
+        timeBox.orientation = LinearLayout.VERTICAL
+        timeBox.addTo(Ui.stepper(c, "Pause", { Settings.pauseTime }, { Settings.pauseTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
+        timeBox.addTo(Ui.stepper(c, "Respond", { Settings.answerTime }, { Settings.answerTime = it }, 1, 60, 1) { it.toString() + "s" }, 12)
+        timing.addTo(timeBox)
+        val timingLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        timingLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        trainBody.addView(groupLabel("Timing"))
+        trainBody.addView(timing, timingLp)
+
+        // ---------- sound ----------
+        val sound = Ui.card(c)
+        sound.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 0)
+        // Mirror and Animated eyes only
+        val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the screen", Settings.phaseGuide) { Settings.phaseGuide = it }
+        sound.addTo(guideRow, 14)
+        val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        trainBody.addView(groupLabel("Sound"))
+        trainBody.addView(sound, soundLp)
+
+        // ---------- recording ----------
+        val recCard = Ui.card(c)
+        // recording: a switch first. Only when it is on do the two boxes (audio / video) appear.
+        // Video includes the sound, so picking video also counts as audio. Turning the switch off stops recording.
+        val recRow = LinearLayout(c)
+        recRow.orientation = LinearLayout.HORIZONTAL
+        val recAudioChip = Ui.text(c, "Record audio", 13f, Ui.TEXT, Ui.BOLD)
+        val recVideoChip = Ui.text(c, "Record video", 13f, Ui.TEXT, Ui.BOLD)
+        fun paintRec() {
+            val audioOn = Settings.recordAudio && !Settings.recordScreen
+            val videoOn = Settings.recordScreen
+            recAudioChip.background = Ui.rounded(c, if (audioOn) Ui.BLUE else Ui.SOFT, 14)
+            recAudioChip.setTextColor(if (audioOn) Ui.WHITE else Ui.MUTED)
+            recVideoChip.background = Ui.rounded(c, if (videoOn) Ui.BLUE else Ui.SOFT, 14)
+            recVideoChip.setTextColor(if (videoOn) Ui.WHITE else Ui.MUTED)
+        }
+        for (chip in listOf(recAudioChip, recVideoChip)) {
+            chip.gravity = Gravity.CENTER
+            chip.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12))
+            Ui.fit(chip, 13)
+        }
+        recAudioChip.setOnClickListener {
+            Settings.recordAudio = true
+            Settings.recordScreen = false
+            paintRec()
+        }
+        recVideoChip.setOnClickListener {
+            Settings.recordScreen = true
+            Settings.recordAudio = true
+            paintRec()
+        }
+        recRow.addView(recAudioChip, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val recLp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        recLp.leftMargin = Ui.dp(c, 8)
+        recRow.addView(recVideoChip, recLp)
+        paintRec()
+
+        val recOn = Settings.recordAudio || Settings.recordScreen
+        recRow.visibility = if (recOn) View.VISIBLE else View.GONE
+        recCard.addTo(Ui.switchRow(c, "Record training", "Save your session as audio or video", recOn) { on ->
+            if (on) {
+                // start with audio; the person can pick video in the boxes
+                Settings.recordAudio = true
+                Settings.recordScreen = false
+            } else {
+                Settings.recordAudio = false
+                Settings.recordScreen = false
+            }
+            paintRec()
+            recRow.visibility = if (on) View.VISIBLE else View.GONE
+        }, 0)
+        recCard.addTo(recRow, 14)
+        val recCardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        recCardLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        trainBody.addView(groupLabel("Recording"))
+        trainBody.addView(recCard, recCardLp)
+
+        // ---------- Deep Pause (only shown while Deep Pause is on) ----------
+        val deepGroup = LinearLayout(c)
+        deepGroup.orientation = LinearLayout.VERTICAL
+        val deepBox = Ui.card(c)
+        deepBox.addTo(Ui.switchRow(c, "Voice tip", "Says \"Answer when you feel ready\"", Settings.tip) { Settings.tip = it }, 0)
+        deepBox.addTo(Ui.stepper(c, "Repeat tip every", { Settings.tipInterval }, { Settings.tipInterval = it }, 0, 120, 5) { if (it == 0) "once" else it.toString() + "s" }, 14)
+        deepBox.addTo(Ui.switchRow(c, "3 Why Challenge", "Asks \"Why did you say that?\"", Settings.threeWhy) { Settings.threeWhy = it }, 14)
+        deepGroup.addView(groupLabel("Deep Pause"))
+        val deepLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        deepLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        deepGroup.addView(deepBox, deepLp)
+        trainBody.addView(deepGroup, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+
+
+        refresh = {
+            val m = Settings.mode
+            val deep = Settings.deepPause
+            for (i in modeKeys.indices) {
+                val on = modeKeys[i] == m
+                chips[i].background = Ui.rounded(c, if (on) Ui.BLUE else Ui.SOFT, 14)
+                chips[i].setTextColor(if (on) Ui.WHITE else Ui.MUTED)
+            }
+            modeDesc.text = modeDescs[Math.max(0, modeKeys.indexOf(m))]
+            timeBox.visibility = if (deep) View.GONE else View.VISIBLE
+            guideRow.visibility = if (Settings.mirror && !deep) View.VISIBLE else View.GONE
+            deepGroup.visibility = if (deep) View.VISIBLE else View.GONE
+        }
+        refresh()
+
+    }
+
     /** The Presets pill on the right of the Recent heading: opens the full list. */
     private fun presetsPill(): TextView {
         val c = this
@@ -1059,8 +1062,8 @@ class HomeActivity : AppCompatActivity() {
                 // open the preset on Training: check its settings and question list, then Start training
                 Presets.apply(p)
                 Presets.loaded = p.name
-                intent.putExtra(EXTRA_PAGE, 1)
-                recreate()
+                buildTrainBody()
+                showPage(1)
             }
             presetBox.addView(card, Ui.lp(c, 10))
         }

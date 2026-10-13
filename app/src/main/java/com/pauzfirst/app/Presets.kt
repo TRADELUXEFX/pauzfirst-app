@@ -25,10 +25,6 @@ class Preset(
 object Presets {
     private const val KEY = "s_presets"
 
-    /** Set when a saved setup was loaded, so the main screen redraws its switches and numbers. */
-    @Volatile
-    var justApplied = false
-
     fun modeName(key: String): String = when (key) {
         "eyes-open" -> "Eyes Open"
         "mirror" -> "Mirror"
@@ -142,7 +138,6 @@ object Presets {
         Settings.recordScreen = p.recordScreen
         // if this list was deleted since, the main screen falls back to the default questions
         Settings.source = p.source
-        justApplied = true
     }
 
     /** Short line under the name: "Mirror · 5Q · Deep Pause · 3-Why". */

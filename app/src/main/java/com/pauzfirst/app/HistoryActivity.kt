@@ -20,7 +20,11 @@ import java.util.TimeZone
 
 /** "Your progress": a toggle between Training Stats (totals and streaks) and Training History (past trainings, newest first). */
 class HistoryActivity : AppCompatActivity() {
-    private lateinit var body: LinearLayout
+    private lateinit var body: LinearLayout          // the body of the tab on screen
+    private lateinit var statsBody: LinearLayout
+    private lateinit var historyBody: LinearLayout
+    private lateinit var statsScroll: android.widget.ScrollView
+    private lateinit var historyScroll: android.widget.ScrollView
     private lateinit var tabStats: TextView
     private lateinit var tabHistory: TextView
     private var tab = 0               // 0 = Training Stats, 1 = Training History
@@ -90,29 +94,16 @@ class HistoryActivity : AppCompatActivity() {
         tgLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 4))
         page.addView(toggle, tgLp)
 
-        body = LinearLayout(c)
-        body.orientation = LinearLayout.VERTICAL
-        body.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 24))
-
-        val scroll = ScrollView(c)
-        scroll.addView(body)
-        Ui.noClip(body, scroll)
-        // content scrolling up under the toggle is cut with rounded corners instead of a hard straight edge
-        val topR = Ui.dp(c, 20).toFloat()
-        scroll.outlineProvider = object : android.view.ViewOutlineProvider() {
-            override fun getOutline(v: android.view.View, outline: android.graphics.Outline) {
-                outline.setRoundRect(0, 0, v.width, v.height + topR.toInt(), topR)
-            }
-        }
-        scroll.clipToOutline = true
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(body) { _, insets ->
-            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
-            navBottom = bars.bottom
-            applyBodyPad()
-            insets
-        }
-        androidx.core.view.ViewCompat.requestApplyInsets(body)
-        page.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        // Stats and History each have their own body and scroll view, so each keeps its own scroll position
+        statsBody = tabBody()
+        historyBody = tabBody()
+        statsScroll = tabScroll(statsBody)
+        historyScroll = tabScroll(historyBody)
+        body = statsBody
+        val host = android.widget.FrameLayout(c)
+        host.addView(statsScroll, android.widget.FrameLayout.LayoutParams(-1, -1))
+        host.addView(historyScroll, android.widget.FrameLayout.LayoutParams(-1, -1))
+        page.addView(host, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         page.addView(Nav.bar(this, Nav.HISTORY), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         setContentView(page)
@@ -122,8 +113,39 @@ class HistoryActivity : AppCompatActivity() {
         Nav.goHome(this)
     }
 
+    private fun tabBody(): LinearLayout {
+        val b = LinearLayout(this)
+        b.orientation = LinearLayout.VERTICAL
+        b.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 24))
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(b) { _, insets ->
+            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars() or androidx.core.view.WindowInsetsCompat.Type.displayCutout())
+            navBottom = bars.bottom
+            applyBodyPad()
+            insets
+        }
+        androidx.core.view.ViewCompat.requestApplyInsets(b)
+        return b
+    }
+
+    private fun tabScroll(b: LinearLayout): android.widget.ScrollView {
+        val scroll = android.widget.ScrollView(this)
+        scroll.addView(b)
+        Ui.noClip(b, scroll)
+        // content scrolling up under the toggle is cut with rounded corners instead of a hard straight edge
+        val topR = Ui.dp(this, 20).toFloat()
+        scroll.outlineProvider = object : android.view.ViewOutlineProvider() {
+            override fun getOutline(v: android.view.View, outline: android.graphics.Outline) {
+                outline.setRoundRect(0, 0, v.width, v.height + topR.toInt(), topR)
+            }
+        }
+        scroll.clipToOutline = true
+        return scroll
+    }
+
     private fun applyBodyPad() {
-        body.setPadding(body.paddingLeft, body.paddingTop, body.paddingRight, Ui.dp(this, 24))
+        for (b in listOf(statsBody, historyBody)) {
+            b.setPadding(b.paddingLeft, b.paddingTop, b.paddingRight, Ui.dp(this, 24))
+        }
     }
 
     private fun toggleTab(label: String, onTap: () -> Unit): TextView {
@@ -150,6 +172,9 @@ class HistoryActivity : AppCompatActivity() {
         styleTab(tabStats, i == 0)
         styleTab(tabHistory, i == 1)
         exportIcon.visibility = android.view.View.VISIBLE   // export is in the banner on both tabs
+        body = if (i == 0) statsBody else historyBody
+        statsScroll.visibility = if (i == 0) android.view.View.VISIBLE else android.view.View.GONE
+        historyScroll.visibility = if (i == 1) android.view.View.VISIBLE else android.view.View.GONE
         applyBodyPad()
         if (i == 0) {
             renderStats()
@@ -178,6 +203,7 @@ class HistoryActivity : AppCompatActivity() {
 
     /** Training Stats: totals and streaks, read from the stats saved on this phone (no waiting for the network). */
     private fun renderStats() {
+        body = statsBody
         val c = this
         val s = StatsStore.local()
         val modes = s.optJSONObject("modeSessions")
@@ -505,6 +531,7 @@ class HistoryActivity : AppCompatActivity() {
     }
 
     private fun render(h: JSONArray?) {
+        body = historyBody
         val c = this
         body.removeAllViews()
         if (h == null) {
