@@ -1,5 +1,6 @@
 package com.pauzfirst.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -19,7 +20,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 /** "Your progress": a toggle between Training Stats (totals and streaks) and Training History (past trainings, newest first). */
-class HistoryActivity : AppCompatActivity() {
+class HistoryActivity : BaseActivity() {
     private lateinit var body: LinearLayout          // the body of the tab on screen
     private lateinit var statsBody: LinearLayout
     private lateinit var historyBody: LinearLayout
@@ -43,7 +44,6 @@ class HistoryActivity : AppCompatActivity() {
             finish()
             return
         }
-        Ui.edgeToEdge(this)
         buildUi()
         showTab(0)
         // The history comes from the network, so it loads in the background while Stats is already on screen.
@@ -507,6 +507,10 @@ class HistoryActivity : AppCompatActivity() {
         return 0L
     }
 
+    private fun openTrainingDetail(o: JSONObject) {
+        startActivity(Intent(this, TrainingDetailActivity::class.java).putExtra(TrainingDetailActivity.EXTRA_ENTRY, o.toString()))
+    }
+
     private fun modeLabel(m: String): String = when (m) {
         "eyes-closed" -> "Eyes closed"
         "eyes-open" -> "Eyes open"
@@ -642,6 +646,7 @@ class HistoryActivity : AppCompatActivity() {
             }
             col.addView(subRow, Ui.lp(c, 3))
             row.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            row.setOnClickListener { openTrainingDetail(o) }
 
             // right side: the mode tag, with a Play video / Play audio container under it when this training was recorded
             val right = LinearLayout(c)

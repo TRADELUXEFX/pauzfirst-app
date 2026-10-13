@@ -16,7 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.pauzfirst.app.Ui.addTo
 
 /** Its own screen: type your email, tap Send reset link. */
-class ForgotPasswordActivity : AppCompatActivity() {
+class ForgotPasswordActivity : BaseActivity() {
     private lateinit var card: LinearLayout
     private lateinit var email: EditText
     private lateinit var msg: TextView
@@ -26,7 +26,6 @@ class ForgotPasswordActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val c = this
-        Ui.edgeToEdge(this)
 
         val root = LinearLayout(c)
         root.orientation = LinearLayout.VERTICAL

@@ -174,7 +174,7 @@ object HistoryStore {
         return true
     }
 
-    private fun parseIso(iso: String): Long {
+    fun parseIso(iso: String): Long {
         for (p in listOf("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'")) {
             try {
                 val f = SimpleDateFormat(p, Locale.US)

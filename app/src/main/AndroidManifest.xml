@@ -128,5 +128,7 @@
             android:name=".TrainingService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <activity android:name=".TrainingDetailActivity" android:exported="false" />
+        <activity android:name=".WeeklySummaryActivity" android:exported="false" />
     </application>
 </manifest>

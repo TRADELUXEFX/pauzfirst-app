@@ -14,7 +14,7 @@ import com.pauzfirst.app.AppDialog.Kind
 import com.pauzfirst.app.Ui.addTo
 
 /** Presets: saved training settings. Tap one to preview every value, then Use it or Delete it. */
-class PresetsActivity : AppCompatActivity() {
+class PresetsActivity : BaseActivity() {
     private lateinit var holder: LinearLayout
     private var expanded: String? = null
 
@@ -24,7 +24,6 @@ class PresetsActivity : AppCompatActivity() {
             finish()
             return
         }
-        Ui.edgeToEdge(this)
         buildUi()
         render()
     }

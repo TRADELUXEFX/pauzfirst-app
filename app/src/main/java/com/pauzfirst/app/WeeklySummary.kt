@@ -68,10 +68,11 @@ object WeeklySummary {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             nm.createNotificationChannel(NotificationChannel(CHANNEL, "Weekly summary", NotificationManager.IMPORTANCE_DEFAULT))
         }
-        val open = PendingIntent.getActivity(
-            ctx, 12, Intent(ctx, HomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
+        // tapping the notification opens Your week; Home is underneath it so Back returns to Home
+        val open = android.app.TaskStackBuilder.create(ctx)
+            .addNextIntent(Intent(ctx, HomeActivity::class.java))
+            .addNextIntent(Intent(ctx, WeeklySummaryActivity::class.java))
+            .getPendingIntent(12, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val msg = message()
         val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(ctx, CHANNEL) else Notification.Builder(ctx)
         val n = b.setContentTitle("Your week in PAUZFIRST")

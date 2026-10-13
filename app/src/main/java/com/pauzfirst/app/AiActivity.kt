@@ -19,7 +19,7 @@ import com.pauzfirst.app.Ui.addTo
 import org.json.JSONArray
 
 /** Generates a list of questions with AI, lets you edit it, then saves it as a list. */
-class AiActivity : AppCompatActivity() {
+class AiActivity : BaseActivity() {
     private var count = 50
     private var useQ = true
     private var useA = true
@@ -43,7 +43,6 @@ class AiActivity : AppCompatActivity() {
             finish()
             return
         }
-        Ui.edgeToEdge(this)
         buildUi()
         Thread {
             val r = Api.fetchListsRaw()

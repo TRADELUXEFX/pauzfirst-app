@@ -39,7 +39,7 @@ import java.util.Locale
  * The one finish page every training mode ends on.
  * Brand, streak ring and stats card on top (that part is what gets shared), Done at the bottom with round Save and Share buttons.
  */
-class SummaryActivity : AppCompatActivity() {
+class SummaryActivity : BaseActivity() {
     companion object {
         /** The rating, 1 to 3: Hard, Okay, Great. */
         val RATING_LABELS = arrayOf("Hard", "Okay", "Great")
@@ -84,7 +84,6 @@ class SummaryActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Ui.edgeToEdge(this)
         // the finish page is light now, so the status bar icons are dark
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !Ui.dark
         val c = this
@@ -321,7 +320,7 @@ class SummaryActivity : AppCompatActivity() {
             val next = nextMilestone(s)
             ring.set(if (next > 0) s.toFloat() / next.toFloat() else 1f, if (next > 0) s.toString() + "/" + next.toString() else s.toString(), "day streak")
             if (Engine.lastStreakUp && isMilestone(s)) {
-                milestoneText.text = s.toString() + " day streak"
+                milestoneText.text = s.toString() + " day streak" + (Milestones.message(s)?.let { "\n" + it } ?: "")
                 milestone.visibility = View.VISIBLE
                 if (!milestoneShown) {
                     milestoneShown = true

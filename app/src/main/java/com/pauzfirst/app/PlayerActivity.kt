@@ -22,7 +22,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 
 /** Plays one saved training recording (audio or video) inside the app. */
-class PlayerActivity : AppCompatActivity() {
+class PlayerActivity : BaseActivity() {
     private var video: VideoView? = null
     private var chromeOn = true   // back button, control bar and system bars showing
     private val handler = Handler(Looper.getMainLooper())
@@ -34,7 +34,6 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Ui.edgeToEdge(this)
         // window geometry must not change when the bars hide, or the video would shift/resize
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             window.attributes = window.attributes.also { it.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS }

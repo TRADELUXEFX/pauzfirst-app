@@ -24,7 +24,7 @@ import com.pauzfirst.app.AppDialog.Kind
 import com.pauzfirst.app.Ui.addTo
 import org.json.JSONObject
 
-class HomeActivity : AppCompatActivity() {
+class HomeActivity : BaseActivity() {
     private lateinit var tileSessions: TextView
     private lateinit var tileQuestions: TextView
     private lateinit var tileStreak: TextView
@@ -55,7 +55,6 @@ class HomeActivity : AppCompatActivity() {
             goLogin()
             return
         }
-        Ui.edgeToEdge(this)
         buildUi()
         if (intent?.hasExtra(EXTRA_PAGE) == true) showPage(intent.getIntExtra(EXTRA_PAGE, 0))
         if (intent?.getBooleanExtra(EXTRA_AGAIN, false) != true) askAllPermissions()
@@ -303,6 +302,7 @@ class HomeActivity : AppCompatActivity() {
         gLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
         body.addView(goalCard, gLp)
 
+
         // recent presets: tap one to start training straight away; the Presets pill opens the full list
         val presetHead = LinearLayout(c)
         presetHead.orientation = LinearLayout.HORIZONTAL
@@ -437,6 +437,49 @@ class HomeActivity : AppCompatActivity() {
             if (open != null) confirmUpdatePreset(open) else chooseSave()
         }
         return box
+    }
+
+    /** Battery pop-up, shown once before the first training. Plain card, no animation. */
+    private fun askBatteryThenStart() {
+        val c = this
+        val d = android.app.Dialog(c)
+        d.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        // a bottom sheet, the same as the pickers: full width, rounded at the top, with a handle
+        val card = LinearLayout(c)
+        card.orientation = LinearLayout.VERTICAL
+        val top = Ui.dp(c, 26).toFloat()
+        card.background = android.graphics.drawable.GradientDrawable().apply {
+            setColor(Ui.SURFACE)
+            cornerRadii = floatArrayOf(top, top, top, top, 0f, 0f, 0f, 0f)
+        }
+        card.setPadding(Ui.dp(c, 22), Ui.dp(c, 10), Ui.dp(c, 22), Ui.dp(c, 28))
+        val handle = android.view.View(c)
+        handle.background = Ui.rounded(c, Ui.LINE, 3)
+        card.addView(handle, LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 5)).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            bottomMargin = Ui.dp(c, 14)
+        })
+        card.addView(Ui.text(c, "Keep your training running", 18f, Ui.TEXT, Ui.BOLD))
+        val msg = Ui.text(c, "Many phones stop apps in the background to save battery. To keep a training going with the screen locked or the app closed, tap Allow and choose \"Allow\" or \"Unrestricted\" for PAUZFIRST, then come back and press Start.", 14f, Ui.MUTED, Ui.REG)
+        msg.setLineSpacing(0f, 1.25f)
+        card.addView(msg, Ui.lp(c, 8))
+        val allow = Ui.pill(c, "Allow")
+        allow.setOnClickListener {
+            d.dismiss()
+            Battery.request(c)
+        }
+        card.addView(allow, Ui.lp(c, 20))
+        val notNow = Ui.pill(c, "Not now", Ui.SOFT, Ui.TEXT)
+        notNow.setOnClickListener {
+            d.dismiss()
+            startTraining()
+        }
+        card.addView(notNow, Ui.lp(c, 10))
+        d.setContentView(card)
+        d.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+        d.window?.setGravity(Gravity.BOTTOM)
+        d.window?.setLayout(resources.displayMetrics.widthPixels, android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
+        d.show()
     }
 
     /** Save on an open preset: update that preset with the current settings and question list. */
@@ -583,6 +626,7 @@ class HomeActivity : AppCompatActivity() {
         updateSyncNote()
         checkVoice()
         Reminder.schedule(this)
+        WeeklySummary.schedule(this)
         SurprisePause.schedule(this)
         Engine.onSaved = { loadRemote(); updateSyncNote() }
         loadRemote()
@@ -680,7 +724,9 @@ class HomeActivity : AppCompatActivity() {
                 if (remoteLists != null) {
                     lists = remoteLists
                     refreshSpinner()
-                    if (!sourceNames.contains(Settings.source)) {
+                    // reset only when the list is really gone: an empty fetch, or a name that differs only in capitals, keeps the choice
+                    val chosen = Settings.source
+                    if (remoteLists.isNotEmpty() && sourceNames.none { it.equals(chosen, ignoreCase = true) }) {
                         Settings.source = Settings.DEFAULT_SOURCE
                         showSource()
                     }
@@ -1070,6 +1116,12 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun startTraining() {
+        // asked once, before the first training (like Presence): without it some phones stop a training when the screen turns off
+        if (!Battery.exempt(this) && !Session.prefs.getBoolean("battery_asked", false)) {
+            Session.prefs.edit().putBoolean("battery_asked", true).apply()
+            askBatteryThenStart()
+            return
+        }
         Presets.loaded?.let {
             Presets.markUsed(it)
             Presets.loaded = null

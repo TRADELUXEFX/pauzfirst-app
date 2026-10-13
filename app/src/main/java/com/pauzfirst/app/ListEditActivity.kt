@@ -18,7 +18,7 @@ import com.pauzfirst.app.Ui.addTo
 import org.json.JSONArray
 
 /** Create a list, or edit one (pass the list name as the "name" extra). One question per line. */
-class ListEditActivity : AppCompatActivity() {
+class ListEditActivity : BaseActivity() {
     private var oldName: String? = null
     private var formCard: android.view.View? = null
     private var loadingRing: android.view.View? = null
@@ -35,7 +35,6 @@ class ListEditActivity : AppCompatActivity() {
             return
         }
         oldName = intent.getStringExtra("name")
-        Ui.edgeToEdge(this)
         buildUi()
         load()
     }
@@ -184,6 +183,7 @@ class ListEditActivity : AppCompatActivity() {
                     if (old != null && old != name) {
                         Settings.renamePin(old, name)
                         if (Settings.source == old) Settings.source = name
+                        Presets.renameSource(old, name)
                     }
                     setResult(RESULT_OK)
                     finish()

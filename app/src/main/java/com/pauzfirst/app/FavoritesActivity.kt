@@ -11,7 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.pauzfirst.app.Ui.addTo
 
 /** Your favorite questions as a list of their own, with a button to train on just those. */
-class FavoritesActivity : AppCompatActivity() {
+class FavoritesActivity : BaseActivity() {
     private lateinit var holder: LinearLayout
     private lateinit var trainBtn: TextView
 
@@ -21,7 +21,6 @@ class FavoritesActivity : AppCompatActivity() {
             finish()
             return
         }
-        Ui.edgeToEdge(this)
         val c = this
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL

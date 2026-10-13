@@ -7,7 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.pauzfirst.app.Ui.addTo
 
 /** Every question in the shared bank that Default mode draws from, with the ones you've already used marked. */
-class BankActivity : AppCompatActivity() {
+class BankActivity : BaseActivity() {
     private lateinit var holder: LinearLayout
     private val showAll = HashSet<String>()
 
@@ -17,7 +17,6 @@ class BankActivity : AppCompatActivity() {
             finish()
             return
         }
-        Ui.edgeToEdge(this)
         val c = this
         val page = LinearLayout(c)
         page.orientation = LinearLayout.VERTICAL

@@ -100,6 +100,23 @@ object Presets {
         Session.prefs.edit().putString(KEY, a.toString()).apply()
     }
 
+    /** A question list was renamed: every preset that used it now points at the new name. */
+    fun renameSource(old: String, new: String) {
+        val a = rawArray()
+        var changed = false
+        for (i in 0 until a.length()) {
+            val o = a.optJSONObject(i) ?: continue
+            if (o.optString("source") == old) {
+                o.put("source", new)
+                changed = true
+            }
+        }
+        if (changed) {
+            replaceRaw(a)
+            ExtrasSync.changed()
+        }
+    }
+
     fun exists(name: String): Boolean = load().any { it.name.equals(name.trim(), ignoreCase = true) }
 
     /** Saves what is on the main screen right now. Same name (any case) replaces the old one. */

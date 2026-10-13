@@ -200,7 +200,10 @@ class ReminderReceiver : BroadcastReceiver() {
                     }
                 }.start()
             }
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> Reminder.schedule(context)
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
+                Reminder.schedule(context)
+                WeeklySummary.schedule(context)
+            }
         }
     }
 }

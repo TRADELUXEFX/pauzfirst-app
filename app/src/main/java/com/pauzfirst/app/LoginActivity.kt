@@ -22,7 +22,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import com.pauzfirst.app.Ui.addTo
 
-class LoginActivity : AppCompatActivity() {
+class LoginActivity : BaseActivity() {
     private lateinit var email: EditText
     private lateinit var password: EditText
     private lateinit var msg: TextView
@@ -36,7 +36,6 @@ class LoginActivity : AppCompatActivity() {
             return
         }
         val c = this
-        Ui.edgeToEdge(this)
 
         val root = LinearLayout(c)
         root.orientation = LinearLayout.VERTICAL

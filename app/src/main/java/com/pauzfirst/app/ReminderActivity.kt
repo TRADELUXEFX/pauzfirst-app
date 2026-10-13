@@ -16,7 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.pauzfirst.app.Ui.addTo
 
 /** Daily reminder settings, opened from the bell icon on the main screen. */
-class ReminderActivity : AppCompatActivity() {
+class ReminderActivity : BaseActivity() {
     /** Red note under the Surprise pauses switch while the "Alarms & reminders" permission is missing. */
     private var permWarn: TextView? = null
 
@@ -31,7 +31,6 @@ class ReminderActivity : AppCompatActivity() {
             finish()
             return
         }
-        Ui.edgeToEdge(this)
         buildUi()
     }
 

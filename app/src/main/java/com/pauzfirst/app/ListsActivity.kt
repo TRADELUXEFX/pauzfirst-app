@@ -21,7 +21,7 @@ import androidx.core.view.WindowCompat
 import com.pauzfirst.app.Ui.addTo
 import org.json.JSONArray
 
-class ListsActivity : AppCompatActivity() {
+class ListsActivity : BaseActivity() {
     private lateinit var holder: LinearLayout
     private var raw: Map<String, JSONArray> = emptyMap()
     private var loadedOnce = false
@@ -51,7 +51,6 @@ class ListsActivity : AppCompatActivity() {
             finish()
             return
         }
-        Ui.edgeToEdge(this)
         buildUi()
     }
 
