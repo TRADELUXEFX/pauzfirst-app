@@ -135,6 +135,26 @@ object Presets {
         write(list)
     }
 
+    /** Copies a preset under the next free name ("Mirror intense 2") and puts the copy at the top. Returns the new name. */
+    fun duplicate(name: String): String? {
+        val list = load()
+        val src = list.firstOrNull { it.name == name } ?: return null
+        var i = 2
+        while (exists("$name $i")) i++
+        val copy = "$name $i"
+        val out = ArrayList<Preset>()
+        out.add(
+            Preset(
+                copy, src.mode, src.deep, src.total, src.pause, src.answer,
+                src.voice, src.tip, src.tipInterval, src.threeWhy, src.phaseGuide, src.source,
+                src.recordAudio, src.recordScreen
+            )
+        )
+        out.addAll(list)
+        write(out)
+        return copy
+    }
+
     fun delete(name: String) {
         write(load().filter { it.name != name })
     }

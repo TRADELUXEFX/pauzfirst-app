@@ -70,12 +70,10 @@ class PresetsActivity : BaseActivity() {
         col.addView(title)
         col.addView(Ui.text(c, Presets.summary(p), 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
         card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        card.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
-        card.setOnClickListener { openPreset(p) }
-        card.setOnLongClickListener {
-            confirmDelete(p)
-            true
-        }
+        card.addView(iconButton(Icons.COPY, "Duplicate preset") { duplicatePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
+        card.addView(iconButton(Icons.TRASH, "Delete preset") { confirmDelete(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
+        // only the name and summary open the preset; the icons beside them do their own action
+        col.setOnClickListener { openPreset(p) }
         return card
     }
 
@@ -101,6 +99,26 @@ class PresetsActivity : BaseActivity() {
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         )
         finish()
+    }
+
+    /** A small round icon button, drawn in the app's blue on the card. */
+    private fun iconButton(path: String, desc: String, onClick: () -> Unit): android.widget.FrameLayout {
+        val box = android.widget.FrameLayout(this)
+        val circle = android.graphics.drawable.GradientDrawable()
+        circle.shape = android.graphics.drawable.GradientDrawable.OVAL
+        circle.setColor(Ui.BLUE_SOFT)
+        box.background = circle
+        box.contentDescription = desc
+        box.addView(FsIconView(this, path, Ui.BLUE), android.widget.FrameLayout.LayoutParams(Ui.dp(this, 18), Ui.dp(this, 18), Gravity.CENTER))
+        box.setOnClickListener { onClick() }
+        return box
+    }
+
+    /** Duplicate icon: the preset is copied under the next free name, and the list shows it. */
+    private fun duplicatePreset(p: Preset) {
+        val copy = Presets.duplicate(p.name)
+        if (copy != null) Toast.makeText(this, "Duplicated as \"" + copy + "\"", Toast.LENGTH_SHORT).show()
+        render()
     }
 
     private fun confirmDelete(p: Preset) {

@@ -33,6 +33,7 @@ class ListsActivity : BaseActivity() {
         return true
     }
     private var expanded: String? = null
+    private var searchQuery = ""
 
     // multi-select (bulk delete)
     private var selectMode = false
@@ -146,6 +147,28 @@ class ListsActivity : BaseActivity() {
         page.addView(offlineNote, onLp)
         page.addView(selectRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
+        // search: finds lists by name; the matching lists replace the list cards while typing
+        val search = EditText(c)
+        search.hint = "Search lists"
+        search.setSingleLine(true)
+        search.textSize = 15f
+        search.setTextColor(Ui.TEXT)
+        search.setHintTextColor(android.graphics.Color.parseColor("#94A3B8"))
+        Ui.setFont(c, search, Ui.MED)
+        search.background = Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
+        search.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        search.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                searchQuery = s?.toString()?.trim() ?: ""
+                render()
+            }
+        })
+        val searchLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        searchLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), 0)
+        page.addView(search, searchLp)
+
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
         holder.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 24))
@@ -207,10 +230,28 @@ class ListsActivity : BaseActivity() {
             updateSelectBar()
             return
         }
+        if (searchQuery.isNotEmpty()) {
+            renderSearch()
+            updateSelectBar()
+            return
+        }
         for (name in Settings.order(raw.keys)) {
             holder.addTo(listCard(name), 12)
         }
         updateSelectBar()
+    }
+
+    /** The lists whose name contains the search text, shown as the usual list cards. */
+    private fun renderSearch() {
+        val c = this
+        val q = searchQuery.lowercase()
+        var found = 0
+        for (name in Settings.order(raw.keys)) {
+            if (!name.lowercase().contains(q)) continue
+            found++
+            holder.addTo(listCard(name), 12)
+        }
+        if (found == 0) holder.addView(Ui.note(c, "No lists match \"" + searchQuery + "\"."))
     }
 
     private fun setSelectMode(on: Boolean) {
