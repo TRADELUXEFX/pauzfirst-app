@@ -80,6 +80,8 @@ class PresetsActivity : BaseActivity() {
 
     /** Opens Training with the save dialog, so the current settings can be saved as a new preset. */
     private fun openNewPreset() {
+        // a new preset starts from the default Training, never from a preset that happens to be open
+        Presets.discard()
         startActivity(
             Intent(this, HomeActivity::class.java)
                 .putExtra(HomeActivity.EXTRA_PAGE, 1)
@@ -91,15 +93,7 @@ class PresetsActivity : BaseActivity() {
 
     /** Opens the preset on Training so its settings and question list can be checked; Start training begins it. */
     private fun openPreset(p: Preset) {
-        Presets.apply(p)
-        Presets.loaded = p.name
-        startActivity(
-            Intent(this, HomeActivity::class.java)
-                .putExtra(HomeActivity.EXTRA_PAGE, 1)
-                .putExtra(HomeActivity.EXTRA_LOAD_PRESET, true)
-                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        )
-        finish()
+        HomeActivity.openPreset(this, p)
     }
 
     /** A small round icon button, drawn in the app's blue on the card. */

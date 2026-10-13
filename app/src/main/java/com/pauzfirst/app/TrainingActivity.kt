@@ -625,15 +625,11 @@ class TrainingActivity : AppCompatActivity() {
 
     private var currentQ = ""
 
-    private fun tint(hex: String): Int {
-        if (!Ui.dark) return Color.parseColor(hex)
-        return Color.parseColor(when (hex) {
-            "#EAF4FF" -> "#0F1E33"
-            "#FFF7E6" -> "#2A2110"
-            "#E9F8EF" -> "#0F2418"
-            else -> "#151C2A"
-        })
-    }
+    // phase background colours: light, then dark
+    private fun tintBlue(): Int = Ui.c("#EAF4FF", "#0F1E33")
+    private fun tintAmber(): Int = Ui.c("#FFF7E6", "#2A2110")
+    private fun tintGreen(): Int = Ui.c("#E9F8EF", "#0F2418")
+    private fun tintGrey(): Int = Ui.c("#F1F5F9", "#151C2A")
 
     private var summaryLaunched = false
 
@@ -675,7 +671,7 @@ class TrainingActivity : AppCompatActivity() {
         }
 
         var accent = Ui.BLUE
-        var bgTint = "#EAF4FF"
+        var bgTint = tintBlue()
         var label = ""
         var timerText = ""
         var hintText = ""
@@ -684,44 +680,44 @@ class TrainingActivity : AppCompatActivity() {
 
         when (p) {
             Engine.Phase.LISTEN -> {
-                accent = Ui.BLUE; bgTint = "#EAF4FF"; label = "LISTEN"
+                accent = Ui.BLUE; bgTint = tintBlue(); label = "LISTEN"
                 timerText = "•••"; hintText = "Listen to the question"
             }
             Engine.Phase.PAUSE -> {
-                accent = Ui.AMBER; bgTint = "#FFF7E6"; label = "PAUSE"
+                accent = Ui.AMBER; bgTint = tintAmber(); label = "PAUSE"
                 timerText = Engine.seconds.toString(); hintText = "Take a moment to think before responding"
                 if (Engine.phaseTotal > 0) fraction = Engine.seconds.toFloat() / Engine.phaseTotal.toFloat()
             }
             Engine.Phase.RESPOND -> {
-                accent = Ui.GREEN; bgTint = "#E9F8EF"; label = "RESPOND"
+                accent = Ui.GREEN; bgTint = tintGreen(); label = "RESPOND"
                 timerText = if (Engine.infinite) "∞" else Engine.seconds.toString()
                 hintText = "Respond slowly and clearly"
                 if (Engine.phaseTotal > 0) fraction = Engine.seconds.toFloat() / Engine.phaseTotal.toFloat()
             }
             Engine.Phase.DEEP -> {
-                accent = Ui.AMBER; bgTint = "#FFF7E6"; label = "DEEP PAUSE"
+                accent = Ui.AMBER; bgTint = tintAmber(); label = "DEEP PAUSE"
                 timerText = StatsStore.formatTime(Engine.seconds.toLong())
                 hintText = "Take your time. Tap Next when you have answered."
             }
             Engine.Phase.WHY -> {
-                accent = Ui.BLUE; bgTint = "#EAF4FF"; label = "WHY?  " + Engine.whyCount + " / 3"
+                accent = Ui.BLUE; bgTint = tintBlue(); label = "WHY?  " + Engine.whyCount + " / 3"
                 timerText = StatsStore.formatTime(Engine.seconds.toLong())
                 hintText = "Why did you say that?"
             }
             Engine.Phase.NEXT -> {
-                accent = Ui.MUTED; bgTint = "#F1F5F9"; label = "NEXT"
+                accent = Ui.MUTED; bgTint = tintGrey(); label = "NEXT"
                 timerText = ""; hintText = ""; questionText = ""
                 fraction = 0f
             }
             Engine.Phase.DONE -> {
-                accent = Ui.GREEN; bgTint = "#E9F8EF"; label = "COMPLETE"
+                accent = Ui.GREEN; bgTint = tintGreen(); label = "COMPLETE"
                 timerText = "✓"; hintText = "Great job!"; questionText = "Training complete!"
             }
             Engine.Phase.IDLE -> {}
         }
 
-        root.setBackgroundColor(tint(bgTint))
-        if (!fsOn) window.statusBarColor = tint(bgTint)
+        root.setBackgroundColor(bgTint)
+        if (!fsOn) window.statusBarColor = bgTint
         phasePill.text = label
         phasePill.background = Ui.rounded(this, accent, 20)
         ring.ringColor = accent

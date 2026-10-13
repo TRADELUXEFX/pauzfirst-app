@@ -39,6 +39,8 @@ class SummaryActivity : BaseActivity() {
     companion object {
         /** The rating, 1 to 3: Hard, Okay, Great. */
         val RATING_LABELS = arrayOf("Hard", "Okay", "Great")
+        /** The drawn faces for Hard, Okay, Great, in the same order as RATING_LABELS. */
+        val RATING_FACES = arrayOf(Icons.FACE_SAD, Icons.FACE_OKAY, Icons.FACE_HAPPY)
         val RATING_CAPTIONS = arrayOf(
             "Hard sessions build the most. Well done for finishing.",
             "Steady work. Every session adds up.",
@@ -60,7 +62,7 @@ class SummaryActivity : BaseActivity() {
     private val rateTiles = ArrayList<LinearLayout>()
     private val rateLabels = ArrayList<TextView>()
     private val rateIcons = ArrayList<FsIconView>()
-    private val faceIcons = arrayOf(Icons.FACE_SAD, Icons.FACE_OKAY, Icons.FACE_HAPPY)
+    private val faceIcons = RATING_FACES
     private var rating = 0
 
     private fun paintRating() {

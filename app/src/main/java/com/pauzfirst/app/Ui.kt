@@ -57,6 +57,26 @@ object Ui {
         }
     }
 
+    /**
+     * Lets a view's shadow draw fully: switches clipping off on every parent above it, up to and including
+     * the ScrollView it sits in (or, without one, up to the screen content). Rows that hold two cards side by
+     * side and rebuilt lists are covered too, because Ui.card calls this each time a card is attached.
+     */
+    fun unclipParents(v: View) {
+        val chain = ArrayList<ViewGroup>()
+        var p = v.parent
+        while (p is ViewGroup) {
+            if (p.id == android.R.id.content || p.javaClass.simpleName.contains("DecorView")) break
+            chain.add(p)
+            if (p is android.widget.ScrollView || p is androidx.core.widget.NestedScrollView) break
+            p = p.parent
+        }
+        if (chain.isEmpty()) return
+        for (g in chain) {
+            g.clipToPadding = false
+            g.clipChildren = false
+        }
+    }
 
     /** Draw behind the status + navigation bars so the app's blue flows up under the clock/battery. */
     fun edgeToEdge(a: Activity) {
@@ -163,6 +183,11 @@ object Ui {
         l.background = rounded(c, fill, 22)
         l.elevation = dp(c, 2).toFloat()
         l.setPadding(dp(c, 18), dp(c, 16), dp(c, 18), dp(c, 16))
+        // shadows are cut off by parents that clip; open them up once the card is on screen
+        l.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) { unclipParents(v) }
+            override fun onViewDetachedFromWindow(v: View) {}
+        })
         return l
     }
 
@@ -322,7 +347,10 @@ object Ui {
             back.setOnClickListener { onBack() }
             val arrow = FsIconView(c, "M15 18l-6-6 6-6", WHITE)
             back.addView(arrow, FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
-            h.addView(back, LinearLayout.LayoutParams(size, size))
+            // the back button sits at the left edge of a slot as wide as the right one, so the title stays centered
+            val backSlot = FrameLayout(c)
+            backSlot.addView(back, FrameLayout.LayoutParams(size, size, Gravity.START or Gravity.CENTER_VERTICAL))
+            h.addView(backSlot, LinearLayout.LayoutParams(side, size))
         } else if (leading != null) {
             h.addView(slotBox(c, leading, Gravity.START or Gravity.CENTER_VERTICAL), LinearLayout.LayoutParams(side, size))
         } else {

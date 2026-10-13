@@ -108,7 +108,7 @@ class TrainingDetailActivity : BaseActivity() {
             val feltLabel = Ui.text(c, "HOW IT FELT", 10f, Ui.MUTED, Ui.MED)
             feltLabel.gravity = Gravity.CENTER
             feltCard.addView(feltLabel, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-            val faces = arrayOf(Icons.FACE_SAD, Icons.FACE_OKAY, Icons.FACE_HAPPY)
+            val faces = SummaryActivity.RATING_FACES
             val opts = LinearLayout(c)
             opts.orientation = LinearLayout.HORIZONTAL
             for ((n, label) in SummaryActivity.RATING_LABELS.withIndex()) {

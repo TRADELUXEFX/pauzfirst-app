@@ -379,15 +379,7 @@ class ListsActivity : BaseActivity() {
 
     /** Opens the preset on Training so its settings and question list can be checked; Start training begins it. */
     private fun openPreset(p: Preset) {
-        Presets.apply(p)
-        Presets.loaded = p.name
-        startActivity(
-            Intent(this, HomeActivity::class.java)
-                .putExtra(HomeActivity.EXTRA_PAGE, 1)
-                .putExtra(HomeActivity.EXTRA_LOAD_PRESET, true)
-                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        )
-        finish()
+        HomeActivity.openPreset(this, p)
     }
 
     /** Duplicate icon: the preset is copied under the next free name, and the list shows it. */

@@ -63,6 +63,8 @@ class HomeActivity : BaseActivity() {
         }
         // a preset left open earlier (no training started from it) is put away unless this launch brings one
         if (!arrivesWithPreset(intent)) Presets.discard()
+        // Training starts on the default questions unless a list was just chosen (not on a rotate / restore)
+        if (savedInstanceState == null && !keepsSource(intent)) Settings.source = Settings.DEFAULT_SOURCE
         presetOpened = intent?.getBooleanExtra(EXTRA_LOAD_PRESET, false) == true
         buildUi()
         if (intent?.hasExtra(EXTRA_PAGE) == true) showPage(intent.getIntExtra(EXTRA_PAGE, 0))
@@ -78,6 +80,10 @@ class HomeActivity : BaseActivity() {
             i.getBooleanExtra(EXTRA_NEW_PRESET, false) ||
             i.getBooleanExtra(EXTRA_KEEP, false))
 
+    /** True when the question list must stay as it is: a list or preset was just chosen, or the same training is repeated. */
+    private fun keepsSource(i: Intent?): Boolean =
+        arrivesWithPreset(i) || i?.getBooleanExtra(EXTRA_AGAIN, false) == true
+
     /** "Train again" on the finish page comes back here and starts a fresh session with the same settings. */
     private fun handleTrainAgain() {
         if (intent?.getBooleanExtra(EXTRA_AGAIN, false) == true) {
@@ -90,6 +96,10 @@ class HomeActivity : BaseActivity() {
         super.onNewIntent(i)
         if (i != null) setIntent(i)
         if (i != null && !arrivesWithPreset(i)) Presets.discard()
+        if (i != null && !keepsSource(i)) {
+            Settings.source = Settings.DEFAULT_SOURCE
+            if (::sourceText.isInitialized) showSource()
+        }
         if (i != null && i.getBooleanExtra(EXTRA_LOAD_PRESET, false)) {
             // a preset was just applied from another screen: rebuild the Training page and show it
             presetOpened = true
@@ -137,6 +147,8 @@ class HomeActivity : BaseActivity() {
             Presets.discard()
             buildTrainBody()
         }
+        // coming to Training from Home: the default questions, not the list used last time
+        if (p == 1 && pageIdx != 1) Settings.source = Settings.DEFAULT_SOURCE
         showPage(p)
     }
 
@@ -164,6 +176,19 @@ class HomeActivity : BaseActivity() {
         const val EXTRA_NEW_PRESET = "new_preset"
         /** Open Training exactly as it is now (a new preset was just started, or a question list was just chosen). */
         const val EXTRA_KEEP = "keep_settings"
+
+        /** Applies a saved preset and opens Training on it from another screen (Presets, My questions). Closes that screen. */
+        fun openPreset(from: android.app.Activity, p: Preset) {
+            Presets.apply(p)
+            Presets.loaded = p.name
+            from.startActivity(
+                Intent(from, HomeActivity::class.java)
+                    .putExtra(EXTRA_PAGE, 1)
+                    .putExtra(EXTRA_LOAD_PRESET, true)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            )
+            from.finish()
+        }
     }
 
     private fun granted(perm: String): Boolean =
@@ -673,14 +698,18 @@ class HomeActivity : BaseActivity() {
             subtitle = "Tap a preset to load it"
         ) { index ->
             if (index >= 0 && index < all.size) {
-                val p = all[index]
-                Presets.apply(p)
-                Presets.loaded = p.name
-                presetOpened = true
-                buildTrainBody()
-                showPage(1)
+                openPresetHere(all[index])
             }
         }
+    }
+
+    /** A saved preset is applied and shown on Training (settings and question list), ready for Start training. */
+    private fun openPresetHere(p: Preset) {
+        Presets.apply(p)
+        Presets.loaded = p.name
+        presetOpened = true
+        buildTrainBody()
+        showPage(1)
     }
 
     private fun openSourcePicker() {
@@ -1237,11 +1266,7 @@ class HomeActivity : BaseActivity() {
             card.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
             card.setOnClickListener {
                 // open the preset on Training: check its settings and question list, then Start training
-                Presets.apply(p)
-                Presets.loaded = p.name
-                presetOpened = true
-                buildTrainBody()
-                showPage(1)
+                openPresetHere(p)
             }
             presetBox.addView(card, Ui.lp(c, 10))
         }
