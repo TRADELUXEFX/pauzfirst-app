@@ -33,7 +33,8 @@ class HomeActivity : BaseActivity() {
     private lateinit var presetBox: LinearLayout
     private lateinit var trainTitle: TextView
     // the Training page starts with only the question list and the four modes; the rest shows once a mode is chosen
-    private var modeChosen = true   // the Training page always shows the same layout, whatever screen it was opened from
+    private var modeChosen = false  // Training shows the defaults until a mode is picked, or a saved preset is opened
+    private var presetOpened = false // set just before a saved preset is opened on Training
     private var lowerBox: LinearLayout? = null
     private var startBar: LinearLayout? = null
     private var refreshTrain: (() -> Unit)? = null
@@ -81,6 +82,7 @@ class HomeActivity : BaseActivity() {
         if (i != null) setIntent(i)
         if (i != null && i.getBooleanExtra(EXTRA_LOAD_PRESET, false)) {
             // a preset was just applied from another screen: rebuild the Training page and show it
+            presetOpened = true
             buildTrainBody()
             showPage(1)
             return
@@ -122,7 +124,8 @@ class HomeActivity : BaseActivity() {
     private fun showPage(i: Int) {
         pageIdx = i
         if (i == 1) {
-            modeChosen = true
+            modeChosen = presetOpened   // a saved preset shows everything; the defaults wait for a mode
+            presetOpened = false
             refreshTrain?.invoke()
             // the question list chosen on the Questions screen shows in the card at once
             if (::sourceText.isInitialized) showSource()
@@ -654,6 +657,7 @@ class HomeActivity : BaseActivity() {
                 val p = all[index]
                 Presets.apply(p)
                 Presets.loaded = p.name
+                presetOpened = true
                 buildTrainBody()
                 showPage(1)
             }
@@ -1224,6 +1228,7 @@ class HomeActivity : BaseActivity() {
                 // open the preset on Training: check its settings and question list, then Start training
                 Presets.apply(p)
                 Presets.loaded = p.name
+                presetOpened = true
                 buildTrainBody()
                 showPage(1)
             }
