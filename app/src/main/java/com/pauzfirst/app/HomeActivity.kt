@@ -36,6 +36,7 @@ class HomeActivity : BaseActivity() {
     private var modeChosen = false
     private var lowerBox: LinearLayout? = null
     private var startBar: LinearLayout? = null
+    private var startTimeSlot: LinearLayout? = null   // the Training time card sits here, inside the start bar
     private var refreshTrain: (() -> Unit)? = null
     private var timeValue: TextView? = null
     private lateinit var trainBody: LinearLayout
@@ -396,6 +397,11 @@ class HomeActivity : BaseActivity() {
         Ui.bottomBarBg(c, bar)
         Nav.lift(c, bar)
         bar.setPadding(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), Ui.dp(c, 12))
+        // the Training time card goes above the button, inside the same white bar
+        val timeSlot = LinearLayout(c)
+        timeSlot.orientation = LinearLayout.VERTICAL
+        startTimeSlot = timeSlot
+        bar.addView(timeSlot, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         val start = Ui.pill(c, "Start training")
         start.textSize = 17f
         bar.addTo(start)
@@ -407,7 +413,10 @@ class HomeActivity : BaseActivity() {
         trainPage.addView(trainHeader)
         trainPage.addView(trainScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         startBar = bar
-        trainPage.addView(bar, Nav.gap(c))
+        // same side margins as the settings cards (16dp), so the start bar lines up with them on both sides
+        val barLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        barLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 8))
+        trainPage.addView(bar, barLp)
 
         // the two pages share one area; the nav bar sits under them on both
         val content = android.widget.FrameLayout(c)
@@ -1177,7 +1186,10 @@ class HomeActivity : BaseActivity() {
         value.gravity = Gravity.CENTER
         timeValue = value
         timeCard.addView(value)
-        lower.addView(timeCard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(Ui.dp(c, 16), Ui.dp(c, 16), Ui.dp(c, 16), 0) })
+        startTimeSlot?.let { slot ->
+            slot.removeAllViews()
+            slot.addView(timeCard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 0, 0, Ui.dp(c, 10)) })
+        }
         refresh()
 
     }
