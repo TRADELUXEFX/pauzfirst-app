@@ -829,16 +829,24 @@ class HomeActivity : BaseActivity() {
             // keep a copy of the history on the phone so the History tab also works offline
             if (!offlineNow) try { HistoryStore.warmCache() } catch (e: Exception) { }
             if (remoteUsed != null) UsedStore.syncFromRemote(remoteUsed)
-            val merged: JSONObject? =
-                if (remoteStats != null) StatsStore.mergeRemoteIntoLocal(remoteStats) else null
-            // training done offline: the phone is ahead of the server, so send it up now
-            if (merged != null && remoteStats != null &&
-                (merged.optLong("lifetimeSessions", 0L) > remoteStats.optLong("lifetimeSessions", 0L) ||
-                    merged.optLong("lifetimeQuestions", 0L) > remoteStats.optLong("lifetimeQuestions", 0L) ||
-                    merged.optLong("lifetimeTime", 0L) > remoteStats.optLong("lifetimeTime", 0L))
-            ) {
-                try { Api.saveStats(merged) } catch (e: Exception) { }
+            var mergedVar: JSONObject? = null
+            if (remoteStats != null) {
+                val (m, sent) = StatsStore.syncWithRemote(remoteStats)
+                mergedVar = m
+                // training done offline: the phone is ahead of the account, so send it up now
+                val ahead = StatsStore.hasDelta() ||
+                    m.optLong("lifetimeSessions", 0L) > remoteStats.optLong("lifetimeSessions", 0L) ||
+                    m.optLong("lifetimeQuestions", 0L) > remoteStats.optLong("lifetimeQuestions", 0L) ||
+                    m.optLong("lifetimeTime", 0L) > remoteStats.optLong("lifetimeTime", 0L)
+                if (ahead) {
+                    try {
+                        if (Api.saveStats(m)) synchronized(StatsStore.lock) { StatsStore.clearDelta(sent) }
+                    } catch (e: Exception) { }
+                } else {
+                    synchronized(StatsStore.lock) { StatsStore.clearDelta(sent) }
+                }
             }
+            val merged: JSONObject? = mergedVar
             runOnUiThread {
                 stopStatsPulse()
                 if (isFinishing || isDestroyed) return@runOnUiThread
@@ -1075,8 +1083,8 @@ class HomeActivity : BaseActivity() {
         val modeKeys = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")
         val modeNames = listOf("Eyes Closed", "Eyes Open", "Mirror", "Animated Eyes")
         val modeDescs = listOf(
-            "Close your eyes, listen to the question, pause, and answer aloud.",
-            "Keep your eyes open, read the question on screen, and answer aloud.",
+            "Close your eyes and answer",
+            "Read the question on screen and answer",
             "Practice in front of the camera and watch your facial expressions and body language.",
             "Practice with a face that blinks and keeps eye contact with you."
         )

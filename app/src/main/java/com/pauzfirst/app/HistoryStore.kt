@@ -153,6 +153,32 @@ object HistoryStore {
         savePending(out)
     }
 
+    /**
+     * Two copies of the same day's card (Surprise Pauses, Real Pause). Surprise Pauses: the one with the most in it.
+     * Real Pause: the times of every pause are put together, so a pause logged offline is not lost when the account's
+     * card has a bigger count (for example when this phone had no saved copy of today).
+     */
+    private fun combineDaily(a: JSONObject, b: JSONObject): JSONObject {
+        val bigger = if (b.optInt("questions", 0) > a.optInt("questions", 0)) b else a
+        if (a.optString("mode", "") != REAL) return bigger
+        val times = java.util.TreeSet<Long>()
+        for (o in listOf(a, b)) {
+            val at = o.optJSONArray("at") ?: continue
+            for (i in 0 until at.length()) { val t = at.optLong(i); if (t > 0L) times.add(t) }
+        }
+        if (times.isEmpty()) return bigger
+        val out = JSONObject(bigger.toString())
+        val arr = JSONArray()
+        for (t in times) arr.put(t)
+        out.put("at", arr)
+        out.put("questions", Math.max(times.size, Math.max(a.optInt("questions", 0), b.optInt("questions", 0))))
+        // the card sits at the time of the latest pause
+        val da = a.optString("date", "")
+        val db = b.optString("date", "")
+        out.put("date", if (da >= db) da else db)
+        return out
+    }
+
     private fun merge(remote: JSONArray, pend: JSONArray): JSONArray {
         val items = ArrayList<JSONObject>()
         val seen = HashSet<String>()
@@ -167,8 +193,8 @@ object HistoryStore {
                     if (at < 0) {
                         dailyAt[dk] = items.size
                         items.add(o)
-                    } else if (o.optInt("questions", 0) > items.get(at).optInt("questions", 0)) {
-                        items.set(at, o)
+                    } else {
+                        items[at] = combineDaily(items[at], o)
                     }
                     continue
                 }

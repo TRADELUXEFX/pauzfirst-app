@@ -416,7 +416,7 @@ class ListsActivity : BaseActivity() {
         Thread {
             val r = Api.fetchListsRaw()
             val ru = Api.fetchUsed()
-            if (ru != null) UsedStore.saveLocal(ru)
+            if (ru != null) UsedStore.syncFromRemote(ru)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (r == null) {

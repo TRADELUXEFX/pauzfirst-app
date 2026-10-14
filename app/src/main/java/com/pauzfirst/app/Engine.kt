@@ -355,8 +355,18 @@ object Engine {
         beginQuestion()
     }
 
+    /**
+     * Ends the training early (End button, notification Stop, app closed). An unfinished training does not count:
+     * nothing is added to History, Stats, streak or used questions. Only a training that reaches the end is saved (see finish()).
+     */
     fun stop() {
-        stopInternal(true)
+        if (phase != Phase.DONE && phase != Phase.IDLE) {
+            answered = 0
+            lastQuestions = 0
+            lastSeconds = 0
+            lastDate = ""
+        }
+        stopInternal(false)
         notifyUi()
     }
 
@@ -656,7 +666,7 @@ object Engine {
                 val remote = if (canSync) Api.fetchStats() else null
                 // read, add the session and write back in one locked step, so a background sync can't overwrite it
                 val updated = synchronized(StatsStore.lock) {
-                    val base = StatsStore.merge(remote, StatsStore.local())
+                    val base = StatsStore.mergeWithDelta(remote, StatsStore.local())
                     // a Surprise Pause counts as ONE training per day (and never as a mode); its questions and time still add up
                     val countIt = !surprise || Session.prefs.getString("sp_counted_day", "") != StatsStore.today()
                     val u = StatsStore.addSession(base, q, secs, if (surprise) null else m, countIt, touchStreak = !surprise)
@@ -664,11 +674,17 @@ object Engine {
                     lastStreakUp = u.optInt("dailyStreak", 0) > base.optInt("dailyStreak", 0)
                     lastStreak = u.optInt("dailyStreak", 0)
                     lastBest = u.optInt("lifetimeStreak", 0)
+                    StatsStore.addDelta(q, secs, if (surprise) null else m, countIt)
                     StatsStore.saveLocal(u)
                     u
                 }
+                val sentDelta = synchronized(StatsStore.lock) { StatsStore.delta() }
                 h.post { notifyUi() }
-                if (canSync) Api.saveStats(updated)
+                // Only send when the server's stats were really read. If that read failed (weak connection), sending the
+                // phone's copy could overwrite newer numbers on the account; the home screen sends it next time instead.
+                if (canSync && remote != null && Api.saveStats(updated)) {
+                    synchronized(StatsStore.lock) { StatsStore.clearDelta(sentDelta) }
+                }
             } catch (e: Exception) {
                 // progress stays in the local copy
             }

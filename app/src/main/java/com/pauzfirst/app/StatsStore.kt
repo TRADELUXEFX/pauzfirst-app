@@ -34,9 +34,82 @@ object StatsStore {
     /** Everything that reads the phone's stats and writes them back takes this lock, so two threads can't overwrite each other. */
     val lock = Any()
 
-    /** Merges the server's stats into the phone's copy in one step and returns the result. */
+    // ---- what this phone added that the account has not received yet ----
+    // Two phones that train offline both add on top of the same old total. Taking the larger of the two totals would lose
+    // one phone's trainings, so the phone remembers what it added itself and puts that on top of the account's total.
+    private fun deltaKey() = "stats_delta_" + Session.userId
+    private fun trackedKey() = "stats_delta_on_" + Session.userId
+
+    fun delta(): JSONObject = try {
+        JSONObject(Session.prefs.getString(deltaKey(), "{}") ?: "{}")
+    } catch (e: Exception) {
+        JSONObject()
+    }
+
+    fun hasDelta(): Boolean {
+        val d = delta()
+        return d.optLong("lifetimeSessions", 0L) > 0 || d.optLong("lifetimeQuestions", 0L) > 0 || d.optLong("lifetimeTime", 0L) > 0
+    }
+
+    /** Call inside [lock] when a training is added: remembers it as "not on the account yet". */
+    fun addDelta(questions: Int, seconds: Int, mode: String?, countSession: Boolean) {
+        val d = delta()
+        if (countSession) d.put("lifetimeSessions", d.optLong("lifetimeSessions", 0L) + 1)
+        d.put("lifetimeQuestions", d.optLong("lifetimeQuestions", 0L) + questions)
+        d.put("lifetimeTime", d.optLong("lifetimeTime", 0L) + seconds)
+        if (mode != null && countSession) {
+            val ms = d.optJSONObject("modeSessions") ?: JSONObject()
+            ms.put(mode, ms.optInt(mode, 0) + 1)
+            d.put("modeSessions", ms)
+        }
+        Session.prefs.edit().putString(deltaKey(), d.toString()).apply()
+    }
+
+    /** Call inside [lock] after the account has received these numbers: takes them off the "not sent yet" pile. */
+    fun clearDelta(sent: JSONObject) {
+        val d = delta()
+        for (k in listOf("lifetimeSessions", "lifetimeQuestions", "lifetimeTime")) {
+            d.put(k, Math.max(0L, d.optLong(k, 0L) - sent.optLong(k, 0L)))
+        }
+        val dm = d.optJSONObject("modeSessions")
+        val sm = sent.optJSONObject("modeSessions")
+        if (dm != null && sm != null) {
+            for (m in sm.keys()) dm.put(m, Math.max(0, dm.optInt(m, 0) - sm.optInt(m, 0)))
+        }
+        Session.prefs.edit().putString(deltaKey(), d.toString()).putBoolean(trackedKey(), true).apply()
+    }
+
+    /**
+     * The account's stats with this phone's own additions on top. Before the phone has ever synced with this
+     * tracking (stats from an older version of the app) the larger-total merge is used once, so nothing is lost.
+     */
+    fun mergeWithDelta(remote: JSONObject?, localCopy: JSONObject): JSONObject {
+        val m = merge(remote, localCopy)
+        if (remote == null || !Session.prefs.getBoolean(trackedKey(), false)) return m
+        val d = delta()
+        for (k in listOf("lifetimeSessions", "lifetimeQuestions", "lifetimeTime")) {
+            m.put(k, remote.optLong(k, 0L) + d.optLong(k, 0L))
+        }
+        val ms = JSONObject()
+        val rm = remote.optJSONObject("modeSessions")
+        val dm = d.optJSONObject("modeSessions")
+        for (mode in listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes")) {
+            ms.put(mode, (rm?.optInt(mode, 0) ?: 0) + (dm?.optInt(mode, 0) ?: 0))
+        }
+        m.put("modeSessions", ms)
+        return m
+    }
+
+    /** Merges the server's stats into the phone's copy in one step. Returns the result and what this phone still has to send. */
+    fun syncWithRemote(remote: JSONObject): Pair<JSONObject, JSONObject> = synchronized(lock) {
+        val m = mergeWithDelta(remote, local())
+        saveLocal(m)
+        Pair(m, delta())
+    }
+
+    /** Kept for callers that only need the merged result. */
     fun mergeRemoteIntoLocal(remote: JSONObject?): JSONObject = synchronized(lock) {
-        val m = merge(remote, local())
+        val m = mergeWithDelta(remote, local())
         saveLocal(m)
         m
     }

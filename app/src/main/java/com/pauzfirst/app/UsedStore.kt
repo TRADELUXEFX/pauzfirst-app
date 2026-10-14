@@ -25,13 +25,79 @@ object UsedStore {
         Session.prefs.edit().putBoolean(dirtyKey(), on).apply()
     }
 
+    // What this phone added or cleared that the account has not received yet, per bucket: {"default": {"add": [...], "del": [...]}}.
+    // When the phone is back online these are applied on top of the account's copy, so changes from two phones both survive.
+    private fun opsKey(): String = "used_ops_" + Session.userId
+
+    private fun ops(): JSONObject = try {
+        JSONObject(Session.prefs.getString(opsKey(), "{}") ?: "{}")
+    } catch (e: Exception) {
+        JSONObject()
+    }
+
+    private fun opList(o: JSONObject, bucket: String, which: String): LinkedHashSet<String> {
+        val out = LinkedHashSet<String>()
+        val a = o.optJSONObject(bucket)?.optJSONArray(which) ?: return out
+        for (i in 0 until a.length()) a.optString(i, "").let { if (it.isNotEmpty()) out.add(it) }
+        return out
+    }
+
+    private fun putOps(o: JSONObject, bucket: String, add: Set<String>, del: Set<String>) {
+        val b = JSONObject()
+        b.put("add", JSONArray(add.toList()))
+        b.put("del", JSONArray(del.toList()))
+        o.put(bucket, b)
+    }
+
+    @Synchronized
+    private fun recordOps(bucket: String, added: Collection<String>, removed: Collection<String>) {
+        val o = ops()
+        val add = opList(o, bucket, "add")
+        val del = opList(o, bucket, "del")
+        add.addAll(added)
+        del.removeAll(added.toSet())
+        del.addAll(removed)
+        add.removeAll(removed.toSet())
+        putOps(o, bucket, add, del)
+        Session.prefs.edit().putString(opsKey(), o.toString()).apply()
+        setDirty(true)
+    }
+
+    /** The account's copy with this phone's waiting changes on top. */
+    private fun withOps(remote: JSONObject): JSONObject {
+        val o = ops()
+        val out = JSONObject(remote.toString())
+        for (bucket in listOf("default", "saved")) {
+            val set = LinkedHashSet<String>(bucketList(remote, bucket))
+            set.addAll(opList(o, bucket, "add"))
+            set.removeAll(opList(o, bucket, "del"))
+            out.put(bucket, JSONArray(set.toList()))
+        }
+        return out
+    }
+
     /**
-     * Called with the server copy when the phone is online. If progress was made offline,
-     * the phone's copy wins and is uploaded; otherwise the server copy is stored.
+     * Called with the server copy when the phone is online. Changes made on the phone that were not sent yet
+     * (questions practiced or cleared offline) are applied on top of the server copy and sent.
      */
+    @Synchronized
     fun syncFromRemote(remote: JSONObject) {
         if (Session.prefs.getBoolean(dirtyKey(), false)) {
-            if (Api.saveUsed(local())) setDirty(false)
+            var merged = withOps(remote)
+            if (ops().length() == 0) {
+                // waiting changes from an older version of the app (no change list): keep both sides
+                merged = JSONObject(remote.toString())
+                for (bucket in listOf("default", "saved")) {
+                    val set = LinkedHashSet<String>(bucketList(remote, bucket))
+                    set.addAll(bucketList(local(), bucket))
+                    merged.put(bucket, JSONArray(set.toList()))
+                }
+            }
+            saveLocal(merged)
+            if (Api.saveUsed(merged)) {
+                Session.prefs.edit().remove(opsKey()).apply()
+                setDirty(false)
+            }
         } else {
             saveLocal(remote)
         }
@@ -57,7 +123,7 @@ object UsedStore {
     /** Forgets progress for these questions, so they count as unused again. */
     fun clear(items: Collection<String>, bucket: String) {
         val remote = Api.fetchUsed()
-        val base = remote ?: local()
+        val base = remote?.let { withOps(it) } ?: local()
         val set = LinkedHashSet<String>(bucketList(base, bucket))
         set.removeAll(items.toSet())
         val arr = JSONArray()
@@ -65,10 +131,11 @@ object UsedStore {
         val out = JSONObject(base.toString())
         out.put(bucket, arr)
         saveLocal(out)
-        if (remote != null) {
-            if (!Api.saveUsed(out)) setDirty(true)
+        if (remote != null && Api.saveUsed(out)) {
+            Session.prefs.edit().remove(opsKey()).apply()
+            setDirty(false)
         } else {
-            setDirty(true)
+            recordOps(bucket, emptyList(), items)
         }
     }
 
@@ -85,19 +152,24 @@ object UsedStore {
     fun markUsed(done: List<String>, bucket: String, pool: List<String>) {
         if (done.isEmpty()) return
         val remote = Api.fetchUsed()
-        val base = remote ?: local()
+        val base = remote?.let { withOps(it) } ?: local()
         val set = LinkedHashSet<String>(bucketList(base, bucket))
         set.addAll(done)
-        if (pool.isNotEmpty() && set.containsAll(pool)) set.removeAll(pool.toSet())
+        var reset = emptyList<String>()
+        if (pool.isNotEmpty() && set.containsAll(pool)) {
+            reset = pool.toList()
+            set.removeAll(pool.toSet())
+        }
         val arr = JSONArray()
         for (s in set) arr.put(s)
         val out = JSONObject(base.toString())
         out.put(bucket, arr)
         saveLocal(out)
-        if (remote != null) {
-            if (!Api.saveUsed(out)) setDirty(true)
+        if (remote != null && Api.saveUsed(out)) {
+            Session.prefs.edit().remove(opsKey()).apply()
+            setDirty(false)
         } else {
-            setDirty(true)
+            recordOps(bucket, done.filter { !reset.contains(it) }, reset)
         }
     }
 }

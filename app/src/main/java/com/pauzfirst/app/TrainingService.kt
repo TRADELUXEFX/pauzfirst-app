@@ -81,7 +81,7 @@ class TrainingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            // "Stop" in the notification: end the session (saves what was answered) and close this service
+            // "Stop" in the notification: end the session early (an unfinished training is not saved) and close this service
             Engine.stop()
             stopSelf()
         }
