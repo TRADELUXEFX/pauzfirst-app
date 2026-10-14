@@ -67,11 +67,25 @@ class HomeActivity : BaseActivity() {
         if (savedInstanceState == null && !keepsSource(intent)) Settings.source = Settings.DEFAULT_SOURCE
         presetOpened = intent?.getBooleanExtra(EXTRA_LOAD_PRESET, false) == true
         buildUi()
-        if (intent?.hasExtra(EXTRA_PAGE) == true) showPage(intent.getIntExtra(EXTRA_PAGE, 0))
-        // opened from the Presets screen's + button: go straight to the save dialog
-        if (intent?.getBooleanExtra(EXTRA_NEW_PRESET, false) == true) showSaveDialog()
+        if (savedInstanceState != null) {
+            // recreated (light/dark switch, rotate): stay on the page the person was on, ignore the launch intent
+            val saved = savedInstanceState.getInt("page_idx", 0)
+            val chosen = savedInstanceState.getBoolean("mode_chosen", false)
+            showPage(saved)
+            if (saved == 1 && chosen) { modeChosen = true; refreshTrain?.invoke() }
+        } else {
+            if (intent?.hasExtra(EXTRA_PAGE) == true) showPage(intent.getIntExtra(EXTRA_PAGE, 0))
+            // opened from the Presets screen's + button: go straight to the save dialog
+            if (intent?.getBooleanExtra(EXTRA_NEW_PRESET, false) == true) showSaveDialog()
+        }
         if (intent?.getBooleanExtra(EXTRA_AGAIN, false) != true) askAllPermissions()
         handleTrainAgain()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("page_idx", pageIdx)
+        outState.putBoolean("mode_chosen", modeChosen)
     }
 
     /** True when an intent hands over a preset, a new-preset setup, or a chosen question list, so Training must keep what it shows. */
