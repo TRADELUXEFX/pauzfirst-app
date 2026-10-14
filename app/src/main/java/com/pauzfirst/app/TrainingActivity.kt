@@ -268,7 +268,7 @@ class TrainingActivity : AppCompatActivity() {
             fs.setOnClickListener {
                 peek = !peek
                 uiH.removeCallbacks(peekOff)
-                if (peek) uiH.postDelayed(peekOff, 6000L)
+                if (peek) uiH.postDelayed(peekOff, 4000L)
                 render()
             }
         }
@@ -339,6 +339,9 @@ class TrainingActivity : AppCompatActivity() {
         fsGuide = PhaseGuideView(c)
         fsGuide.setTimes("", Settings.pauseTime.toString() + "s", Settings.answerTime.toString() + "s")
         fsGuide.visibility = View.GONE
+        // Mirror: Listen / Pause / Respond sit right under the question card.
+        // Animated eyes: the eyes are in the middle, so they sit at the bottom, above the buttons (added below).
+        if (!Settings.animatedEyes) fsOverlay.addTo(fsGuide, 10)
 
         // Deep Pause: count-up + Why pill
         fsDeep = LinearLayout(c)
@@ -361,8 +364,9 @@ class TrainingActivity : AppCompatActivity() {
         fsDeep.visibility = View.GONE
 
         fsOverlay.addView(View(c), LinearLayout.LayoutParams(1, 0, 1f))
-        // Listen / Pause / Respond (normal mode) and the Deep Pause timer both sit just above the End / Next buttons, so the face stays clear
-        fsOverlay.addTo(fsGuide, 8)
+        // Animated eyes: Listen / Pause / Respond sit just above the End / Next buttons, so the eyes stay clear.
+        // The Deep Pause timer sits there too (in every mode).
+        if (Settings.animatedEyes) fsOverlay.addTo(fsGuide, 8)
         fsOverlay.addTo(fsDeep, 8)
 
         // bottom row: Flip, End, Next (all transparent, like the website)
@@ -677,16 +681,19 @@ class TrainingActivity : AppCompatActivity() {
         fsBadge.visibility = if (p == Engine.Phase.DONE) View.INVISIBLE else View.VISIBLE
         fsQuestion.text = questionText
         currentQ = questionText
-        // Animated eyes trains answering from audio cues only (like a real conversation): no question, tip or phases on screen
-        // unless the person taps the screen (they hide again after 6 seconds, or at the next phase). The finish message still shows.
+        // Animated eyes trains answering from audio cues only (like a real conversation): no question on screen (and no tip)
+        // unless the person taps the screen (they hide again after 4 seconds, or at the next phase). The finish message still shows.
         if (peekPhase != p) {
             peekPhase = p
             peek = false
             uiH.removeCallbacks(peekOff)
         }
-        val focusHide = Settings.animatedEyes && p != Engine.Phase.DONE && !peek
+        // Animated eyes: Phases switch on = the question and Listen / Pause / Respond show from the start, no tap needed.
+        // Switch off = hidden from the start; a tap shows them, and they hide again after a few seconds.
+        val focusHide = Settings.animatedEyes && p != Engine.Phase.DONE && !peek && !Settings.phaseGuide
         fsCard.visibility = if (questionText.isEmpty() || focusHide) View.INVISIBLE else View.VISIBLE
-        fsTip.visibility = if (focusHide) View.INVISIBLE else View.VISIBLE
+        // no "close your eyes" tip in any mode (Mirror and Animated eyes)
+        fsTip.visibility = View.GONE
 
         val activeIdx = when (p) {
             Engine.Phase.LISTEN -> 0
@@ -694,7 +701,8 @@ class TrainingActivity : AppCompatActivity() {
             Engine.Phase.RESPOND -> 2
             else -> -1
         }
-        fsGuide.visibility = if (Settings.phaseGuide && !Settings.deepPause && activeIdx >= 0 && !focusHide) View.VISIBLE else View.GONE
+        val showGuide = Settings.phaseGuide || (Settings.animatedEyes && peek)
+        fsGuide.visibility = if (showGuide && !Settings.deepPause && activeIdx >= 0) View.VISIBLE else View.GONE
         fsGuide.active = activeIdx
 
         val deepOn = p == Engine.Phase.DEEP || p == Engine.Phase.WHY
