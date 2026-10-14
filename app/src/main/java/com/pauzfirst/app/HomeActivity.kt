@@ -1035,7 +1035,7 @@ class HomeActivity : BaseActivity() {
     private fun openGoalPicker() {
         val names = goalOptions.map { if (it == 0) "No daily goal" else if (it == 1) "1 minute a day" else it.toString() + " minutes a day" }
         val at = goalOptions.indexOf(Settings.goalMinutes)
-        PickerDialog.show(this, "Daily goal", names, names.map { false }, if (at < 0) 0 else at, "Tap to choose how long to train each day") { i ->
+        PickerDialog.show(this, "Daily goal", names, names.map { false }, if (at < 0) 0 else at, "Tap to choose how long to train each day", grid = true) { i ->
             if (i >= 0 && i < goalOptions.size) {
                 Settings.goalMinutes = goalOptions[i]
                 refreshGoal()
