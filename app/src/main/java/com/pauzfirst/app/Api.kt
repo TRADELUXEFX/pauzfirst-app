@@ -363,11 +363,9 @@ object Api {
     /** ok=false: request failed. ok=true and shared=null: no such code. */
     class SharedResult(val ok: Boolean, val shared: Shared?)
 
-    private fun fetchSharedExact(code: String): SharedResult {
-        val r = authed("GET", "/rest/v1/shared_lists?select=list_name,questions&limit=1&code=eq." + enc(code), null, null)
-        if (!r.ok) return SharedResult(false, null)
+    private fun parseShared(body: String): SharedResult {
         return try {
-            val arr = JSONArray(r.body)
+            val arr = JSONArray(body)
             if (arr.length() == 0) {
                 SharedResult(true, null)
             } else {
@@ -377,6 +375,16 @@ object Api {
         } catch (e: Exception) {
             SharedResult(false, null)
         }
+    }
+
+    /** Looks up one code through a database function (the table itself is not open to browsing). */
+    private fun fetchSharedExact(code: String): SharedResult {
+        val r = authed("POST", "/rest/v1/rpc/get_shared_list", JSONObject().put("p_code", code).toString(), null)
+        if (r.ok) return parseShared(r.body)
+        // Function not on the server yet: read the table the old way.
+        val old = authed("GET", "/rest/v1/shared_lists?select=list_name,questions&limit=1&code=eq." + enc(code), null, null)
+        if (!old.ok) return SharedResult(false, null)
+        return parseShared(old.body)
     }
 
     /** Tries the code as typed, then in capitals. */

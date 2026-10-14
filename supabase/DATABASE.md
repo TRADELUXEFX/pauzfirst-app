@@ -1,6 +1,6 @@
 # PauzFirst database: current state
 
-**Last updated:** 2026-10-14 (share_list fix confirmed working)
+**Last updated:** 2026-10-14 (shared_lists lock-down prepared, PENDING)
 **Where:** Supabase project used by both the Android app and the website (`www/`).
 **Last verified against the live database:** 2026-10-14 (schema report pasted by the owner).
 
@@ -110,13 +110,13 @@ Keys: primary key `id`; unique (question).
 | shared_presets | shared presets: owner can remove | authenticated | DELETE own |
 
 Known weak spots:
-- `shared_lists`: anyone can read every row, so all codes and questions can be browsed. (Presets avoid this by being readable only through `get_shared_preset` with an exact code.) Not changed yet.
+- `shared_lists`: anyone can read every row, so all codes and questions can be browsed. Fix prepared, PENDING: step A `20261018_a_get_shared_list.sql` (run first), then step B `20261018_b_close_shared_lists.sql` (run only after the new app and the new website are live). Step B replaces "Anyone can read shared lists" with "Users can read their own shared lists" (SELECT, authenticated, own rows).
 - `shared_lists`: no DELETE rule, so users cannot remove a shared copy.
 - `shared_presets`: no UPDATE rule needed (done inside `share_preset`).
 
 ---
 
-## Functions (4), all `security definer`, callable by signed-in users only
+## Functions (4 live + 1 pending), all `security definer`, callable by signed-in users only
 
 | Function | What it does | Status |
 |---|---|---|
@@ -124,6 +124,7 @@ Known weak spots:
 | `link_imported_list(p_name, p_code, p_questions) returns boolean` | Links an imported list to the code it came with. | APPLIED |
 | `share_preset(p_name, p_settings, p_list_name, p_questions) returns text` | One code per preset per owner; sharing again refreshes it. | APPLIED |
 | `get_shared_preset(p_code) returns table` | Reads one preset by exact code. | APPLIED |
+| `get_shared_list(p_code text) returns table(list_name, questions text[])` | Reads one shared list by exact code, so the table does not need to be open to everyone. Callable by anon + signed-in. | PENDING (20261018_a) |
 
 ## Edge functions (not visible in the SQL report; unverified)
 - `gemini-proxy`: used by the app for AI question generation. Confirm it is deployed in Supabase > Edge Functions.
@@ -148,6 +149,7 @@ Known weak spots:
 
 | When | Change | Status |
 |---|---|---|
+| 2026-10-14 (time unknown) | Prepared lock-down of `shared_lists`: new function `get_shared_list` (step A) and policy swap (step B). App (`Api.kt`) and website (`www/index.html`) now look codes up through the function, with a fallback to the old table read. | PENDING: step A not run yet; step B must wait until app + website are updated |
 | 2026-10-14 (time unknown) | Fixed `share_list` to convert jsonb to text[] (cause of "Couldn't create a share code"). Added UPDATE rule on `shared_lists`. File: `20261017_share_list_array_fix.sql`. | APPLIED. Owner ran it and generated a share code from the share icon (tested on the old app, before any app update) |
 | 2026-10-14 (time unknown) | Ran RUN_THIS_SQL_ONCE.sql (steps 20261013 to 20261016): created `shared_presets`, `share_preset`, `get_shared_preset`, `link_imported_list`, `share_list` (old version), `question_lists.share_snapshot`. | APPLIED (owner reported "Success") |
 | 2026-10-14 (time unknown) | Full schema report taken from the live database. This file created from it. | APPLIED |

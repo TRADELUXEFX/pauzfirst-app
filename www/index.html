@@ -4103,10 +4103,20 @@
             msgEl.style.color = '#64748b';
             msgEl.textContent = 'Looking up code…';
 
-            const { data, error } = await sb.from('shared_lists')
-                .select('list_name, questions')
-                .eq('code', rawCode)
-                .maybeSingle();
+            // Look the code up through a database function (the table itself is not open to browsing).
+            // If the function is not on the server yet, fall back to reading the table.
+            let data = null, error = null;
+            const rpcRes = await sb.rpc('get_shared_list', { p_code: rawCode });
+            if (!rpcRes.error) {
+                data = (rpcRes.data && rpcRes.data.length > 0) ? rpcRes.data[0] : null;
+            } else {
+                const oldRes = await sb.from('shared_lists')
+                    .select('list_name, questions')
+                    .eq('code', rawCode)
+                    .maybeSingle();
+                data = oldRes.data;
+                error = oldRes.error;
+            }
 
             if (error || !data) {
                 msgEl.style.color = '#e74c3c';

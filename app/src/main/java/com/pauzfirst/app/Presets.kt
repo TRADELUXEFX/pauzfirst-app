@@ -133,6 +133,7 @@ object Presets {
             )
         )
         write(list)
+        markUsed(clean)   // a new or re-saved preset is the most recent: it goes to the top of Recent
     }
 
     /** Copies a preset under the next free name ("Mirror intense 2") and puts the copy at the top. Returns the new name. */
@@ -152,6 +153,7 @@ object Presets {
         )
         out.addAll(list)
         write(out)
+        markUsed(copy)
         return copy
     }
 
@@ -196,6 +198,7 @@ object Presets {
             s.optBoolean("recordScreen", Settings.DEF_REC)
         )
         write(listOf(p) + load())
+        markUsed(finalName)
         return finalName
     }
 

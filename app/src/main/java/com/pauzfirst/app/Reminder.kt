@@ -65,6 +65,13 @@ object Reminder {
         return PendingIntent.getBroadcast(ctx, 9, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
+    /** On the minute when Android allows it; if the "Alarms & reminders" permission is off, a few minutes late instead. */
+    private fun setOnTime(am: AlarmManager, at: Long, pi: PendingIntent) {
+        val exactOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+        if (exactOk) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+    }
+
     fun cancelStreak(ctx: Context) {
         try {
             val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -85,7 +92,7 @@ object Reminder {
             t.set(Calendar.MILLISECOND, 0)
             if (t.timeInMillis <= System.currentTimeMillis() + 5000L) t.add(Calendar.DAY_OF_YEAR, 1)
             val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t.timeInMillis, streakPending(ctx))
+            setOnTime(am, t.timeInMillis, streakPending(ctx))
         } catch (e: Exception) {
         }
     }
@@ -133,8 +140,7 @@ object Reminder {
             t.set(Calendar.MILLISECOND, 0)
             if (t.timeInMillis <= System.currentTimeMillis() + 5000L) t.add(Calendar.DAY_OF_YEAR, 1)
             val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            // not exact on purpose: no special permission needed, may arrive a few minutes late
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t.timeInMillis, pending(ctx))
+            setOnTime(am, t.timeInMillis, pending(ctx))
         } catch (e: Exception) {
         }
     }
