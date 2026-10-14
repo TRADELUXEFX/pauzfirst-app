@@ -10,6 +10,7 @@ def runNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger()
 android {
     namespace 'com.pauzfirst.app'
     compileSdk 34
+    buildToolsVersion "34.0.0"
 
     defaultConfig {
         applicationId "com.pauzfirst.app"

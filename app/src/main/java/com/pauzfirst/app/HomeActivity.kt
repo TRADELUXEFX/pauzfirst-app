@@ -31,6 +31,7 @@ class HomeActivity : BaseActivity() {
     private lateinit var firstRunCard: LinearLayout
     private lateinit var goalCard: LinearLayout
     private lateinit var presetBox: LinearLayout
+    private lateinit var presetHeadView: LinearLayout
     private lateinit var trainTitle: TextView
     // the Training page starts with only the question list and the four modes; the rest shows once a mode is chosen
     private var modeChosen = false  // Training shows the defaults until a mode is picked, or a saved preset is opened
@@ -428,6 +429,7 @@ class HomeActivity : BaseActivity() {
         presetHead.addView(presetsPill(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         val presetHeadLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         presetHeadLp.setMargins(Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 16), 0)
+        presetHeadView = presetHead
         body.addView(presetHead, presetHeadLp)
         presetBox = LinearLayout(c)
         presetBox.orientation = LinearLayout.VERTICAL
@@ -963,7 +965,9 @@ class HomeActivity : BaseActivity() {
     private fun startStatsPulse() {
         if (statsPulse != null) return
         if (::firstRunCard.isInitialized) firstRunCard.visibility = View.GONE
-        if (::goalCard.isInitialized) goalCard.visibility = View.VISIBLE
+        if (::goalCard.isInitialized) goalCard.visibility = View.GONE
+        if (::presetHeadView.isInitialized) presetHeadView.visibility = View.GONE
+        if (::presetBox.isInitialized) presetBox.visibility = View.GONE
         val a = android.animation.ValueAnimator.ofFloat(0.35f, 1f)
         a.duration = 750
         a.repeatMode = android.animation.ValueAnimator.REVERSE
@@ -1009,6 +1013,8 @@ class HomeActivity : BaseActivity() {
         firstRunCard.visibility = if (s.optLong("lifetimeSessions", 0L) == 0L && statsPulse == null) View.VISIBLE else View.GONE
         // a brand-new account sees the "first training" box; the goal card appears once that box is gone
         if (::goalCard.isInitialized) goalCard.visibility = if (firstRunCard.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        if (::presetHeadView.isInitialized) presetHeadView.visibility = View.VISIBLE
+        if (::presetBox.isInitialized) presetBox.visibility = View.VISIBLE
         refreshGoal()
     }
 
