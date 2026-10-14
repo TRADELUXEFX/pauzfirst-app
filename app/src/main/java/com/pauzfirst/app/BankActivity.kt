@@ -7,6 +7,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
@@ -181,7 +182,7 @@ class BankActivity : BaseActivity() {
                 val q = s?.toString()?.trim() ?: ""
                 if (q != query) {
                     query = q
-                    scroll.scrollTo(0, 0)
+                    resetToTop()
                     render()
                 }
             }
@@ -296,6 +297,29 @@ class BankActivity : BaseActivity() {
         return col
     }
 
+    /** Stops any scroll still gliding from a flick, and puts the list back at the top. */
+    private fun resetToTop() {
+        val now = android.os.SystemClock.uptimeMillis()
+        val down = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_DOWN, 0f, 0f, 0)
+        val cancel = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+        scroll.dispatchTouchEvent(down)     // a finger touching the list stops a fling in progress
+        scroll.dispatchTouchEvent(cancel)
+        down.recycle()
+        cancel.recycle()
+        scroll.scrollTo(0, 0)
+        // once the new list is laid out, make sure it is still at the top
+        scroll.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                scroll.viewTreeObserver.removeOnPreDrawListener(this)
+                if (scroll.scrollY != 0) {
+                    scroll.scrollTo(0, 0)
+                    return false
+                }
+                return true
+            }
+        })
+    }
+
     private fun tabView(label: String, which: Int): TextView {
         val c = this
         val t = Ui.text(c, label, 13f, Ui.MUTED, Ui.BOLD)
@@ -310,8 +334,9 @@ class BankActivity : BaseActivity() {
         }
         t.setOnClickListener {
             if (tab != which) {
+                // a fresh list always starts at the top, and a fling still running from the other tab is stopped
                 tab = which
-                scroll.scrollTo(0, 0)
+                resetToTop()
                 render()
             }
         }
