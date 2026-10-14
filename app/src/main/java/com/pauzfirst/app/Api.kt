@@ -18,10 +18,18 @@ object Api {
     private const val KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhramlkenJ0Y2VkcHBmYmRhYnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDkyMTgsImV4cCI6MjA4ODkyNTIxOH0.WHM2qRFWq03xyAuGQMzOt7ZEoe_dXLIAnOzRxzhgUdQ"
 
     private val http = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
         .build()
+
+    // When a request fails because there is no connection, the next ones in the same batch skip the wait
+    // (instead of each waiting out its own timeout). Cleared on any success, or when the phone reports it is back online.
+    @Volatile private var netFailAt = 0L
+    private const val FAIL_FAST_MS = 5000L
+    fun resetNetFail() { netFailAt = 0L }
+    /** True right after a request failed for lack of connection. */
+    fun recentlyOffline(): Boolean = System.currentTimeMillis() - netFailAt < FAIL_FAST_MS
     private val JSON_TYPE = "application/json".toMediaType()
 
     class Result(val ok: Boolean, val code: Int, val body: String)
@@ -29,9 +37,11 @@ object Api {
     private fun call(req: Request): Result {
         return try {
             http.newCall(req).execute().use { resp ->
+                netFailAt = 0L
                 Result(resp.isSuccessful, resp.code, resp.body?.string() ?: "")
             }
         } catch (e: Exception) {
+            netFailAt = System.currentTimeMillis()
             Result(false, 0, e.message ?: "network error")
         }
     }
@@ -109,6 +119,7 @@ object Api {
     }
 
     private fun authed(method: String, path: String, bodyStr: String?, prefer: String?): Result {
+        if (recentlyOffline()) return Result(false, 0, "offline")
         ensureFresh()
         var r = doAuthed(method, path, bodyStr, prefer)
         if (r.code == 401 && refreshToken()) {

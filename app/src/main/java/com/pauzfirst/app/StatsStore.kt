@@ -31,6 +31,16 @@ object StatsStore {
         }
     }
 
+    /** Everything that reads the phone's stats and writes them back takes this lock, so two threads can't overwrite each other. */
+    val lock = Any()
+
+    /** Merges the server's stats into the phone's copy in one step and returns the result. */
+    fun mergeRemoteIntoLocal(remote: JSONObject?): JSONObject = synchronized(lock) {
+        val m = merge(remote, local())
+        saveLocal(m)
+        m
+    }
+
     fun saveLocal(o: JSONObject) {
         Session.prefs.edit().putString("stats_" + Session.userId, o.toString()).apply()
     }

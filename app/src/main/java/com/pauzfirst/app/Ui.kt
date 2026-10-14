@@ -317,6 +317,7 @@ object Ui {
         val sw = SwitchCompat(c)
         styleSwitch(sw)
         sw.isChecked = initial
+        sw.contentDescription = label
         sw.setOnCheckedChangeListener { _, checked -> onChange(checked) }
         row.addView(sw, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         return row

@@ -63,7 +63,25 @@ class NetWatch(private val ctx: Context, private val onChange: (Boolean) -> Unit
     private var last: Boolean? = null
 
     companion object {
+        /**
+         * Is there a connection worth trying? Android's "validated" check can lag for a few seconds (or never
+         * arrive on some VPNs and phone brands), so a network that has internet and is not a captive portal counts.
+         * If it then turns out to be dead, requests fail fast (see Api.recentlyOffline).
+         */
         fun online(ctx: Context): Boolean {
+            return try {
+                val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return false
+                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) ||
+                    !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_CAPTIVE_PORTAL)
+            } catch (e: Exception) {
+                true
+            }
+        }
+
+        /** Strict version: Android has confirmed the internet really works. Used to decide if a network voice is safe. */
+        fun validated(ctx: Context): Boolean {
             return try {
                 val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
                 val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
@@ -79,6 +97,7 @@ class NetWatch(private val ctx: Context, private val onChange: (Boolean) -> Unit
         val now = online(ctx)
         if (last == now) return
         last = now
+        if (now) Api.resetNetFail()
         onChange(now)
     }
 

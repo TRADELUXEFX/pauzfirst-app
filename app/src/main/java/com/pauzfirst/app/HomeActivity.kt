@@ -815,19 +815,21 @@ class HomeActivity : BaseActivity() {
     private fun loadRemote() {
         Thread {
             val waiting = HistoryStore.pendingCount()
+            Api.resetNetFail()
             val remoteLists = Api.fetchLists()
-            if (Defaults.bankDue()) {
+            // no connection: the first request already waited, so the rest are skipped instead of waiting one by one
+            val offlineNow = remoteLists == null && Api.recentlyOffline()
+            if (!offlineNow && Defaults.bankDue()) {
                 try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }
             }
-            val remoteStats = Api.fetchStats()
-            val remoteUsed = Api.fetchUsed()
-            val synced = try { waiting > 0 && HistoryStore.flush() } catch (e: Exception) { false }
+            val remoteStats = if (offlineNow) null else Api.fetchStats()
+            val remoteUsed = if (offlineNow) null else Api.fetchUsed()
+            val synced = try { !offlineNow && waiting > 0 && HistoryStore.flush() } catch (e: Exception) { false }
             // keep a copy of the history on the phone so the History tab also works offline
-            try { HistoryStore.warmCache() } catch (e: Exception) { }
+            if (!offlineNow) try { HistoryStore.warmCache() } catch (e: Exception) { }
             if (remoteUsed != null) UsedStore.syncFromRemote(remoteUsed)
             val merged: JSONObject? =
-                if (remoteStats != null) StatsStore.merge(remoteStats, StatsStore.local()) else null
-            if (merged != null) StatsStore.saveLocal(merged)
+                if (remoteStats != null) StatsStore.mergeRemoteIntoLocal(remoteStats) else null
             // training done offline: the phone is ahead of the server, so send it up now
             if (merged != null && remoteStats != null &&
                 (merged.optLong("lifetimeSessions", 0L) > remoteStats.optLong("lifetimeSessions", 0L) ||
@@ -953,6 +955,17 @@ class HomeActivity : BaseActivity() {
         }
     }
 
+    /** The "?" on the Cues and sounds card: the same pop-up as Generate with AI, one line per cue. */
+    private fun showCuesHelp() {
+        val items = ArrayList<HelpPopup.Item>()
+        items.add(HelpPopup.Item(Icons.VOLUME, "Voice", "Reads each question aloud, so you can train with your eyes closed."))
+        items.add(HelpPopup.Item(Icons.VIBRATE, "Vibrate", "One short buzz at Pause and two at Respond."))
+        if (Settings.mirror && !Settings.deepPause) {
+            items.add(HelpPopup.Item(Icons.EYE, "Phases", "Shows Listen, Pause and Respond on the screen."))
+        }
+        HelpPopup.show(this, "How cues work", "Pick how PauzFirst guides you during training.", items)
+    }
+
     private var afterRecordPrep: (() -> Unit)? = null
 
     private val recMicPerm = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { ok ->
@@ -1047,6 +1060,7 @@ class HomeActivity : BaseActivity() {
         val deepSwitch = androidx.appcompat.widget.SwitchCompat(c)
         Ui.styleSwitch(deepSwitch)
         deepSwitch.isChecked = Settings.deepPause
+        deepSwitch.contentDescription = "Deep Pause"
         deepSwitch.setOnCheckedChangeListener { _, checked ->
             Settings.deepPause = checked
             refresh()
@@ -1116,15 +1130,54 @@ class HomeActivity : BaseActivity() {
         lower.addView(groupLabel("Timing"))
         lower.addView(timing, timingLp)
 
-        // ---------- sound ----------
+        // ---------- cues and sounds ----------
         val sound = Ui.card(c)
-        sound.addTo(Ui.switchRow(c, "Voice guidance", "Reads questions and prompts aloud", Settings.voice) { Settings.voice = it }, 0)
-        // Mirror and Animated eyes only
-        val guideRow = Ui.switchRow(c, "Show phases", "Listen · Pause · Respond on the screen", Settings.phaseGuide) { Settings.phaseGuide = it }
-        sound.addTo(guideRow, 14)
+        val soundHead = LinearLayout(c)
+        soundHead.orientation = LinearLayout.HORIZONTAL
+        soundHead.gravity = Gravity.CENTER_VERTICAL
+        soundHead.addView(Ui.text(c, "Cues and sounds", 16f, Ui.TEXT, Ui.MED), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val soundHelp = android.widget.FrameLayout(c)
+        soundHelp.contentDescription = "How cues work"
+        soundHelp.addView(FsIconView(c, Icons.HELP, Ui.MUTED), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26), Gravity.CENTER))
+        soundHelp.setOnClickListener { showCuesHelp() }
+        soundHead.addView(soundHelp, LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40)))
+        sound.addTo(soundHead, 0)
+
+        // one round button per cue: filled blue when on, an empty blue ring when off (no On/Off text)
+        fun cueToggle(icon: String, name: String, get: () -> Boolean, set: (Boolean) -> Unit): LinearLayout {
+            val col = LinearLayout(c)
+            col.orientation = LinearLayout.VERTICAL
+            col.gravity = Gravity.CENTER_HORIZONTAL
+            val circle = android.widget.FrameLayout(c)
+            val ic = FsIconView(c, icon, Ui.BLUE)
+            circle.addView(ic, android.widget.FrameLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26), Gravity.CENTER))
+            col.addView(circle, LinearLayout.LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)))
+            val label = Ui.text(c, name, 13f, Ui.TEXT, Ui.REG)
+            col.addView(label, Ui.lp(c, 6))
+            fun paint() {
+                val on = get()
+                circle.background = if (on) Ui.rounded(c, Ui.BLUE, 28) else Ui.rounded(c, Color.TRANSPARENT, 28, Ui.BLUE, 2)
+                ic.setColor(if (on) Ui.WHITE else Ui.BLUE)
+                col.contentDescription = name + (if (on) ", on" else ", off")
+            }
+            paint()
+            col.isClickable = true
+            col.setOnClickListener {
+                set(!get())
+                paint()
+            }
+            return col
+        }
+        val cueRow = LinearLayout(c)
+        cueRow.orientation = LinearLayout.HORIZONTAL
+        cueRow.addView(cueToggle(Icons.VOLUME, "Voice", { Settings.voice }, { Settings.voice = it }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        cueRow.addView(cueToggle(Icons.VIBRATE, "Vibrate", { Settings.haptics }, { Settings.haptics = it }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        // Phases only applies to Mirror (not Deep Pause); it is shown or hidden by the refresh below
+        val guideRow = cueToggle(Icons.EYE, "Phases", { Settings.phaseGuide }, { Settings.phaseGuide = it })
+        cueRow.addView(guideRow, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        sound.addTo(cueRow, 10)
         val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
-        lower.addView(groupLabel("Sound"))
         lower.addView(sound, soundLp)
 
         // ---------- recording ----------

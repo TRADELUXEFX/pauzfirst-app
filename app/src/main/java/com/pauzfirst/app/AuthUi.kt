@@ -80,6 +80,7 @@ object AuthUi {
                 Ui.setFont(c, e, Ui.REG)
                 e.setSelection(Math.max(0, keep))
                 eyeIcon.alpha = if (shown) 1f else 0.7f
+                eye.contentDescription = if (shown) "Hide password" else "Show password"
             }
             row.addView(eye, LinearLayout.LayoutParams(Ui.dp(c, 44), Ui.dp(c, 44)))
         }

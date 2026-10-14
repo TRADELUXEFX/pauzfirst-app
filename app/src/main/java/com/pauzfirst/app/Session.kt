@@ -239,6 +239,11 @@ object Settings {
     /** Mode name saved to history and stats (Animated eyes has its own entry, like the website). */
     val recordMode: String get() = mode
 
+    /** A short buzz at Pause (one) and Respond (two), so a drill with no screen to read still has clear cues. */
+    var haptics: Boolean
+        get() = getBool("s_haptics", true)
+        set(v) = putBool("s_haptics", v)
+
     /** Mirror and Animated eyes (not with Deep Pause): show Listen / Pause / Respond on screen. */
     var phaseGuide: Boolean
         get() = getBool("s_phase_guide", DEF_PHASE_GUIDE)

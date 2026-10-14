@@ -3,6 +3,12 @@ package com.pauzfirst.app
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -131,7 +137,7 @@ object Engine {
                         override fun onError(utteranceId: String?) { finishUtterance(utteranceId) }
                     })
                     ttsReady = true
-                    if (!NetWatch.online(ctx)) {
+                    if (!NetWatch.validated(ctx)) {
                         // offline: use an installed voice that needs no internet
                         try {
                             val off = VoiceCheck.offlineVoices(t)
@@ -139,7 +145,7 @@ object Engine {
                             if (off.isNotEmpty() && (cur == null || cur.isNetworkConnectionRequired)) t.setVoice(off[0])
                         } catch (e: Exception) { }
                     }
-                    if (voice && !NetWatch.online(ctx) && !VoiceCheck.hasOfflineVoice(t)) {
+                    if (voice && !NetWatch.validated(ctx) && !VoiceCheck.hasOfflineVoice(t)) {
                         voiceNotice("No offline voice on this phone, so questions won't be read aloud. Install one in Settings > Text-to-speech, or go online.")
                     }
                     val q = queued
@@ -170,6 +176,49 @@ object Engine {
     private fun voiceStopped() {
         speaking = false
         speakEnd = SystemClock.uptimeMillis() + 350L
+        abandonVoiceFocus()
+    }
+
+    // While a cue is spoken, other apps' audio (music, podcasts) is turned down so the cue is always heard,
+    // then it comes back. A phone call or an alarm taking over simply wins.
+    private var focusReq: AudioFocusRequest? = null
+
+    private fun requestVoiceFocus() {
+        val a = app ?: return
+        try {
+            val am = a.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (Build.VERSION.SDK_INT >= 26) {
+                val req = focusReq ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setOnAudioFocusChangeListener { }
+                    .build()
+                focusReq = req
+                am.requestAudioFocus(req)
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            }
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun abandonVoiceFocus() {
+        val a = app ?: return
+        try {
+            val am = a.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (Build.VERSION.SDK_INT >= 26) {
+                focusReq?.let { am.abandonAudioFocusRequest(it) }
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(null)
+            }
+        } catch (e: Exception) {
+        }
     }
 
     private fun finishUtterance(id: String?) {
@@ -193,6 +242,7 @@ object Engine {
         t.setSpeechRate(rate)
         speakStart = SystemClock.uptimeMillis()
         speaking = true
+        requestVoiceFocus()
         t.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
     }
 
@@ -353,6 +403,29 @@ object Engine {
         }
     }
 
+    /** A short vibration for a phase change: one pulse = Pause, two pulses = Respond. */
+    private fun buzz(pulses: Int) {
+        if (!Settings.haptics) return
+        val a = app ?: return
+        try {
+            val v: Vibrator? = if (Build.VERSION.SDK_INT >= 31) {
+                (a.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                a.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            }
+            if (v == null || !v.hasVibrator()) return
+            val pattern = if (pulses <= 1) longArrayOf(0L, 60L) else longArrayOf(0L, 60L, 110L, 60L)
+            if (Build.VERSION.SDK_INT >= 26) {
+                v.vibrate(VibrationEffect.createWaveform(pattern, -1))
+            } else {
+                @Suppress("DEPRECATION")
+                v.vibrate(pattern, -1)
+            }
+        } catch (e: Exception) {
+        }
+    }
+
     private fun startPause() {
         gen++
         phase = Phase.PAUSE
@@ -360,6 +433,7 @@ object Engine {
         seconds = pauseT
         showNext = false
         notifyUi()
+        buzz(1)
         say("Pause and think", 0.9f, null)
         every {
             seconds--
@@ -383,6 +457,7 @@ object Engine {
         phaseTotal = if (infinite) 0 else answerT
         showNext = infinite
         notifyUi()
+        buzz(2)
         say("Respond", 0.9f, null)
         if (!infinite) {
             every {
@@ -524,18 +599,24 @@ object Engine {
         val surprise = headlessRun
         Thread {
             try {
-                val remote = Api.fetchStats()
-                val base = StatsStore.merge(remote, StatsStore.local())
-                // a Surprise Pause counts as ONE training per day (and never as a mode); its questions and time still add up
-                val countIt = !surprise || Session.prefs.getString("sp_counted_day", "") != StatsStore.today()
-                val updated = StatsStore.addSession(base, q, secs, if (surprise) null else m, countIt, touchStreak = !surprise)
-                if (surprise && countIt) Session.prefs.edit().putString("sp_counted_day", StatsStore.today()).apply()
-                lastStreakUp = updated.optInt("dailyStreak", 0) > base.optInt("dailyStreak", 0)
-                lastStreak = updated.optInt("dailyStreak", 0)
-                lastBest = updated.optInt("lifetimeStreak", 0)
+                // offline: don't wait on the network, the streak comes from the copy on the phone and is sent later
+                val canSync = app?.let { NetWatch.online(it) } ?: true
+                val remote = if (canSync) Api.fetchStats() else null
+                // read, add the session and write back in one locked step, so a background sync can't overwrite it
+                val updated = synchronized(StatsStore.lock) {
+                    val base = StatsStore.merge(remote, StatsStore.local())
+                    // a Surprise Pause counts as ONE training per day (and never as a mode); its questions and time still add up
+                    val countIt = !surprise || Session.prefs.getString("sp_counted_day", "") != StatsStore.today()
+                    val u = StatsStore.addSession(base, q, secs, if (surprise) null else m, countIt, touchStreak = !surprise)
+                    if (surprise && countIt) Session.prefs.edit().putString("sp_counted_day", StatsStore.today()).apply()
+                    lastStreakUp = u.optInt("dailyStreak", 0) > base.optInt("dailyStreak", 0)
+                    lastStreak = u.optInt("dailyStreak", 0)
+                    lastBest = u.optInt("lifetimeStreak", 0)
+                    StatsStore.saveLocal(u)
+                    u
+                }
                 h.post { notifyUi() }
-                StatsStore.saveLocal(updated)
-                Api.saveStats(updated)
+                if (canSync) Api.saveStats(updated)
             } catch (e: Exception) {
                 // progress stays in the local copy
             }

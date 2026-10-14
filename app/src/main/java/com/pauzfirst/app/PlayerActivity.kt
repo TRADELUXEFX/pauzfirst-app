@@ -129,6 +129,7 @@ class PlayerActivity : BaseActivity() {
             val playing = vv.isPlaying
             playIcon.visibility = if (playing) View.GONE else View.VISIBLE
             pauseIcon.visibility = if (playing) View.VISIBLE else View.GONE
+            playPause.contentDescription = if (playing) "Pause" else "Play"
         }
         val tick = object : Runnable {
             override fun run() {

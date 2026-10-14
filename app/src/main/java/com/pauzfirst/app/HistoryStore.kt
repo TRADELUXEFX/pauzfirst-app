@@ -162,13 +162,18 @@ object HistoryStore {
         if (!Api.saveHistory(merged)) return false
         // keep the copy on the phone current, so the next surprise adds to the right total
         try { Session.prefs.edit().putString(cacheKey(), merged.toString()).apply() } catch (e: Exception) { }
-        val sent = HashSet<String>()
-        for (i in 0 until pend.length()) sent.add(pend.getJSONObject(i).optString("date", ""))
+        // remember exactly what was sent: an entry with the same date but new numbers (a Surprise Pauses card
+        // that grew while this was running) has not been sent yet and stays waiting
+        val sent = HashMap<String, String>()
+        for (i in 0 until pend.length()) {
+            val o = pend.getJSONObject(i)
+            sent[o.optString("date", "")] = o.toString()
+        }
         val now = pending()
         val rest = JSONArray()
         for (i in 0 until now.length()) {
             val o = now.getJSONObject(i)
-            if (!sent.contains(o.optString("date", ""))) rest.put(o)
+            if (sent[o.optString("date", "")] != o.toString()) rest.put(o)
         }
         savePending(rest)
         return true
