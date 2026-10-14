@@ -24,6 +24,10 @@ class BankActivity : BaseActivity() {
     private lateinit var scroll: ScrollView
     private var tab = 0                          // 0 = Left, 1 = Used
     private var query = ""                       // what is typed in the search bar at the bottom
+    private var titleView: TextView? = null      // header title, shows the total e.g. "3,424 questions"
+    private var progHolder: LinearLayout? = null   // progress bar + % pill, in the blue header between total and toggle
+    private var toggleHolder: LinearLayout? = null // the Left | Used switch, inside the blue header
+    private var loadingView: View? = null         // the ring, pinned on screen (not inside the scrolling list)
     private var listCard: LinearLayout? = null   // the card the question rows are added to
     private var listItems: List<String> = emptyList()
     private var loaded = 0                       // how many rows of listItems are on screen; more load while scrolling
@@ -38,7 +42,30 @@ class BankActivity : BaseActivity() {
         val column = LinearLayout(c)
         column.orientation = LinearLayout.VERTICAL
         column.setBackgroundColor(Ui.BG)
-        column.addView(Ui.header(c, "Default questions") { finish() })
+        // blue header: back + total on top, the Left | Used switch inside the same blue
+        val head = Ui.header(c, "Questions") { finish() }
+        titleView = head.getChildAt(1) as? TextView
+        head.background = null
+        val headBox = LinearLayout(c)
+        headBox.orientation = LinearLayout.VERTICAL
+        val hbg = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
+        val hr = Ui.dp(c, 24).toFloat()
+        hbg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, hr, hr, hr, hr)
+        headBox.background = hbg
+        headBox.addView(head)
+        val ph = LinearLayout(c)
+        ph.orientation = LinearLayout.VERTICAL
+        progHolder = ph
+        val phLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        phLp.setMargins(Ui.dp(c, 20), Ui.dp(c, 4), Ui.dp(c, 20), 0)
+        headBox.addView(ph, phLp)
+        val th = LinearLayout(c)
+        th.orientation = LinearLayout.VERTICAL
+        toggleHolder = th
+        val thLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        thLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 18))
+        headBox.addView(th, thLp)
+        column.addView(headBox)
         holder = LinearLayout(c)
         holder.orientation = LinearLayout.VERTICAL
         // extra room at the bottom, so the last questions can scroll up clear of the search bar
@@ -57,10 +84,16 @@ class BankActivity : BaseActivity() {
         val root = FrameLayout(c)
         root.addView(column, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         root.addView(buildSearchBar(), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
+        // loading ring sits over the screen, so it never scrolls with the questions
+        val ring = Loading.page(c)
+        ring.isClickable = false
+        loadingView = ring
+        ring.visibility = View.GONE
+        root.addView(ring, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER))
         setContentView(root)
 
         // nothing saved on this phone yet: show the loading ring until the questions arrive
-        if (Defaults.pool(c).isEmpty()) holder.addView(Loading.page(c)) else render()
+        if (Defaults.pool(c).isEmpty()) loadingView?.visibility = View.VISIBLE else render()
         // pick up anything added since the last visit
         Thread {
             try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }
@@ -71,6 +104,9 @@ class BankActivity : BaseActivity() {
     /** Blue bar with curved top corners at the bottom of the screen; the search field is the white rounded pill inside it. */
     private fun buildSearchBar(): LinearLayout {
         val c = this
+        // same as the other screens' bottom bar: dark blue navigation strip with light icons
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = false
+        window.navigationBarColor = Ui.BLUE_DARK
         val bar = LinearLayout(c)
         bar.orientation = LinearLayout.VERTICAL
         val bg = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Ui.BLUE, Ui.BLUE_DARK))
@@ -147,6 +183,7 @@ class BankActivity : BaseActivity() {
 
     private fun render() {
         val c = this
+        loadingView?.visibility = View.GONE
         holder.removeAllViews()
         val pool = Defaults.pool(c).distinct()
         val used = UsedStore.used("default")
@@ -155,53 +192,51 @@ class BankActivity : BaseActivity() {
         val total = pool.size
         val pct = if (total == 0) 0 else Math.round(done.size * 100f / total)
 
-        // total, and how much is used, in one slim row (no card)
+        // total goes in the blue header
+        titleView?.text = n(total) + " questions"
+
+        // how much is used: thin progress bar with the % pill beside it
         val row = LinearLayout(c)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
-        row.addView(Ui.text(c, n(total), 20f, Ui.TEXT, Ui.BOLD))
-        row.addView(Ui.text(c, " questions", 14f, Ui.MUTED, Ui.MED))
-        row.addView(View(c), LinearLayout.LayoutParams(0, 1, 1f))
-        val pill = Ui.text(c, pct.toString() + "% used", 12f, Ui.BLUE, Ui.BOLD)
-        pill.background = Ui.rounded(c, Ui.BLUE_SOFT, 20)
-        pill.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
-        row.addView(pill)
-        val rowLp = Ui.lp(c, 0)
-        rowLp.setMargins(Ui.dp(c, 4), 0, Ui.dp(c, 4), 0)
-        holder.addView(row, rowLp)
-
-        // thin progress bar
         val track = LinearLayout(c)
         track.orientation = LinearLayout.HORIZONTAL
         track.weightSum = 1000f
-        track.background = Ui.rounded(c, Ui.LINE, 3)
+        track.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 3)
         val fillW = if (total == 0) 0f else done.size * 1000f / total
         if (fillW > 0f) {
             val fill = View(c)
-            fill.background = Ui.rounded(c, Ui.BLUE, 3)
+            fill.background = Ui.rounded(c, Color.WHITE, 3)
             track.addView(fill, LinearLayout.LayoutParams(0, Ui.dp(c, 6), fillW))
         } else {
             track.addView(View(c), LinearLayout.LayoutParams(0, Ui.dp(c, 6), 0f))
         }
-        val trLp = Ui.lp(c, 10)
-        trLp.setMargins(Ui.dp(c, 4), Ui.dp(c, 10), Ui.dp(c, 4), 0)
-        holder.addView(track, trLp)
+        row.addView(track, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val pill = Ui.text(c, pct.toString() + "% used", 12f, Ui.WHITE, Ui.BOLD)
+        pill.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)
+        pill.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
+        val pillLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        pillLp.leftMargin = Ui.dp(c, 12)
+        row.addView(pill, pillLp)
+        progHolder?.removeAllViews()
+        progHolder?.addView(row, Ui.lp(c, 0))
 
-        // Left | Used switch (same look as Preset list | Question list)
+        // Left | Used switch lives in the blue header
         val toggle = LinearLayout(c)
         toggle.orientation = LinearLayout.HORIZONTAL
-        toggle.background = Ui.rounded(c, Ui.CARD_TINT, 14)
+        toggle.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 14)
         toggle.setPadding(Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4))
         toggle.addView(tabView("Left \u00B7 " + n(unused.size), 0), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         toggle.addView(tabView("Used \u00B7 " + n(done.size), 1), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        holder.addTo(toggle, 16)
+        toggleHolder?.removeAllViews()
+        toggleHolder?.addView(toggle, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
         // one card holding the questions, a thin line between rows; the typed search narrows them
         val all = if (tab == 0) unused else done
         listItems = if (query.isEmpty()) all else all.filter { it.contains(query, ignoreCase = true) }
         loaded = 0
-        val list = Ui.card(c)
-        list.setPadding(0, 0, 0, 0)
+        val list = LinearLayout(c)
+        list.orientation = LinearLayout.VERTICAL
         listCard = list
         if (listItems.isEmpty()) {
             val msg = when {
@@ -211,8 +246,9 @@ class BankActivity : BaseActivity() {
             }
             val e = Ui.text(c, msg, 14f, Ui.MUTED, Ui.MED)
             e.setLineSpacing(0f, 1.2f)
-            e.setPadding(Ui.dp(c, 18), Ui.dp(c, 18), Ui.dp(c, 18), Ui.dp(c, 18))
-            list.addView(e)
+            val eCard = Ui.card(c)
+            eCard.addView(e)
+            list.addView(eCard, Ui.lp(c, 0))
         }
         holder.addTo(list, 12)
         addRows(PAGE)
@@ -224,12 +260,7 @@ class BankActivity : BaseActivity() {
         val list = listCard ?: return
         val end = Math.min(listItems.size, loaded + count)
         for (i in loaded until end) {
-            if (i > 0) {
-                val line = View(c)
-                line.setBackgroundColor(Ui.LINE)
-                list.addView(line, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1))
-            }
-            val r = LinearLayout(c)
+            val r = Ui.card(c)
             r.orientation = LinearLayout.HORIZONTAL
             r.gravity = Gravity.CENTER_VERTICAL
             r.setPadding(Ui.dp(c, 18), Ui.dp(c, 14), Ui.dp(c, 18), Ui.dp(c, 14))
@@ -241,7 +272,9 @@ class BankActivity : BaseActivity() {
                 tkLp.leftMargin = Ui.dp(c, 12)
                 r.addView(Ui.tick(c, true, 20), tkLp)
             }
-            list.addView(r)
+            val rLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            rLp.bottomMargin = Ui.dp(c, 10)
+            list.addView(r, rLp)
         }
         loaded = end
     }
@@ -253,10 +286,10 @@ class BankActivity : BaseActivity() {
         t.setPadding(Ui.dp(c, 8), Ui.dp(c, 10), Ui.dp(c, 8), Ui.dp(c, 10))
         Ui.fit(t, 13)
         if (tab == which) {
-            t.background = Ui.rounded(c, Ui.BLUE, 11)
-            t.setTextColor(Ui.WHITE)
+            t.background = Ui.rounded(c, Color.WHITE, 11)
+            t.setTextColor(Ui.BLUE_DARK)
         } else {
-            t.setTextColor(Ui.c("#3F5F8F", "#94A3B8"))
+            t.setTextColor(Color.parseColor("#E6F1FF"))
         }
         t.setOnClickListener {
             if (tab != which) {

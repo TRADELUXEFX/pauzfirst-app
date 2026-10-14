@@ -494,7 +494,7 @@ class ListsActivity : BaseActivity() {
             mainChip.background = Ui.rounded(c, Ui.RED, 20)
             mainChip.alpha = if (selected.isEmpty()) 0.45f else 1f
         } else {
-            selLabel.text = "YOUR QUESTIONS"
+            selLabel.text = raw.size.toString() + " QUESTION LIST"
             allChip.visibility = View.GONE
             cancelChip.visibility = View.GONE
             mainChip.text = "Select"
