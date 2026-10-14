@@ -630,8 +630,7 @@ class HomeActivity : BaseActivity() {
                 },
                 Btn("Import", Kind.SOFT) {
                     importPicker.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
-                },
-                Btn("Cancel", Kind.SOFT)
+                }
             )
         )
     }
