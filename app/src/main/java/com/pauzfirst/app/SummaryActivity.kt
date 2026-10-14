@@ -329,7 +329,7 @@ class SummaryActivity : BaseActivity() {
                 }
             }
         } else {
-            // streak not known yet: empty ring with a check
+            // streak not known yet: empty ring, no tick
             ring.set(0f, "", "")
         }
     }
@@ -460,13 +460,8 @@ private class FinishRing(ctx: Context) : View(ctx) {
         if (progress > 0f) canvas.drawArc(box, -90f, 360f * progress, false, arc)
         val cx = width / 2f
         val cy = height / 2f
-        if (big.isEmpty()) {
-            tick.color = Ui.BLUE
-            val u = width / 150f
-            canvas.drawLine(cx - 20f * u, cy + 2f * u, cx - 6f * u, cy + 16f * u, tick)
-            canvas.drawLine(cx - 6f * u, cy + 16f * u, cx + 22f * u, cy - 14f * u, tick)
-            return
-        }
+        // no number yet: leave the middle empty (no tick); the number appears when the streak is known
+        if (big.isEmpty()) return
         bigP.color = Ui.TEXT
         smallP.color = Ui.MUTED
         val u = width / 150f

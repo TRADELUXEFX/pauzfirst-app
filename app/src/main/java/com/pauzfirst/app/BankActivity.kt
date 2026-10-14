@@ -26,7 +26,6 @@ class BankActivity : BaseActivity() {
     private var tab = 0                          // 0 = Left, 1 = Used
     private var query = ""                       // what is typed in the search bar at the bottom
     private var titleView: TextView? = null      // header title, shows the total e.g. "3,424 questions"
-    private var pctView: TextView? = null         // the "12% used" pill, on the right of the header
     private var toggleHolder: LinearLayout? = null // the Left | Used switch, inside the blue header
     private var loadingView: View? = null         // the ring, pinned on screen (not inside the scrolling list)
     private var listCard: LinearLayout? = null   // the card the question rows are added to
@@ -44,16 +43,7 @@ class BankActivity : BaseActivity() {
         column.orientation = LinearLayout.VERTICAL
         column.setBackgroundColor(Ui.BG)
         // blue header: back + total on top, the Left | Used switch inside the same blue
-        val pct0 = Ui.text(c, "0%", 13f, Ui.WHITE, Ui.BOLD)
-        pct0.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)  // pill, same soft white as the back circle
-        // same 40dp height as the back button, so the two line up across the header
-        pct0.gravity = Gravity.CENTER
-        pct0.minHeight = Ui.dp(c, 40)
-        pct0.minimumHeight = Ui.dp(c, 40)
-        pct0.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0)
-        pct0.maxLines = 1
-        pctView = pct0
-        val head = Ui.header(c, "Questions", null, pct0) { finish() }
+        val head = Ui.header(c, "Questions", null, null) { finish() }
         titleView = head.getChildAt(1) as? TextView
         // slimmer side slots (same width both sides, so the title stays centered) to leave room for "3,424 questions"
         for (idx in intArrayOf(0, 2)) {
@@ -210,13 +200,9 @@ class BankActivity : BaseActivity() {
         val unused = pool.filter { !used.contains(it) }
         val done = pool.filter { used.contains(it) }
         val total = pool.size
-        val pct = if (total == 0) 0 else Math.round(done.size * 100f / total)
 
         // total goes in the blue header
         titleView?.text = n(total) + " questions"
-
-        // how much is used: the pill by the title
-        pctView?.text = pct.toString() + "%"
 
         // Left | Used switch lives in the blue header
         val toggle = LinearLayout(c)
