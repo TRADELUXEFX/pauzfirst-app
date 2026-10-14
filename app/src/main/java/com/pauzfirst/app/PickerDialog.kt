@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -13,7 +14,10 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ScrollView
 
-/** Centered pop-up card with rounded corners and a scrollable list. Used to pick the question list. */
+/**
+ * Bottom sheet with a blue gradient header and a list of white rows.
+ * The selected row turns blue with a white check. Used for Presets, Choose questions and Daily goal.
+ */
 object PickerDialog {
 
     /** ScrollView that grows with its content but never taller than maxH. */
@@ -43,30 +47,31 @@ object PickerDialog {
         val card = LinearLayout(c)
         card.orientation = LinearLayout.VERTICAL
         val top = Ui.dp(c, 26).toFloat()
-        card.background = android.graphics.drawable.GradientDrawable().apply {
+        card.background = GradientDrawable().apply {
             setColor(Ui.SURFACE)
             cornerRadii = floatArrayOf(top, top, top, top, 0f, 0f, 0f, 0f)
         }
-        card.setPadding(Ui.dp(c, 12), Ui.dp(c, 10), Ui.dp(c, 12), Ui.dp(c, 28))
-        // the small handle at the top of the sheet
-        val handle = View(c)
-        handle.background = Ui.rounded(c, Ui.LINE, 3)
-        card.addView(handle, LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 5)).apply {
-            gravity = Gravity.CENTER_HORIZONTAL
-            bottomMargin = Ui.dp(c, 10)
-        })
 
-        val heading = Ui.text(c, title, 18f, Ui.TEXT, Ui.BOLD)
-        heading.setPadding(Ui.dp(c, 10), 0, Ui.dp(c, 10), 0)
-        card.addView(heading, Ui.lp(c))
-        val sub = Ui.text(c, subtitle, 12f, Ui.MUTED, Ui.REG)
-        sub.setPadding(Ui.dp(c, 10), 0, Ui.dp(c, 10), 0)
-        card.addView(sub, Ui.lp(c, 4))
+        // gradient header with the title and subtitle
+        val header = LinearLayout(c)
+        header.orientation = LinearLayout.VERTICAL
+        header.setPadding(Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 20), Ui.dp(c, 18))
+        header.background = GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(Ui.BLUE, Color.parseColor("#0B5CD6"))
+        ).apply { cornerRadii = floatArrayOf(top, top, top, top, 0f, 0f, 0f, 0f) }
+        val heading = Ui.text(c, title, 19f, Color.WHITE, Ui.BOLD)
+        header.addView(heading, Ui.lp(c))
+        val sub = Ui.text(c, subtitle, 12f, Color.WHITE, Ui.REG)
+        sub.alpha = 0.88f
+        header.addView(sub, Ui.lp(c, 3))
+        card.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         val scroll = MaxHeightScroll(c, maxListH)
         scroll.isVerticalScrollBarEnabled = false
         val list = LinearLayout(c)
         list.orientation = LinearLayout.VERTICAL
+        list.setPadding(Ui.dp(c, 12), Ui.dp(c, 12), Ui.dp(c, 12), Ui.dp(c, 24))
         var selectedRow: View? = null
 
         for (i in names.indices) {
@@ -75,23 +80,28 @@ object PickerDialog {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             row.setPadding(Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14))
-            // every option is its own curved box, so it is obvious each one can be tapped
+            // rows use the themed field colour (white in light mode); the chosen one is filled blue
             row.background = if (on) {
-                Ui.rounded(c, Ui.BLUE_SOFT, 16, Ui.BLUE, 2)
+                Ui.rounded(c, Ui.BLUE, 14)
             } else {
-                Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
+                Ui.rounded(c, Ui.FIELD, 14)
             }
 
-            // round marker on the left: empty ring = not chosen, blue tick = chosen
-            val mark = Ui.radio(c, on, 24)
-            val ml = LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24))
+            // check marker: filled white dot when chosen, empty ring otherwise
+            val mark = View(c)
+            mark.background = if (on) {
+                Ui.rounded(c, Color.WHITE, 10)
+            } else {
+                Ui.rounded(c, Color.TRANSPARENT, 10, Ui.LINE, 2)
+            }
+            val ml = LinearLayout.LayoutParams(Ui.dp(c, 20), Ui.dp(c, 20))
             ml.rightMargin = Ui.dp(c, 12)
             row.addView(mark, ml)
 
-            val label = Ui.text(c, names[i], 15f, if (on) Ui.BLUE else Ui.TEXT, if (on) Ui.BOLD else Ui.MED)
+            val label = Ui.text(c, names[i], 15f, if (on) Color.WHITE else Ui.TEXT, if (on) Ui.BOLD else Ui.MED)
             row.addView(label, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
             if (pinned.getOrNull(i) == true) {
-                val star = Ui.text(c, "★", 15f, Ui.AMBER, Ui.BOLD)
+                val star = Ui.text(c, "★", 15f, if (on) Color.WHITE else Ui.AMBER, Ui.BOLD)
                 val sp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 sp.leftMargin = Ui.dp(c, 10)
                 row.addView(star, sp)
@@ -113,7 +123,7 @@ object PickerDialog {
             list.addView(row, Ui.lp(c, if (i == 0) 0 else 8))
         }
         scroll.addView(list, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        card.addView(scroll, Ui.lp(c, 14))
+        card.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         dialog.setContentView(card)
         dialog.setCanceledOnTouchOutside(true)
