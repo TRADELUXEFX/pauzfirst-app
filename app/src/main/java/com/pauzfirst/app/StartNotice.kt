@@ -38,6 +38,7 @@ object StartNotice {
                 .build()
             nm.notify(ID, n)
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "StartNotice step failed", e)
         }
     }
 
@@ -45,6 +46,7 @@ object StartNotice {
         try {
             (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(ID)
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "StartNotice step failed", e)
         }
     }
 }

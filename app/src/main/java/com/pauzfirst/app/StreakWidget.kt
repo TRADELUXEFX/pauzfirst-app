@@ -24,6 +24,7 @@ class StreakWidget : AppWidgetProvider() {
         try {
             (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(midnightIntent(context))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "StreakWidget step failed", e)
         }
     }
 
@@ -57,6 +58,7 @@ class StreakWidget : AppWidgetProvider() {
                 (ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager)
                     .set(AlarmManager.RTC, c.timeInMillis, midnightIntent(ctx))
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "StreakWidget step failed", e)
             }
         }
 
@@ -68,6 +70,7 @@ class StreakWidget : AppWidgetProvider() {
                 if (ids.isEmpty()) return
                 for (id in ids) m.updateAppWidget(id, safeBuild(ctx))
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "StreakWidget step failed", e)
             }
         }
 
@@ -91,13 +94,13 @@ class StreakWidget : AppWidgetProvider() {
                 val s = StatsStore.local()
                 today = s.optString("lastPracticeDate", "") == StatsStore.today()
                 streak = StatsStore.currentStreak(s)
-                try { HistoryStore.trainedDays(7).copyInto(trained) } catch (e: Exception) { }
+                try { HistoryStore.trainedDays(7).copyInto(trained) } catch (e: Exception) { android.util.Log.w("PauzFirst", "StreakWidget step failed", e) }
                 // the streak itself is the safest record of the most recent days: fill them in even if History isn't saved on the phone yet
                 var left = streak
                 var idx = if (today) 6 else 5
                 while (left > 0 && idx >= 0) { trained[idx] = true; left--; idx-- }
                 if (today) trained[6] = true
-                try { real = HistoryStore.realToday() } catch (e: Exception) { }
+                try { real = HistoryStore.realToday() } catch (e: Exception) { android.util.Log.w("PauzFirst", "StreakWidget step failed", e) }
                 val goal = Settings.goalMinutes
                 if (goal > 0) {
                     val secs = try { HistoryStore.dailySeconds(1)[0] } catch (e: Exception) { 0L }

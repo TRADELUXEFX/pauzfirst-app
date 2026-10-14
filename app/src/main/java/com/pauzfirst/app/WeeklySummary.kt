@@ -24,6 +24,7 @@ object WeeklySummary {
         try {
             (ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(pending(ctx))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "WeeklySummary step failed", e)
         }
     }
 
@@ -42,6 +43,7 @@ object WeeklySummary {
             (ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager)
                 .setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t.timeInMillis, pending(ctx))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "WeeklySummary step failed", e)
         }
     }
 

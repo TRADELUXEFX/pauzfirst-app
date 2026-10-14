@@ -116,7 +116,7 @@ class BankActivity : BaseActivity() {
         if (Defaults.pool(c).isEmpty()) loadingView?.visibility = View.VISIBLE else render()
         // pick up anything added since the last visit
         Thread {
-            try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }
+            try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { android.util.Log.w("PauzFirst", "bank not refreshed", e) }
             runOnUiThread { if (!isFinishing && !isDestroyed) render() }
         }.start()
     }

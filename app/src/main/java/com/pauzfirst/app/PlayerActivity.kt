@@ -201,12 +201,12 @@ class PlayerActivity : BaseActivity() {
 
     override fun onPause() {
         super.onPause()
-        try { video?.pause() } catch (e: Exception) { }
+        try { video?.pause() } catch (e: Exception) { android.util.Log.w("PauzFirst", "PlayerActivity step failed", e) }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
-        try { video?.stopPlayback() } catch (e: Exception) { }
+        try { video?.stopPlayback() } catch (e: Exception) { android.util.Log.w("PauzFirst", "PlayerActivity step failed", e) }
     }
 }

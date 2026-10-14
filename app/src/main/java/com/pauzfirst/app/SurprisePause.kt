@@ -100,6 +100,7 @@ object SurprisePause {
         try {
             (ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(pending(ctx))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "SurprisePause step failed", e)
         }
     }
 
@@ -151,6 +152,7 @@ object SurprisePause {
                 }
             }
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "SurprisePause step failed", e)
         }
     }
 
@@ -163,6 +165,7 @@ object SurprisePause {
             try {
                 ListCache.load()?.let { pool = (ListCache.texts(it)[src] ?: emptyList()).distinct() }
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "SurprisePause step failed", e)
             }
             if (pool.isNotEmpty()) bucket = "saved"
         }

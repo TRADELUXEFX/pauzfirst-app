@@ -77,6 +77,7 @@ object Reminder {
             val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             am.cancel(streakPending(ctx))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Reminder step failed", e)
         }
     }
 
@@ -94,6 +95,7 @@ object Reminder {
             val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             setOnTime(am, t.timeInMillis, streakPending(ctx))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Reminder step failed", e)
         }
     }
 
@@ -122,6 +124,7 @@ object Reminder {
             val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             am.cancel(pending(ctx))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Reminder step failed", e)
         }
     }
 
@@ -143,6 +146,7 @@ object Reminder {
             val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             setOnTime(am, t.timeInMillis, pending(ctx))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Reminder step failed", e)
         }
     }
 
@@ -154,6 +158,7 @@ object Reminder {
             nm.cancel(2001)
             nm.cancel(2002)
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Reminder step failed", e)
         }
     }
 
@@ -199,7 +204,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 Thread {
                     try {
                         // refresh the saved history first so the numbers are current (skipped silently when offline)
-                        try { HistoryStore.warmCache() } catch (e: Exception) { }
+                        try { HistoryStore.warmCache() } catch (e: Exception) { android.util.Log.w("PauzFirst", "Reminder step failed", e) }
                         if (Session.loggedIn()) WeeklySummary.show(context)
                         WeeklySummary.schedule(context)
                     } finally {

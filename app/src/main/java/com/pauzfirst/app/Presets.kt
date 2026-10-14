@@ -60,6 +60,7 @@ object Presets {
                 )
             }
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Presets step failed", e)
         }
         return out
     }

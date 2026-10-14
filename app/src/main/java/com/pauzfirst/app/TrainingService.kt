@@ -45,6 +45,7 @@ class TrainingService : Service() {
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "pauzfirst:training")
             wakeLock?.acquire(3 * 60 * 60 * 1000L)
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "TrainingService step failed", e)
         }
     }
 
@@ -76,6 +77,7 @@ class TrainingService : Service() {
             s.isActive = true
             mediaSession = s
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "TrainingService step failed", e)
         }
     }
 
@@ -107,6 +109,7 @@ class TrainingService : Service() {
                 sp.setShowBadge(false)
                 nm.createNotificationChannel(sp)
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "TrainingService step failed", e)
             }
         }
 
@@ -178,6 +181,7 @@ class TrainingService : Service() {
                 val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 nm.notify(1001, build(ctx, title, text))
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "TrainingService step failed", e)
             }
         }
     }
@@ -193,12 +197,14 @@ class TrainingService : Service() {
             mediaSession?.isActive = false
             mediaSession?.release()
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "TrainingService step failed", e)
         }
         mediaSession = null
         try {
             val wl = wakeLock
             if (wl != null && wl.isHeld) wl.release()
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "TrainingService step failed", e)
         }
         super.onDestroy()
     }

@@ -530,6 +530,7 @@ class HistoryActivity : BaseActivity() {
                 val d = f.parse(iso)
                 if (d != null) return d.time
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "HistoryActivity step failed", e)
             }
         }
         return 0L
@@ -860,7 +861,10 @@ class HistoryActivity : BaseActivity() {
                     contentResolver.openOutputStream(u)?.use { it.write(file.readBytes()) }
                     android.widget.Toast.makeText(this, "Saved to Downloads", android.widget.Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: Exception) { }
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(this, "Couldn't save to Downloads. Sharing instead.", android.widget.Toast.LENGTH_LONG).show()
+                android.util.Log.w("PauzFirst", "export to Downloads failed", e)
+            }
         }
         val uri = androidx.core.content.FileProvider.getUriForFile(this, packageName + ".fileprovider", file)
         val i = android.content.Intent(android.content.Intent.ACTION_SEND)

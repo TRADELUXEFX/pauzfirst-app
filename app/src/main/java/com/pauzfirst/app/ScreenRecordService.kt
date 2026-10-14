@@ -126,11 +126,11 @@ class ScreenRecordService : Service() {
     }
 
     private fun cleanup() {
-        try { display?.release() } catch (e: Exception) { }
+        try { display?.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "ScreenRecordService step failed", e) }
         display = null
-        try { recorder?.release() } catch (e: Exception) { }
+        try { recorder?.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "ScreenRecordService step failed", e) }
         recorder = null
-        try { projection?.stop() } catch (e: Exception) { }
+        try { projection?.stop() } catch (e: Exception) { android.util.Log.w("PauzFirst", "ScreenRecordService step failed", e) }
         projection = null
     }
 

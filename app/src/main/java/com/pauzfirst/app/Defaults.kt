@@ -33,6 +33,7 @@ object Defaults {
             for (q in list) a.put(q)
             Session.prefs.edit().putString(BANK_KEY, a.toString()).putLong(BANK_TS, System.currentTimeMillis()).apply()
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Defaults step failed", e)
         }
     }
 
@@ -47,6 +48,7 @@ object Defaults {
             }
             if (out.isNotEmpty()) return out
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Defaults step failed", e)
         }
         return load(ctx)
     }

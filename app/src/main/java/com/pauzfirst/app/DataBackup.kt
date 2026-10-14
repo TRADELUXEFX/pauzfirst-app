@@ -18,7 +18,7 @@ object DataBackup {
         try {
             val have = ListCache.load() ?: emptyMap()
             for ((name, qs) in have) lists.put(JSONObject().put("name", name).put("questions", qs))
-        } catch (e: Exception) { }
+        } catch (e: Exception) { android.util.Log.w("PauzFirst", "DataBackup step failed", e) }
         return JSONObject()
             .put("app", "pauzfirst")
             .put("version", 3)
@@ -54,10 +54,10 @@ object DataBackup {
                 }
                 if (added) {
                     Presets.replaceRaw(mine)
-                    try { ExtrasSync.changed() } catch (e: Exception) { }
+                    try { ExtrasSync.changed() } catch (e: Exception) { android.util.Log.w("PauzFirst", "extras sync not started", e) }
                 }
             }
-        } catch (e: Exception) { }
+        } catch (e: Exception) { android.util.Log.w("PauzFirst", "DataBackup step failed", e) }
 
         // question lists: the ones that are not on the account yet are created
         try {
@@ -71,7 +71,7 @@ object DataBackup {
                     Api.createList(name, o.optJSONArray("questions") ?: JSONArray())
                 }
             }
-        } catch (e: Exception) { }
+        } catch (e: Exception) { android.util.Log.w("PauzFirst", "DataBackup step failed", e) }
         return true
     }
 }

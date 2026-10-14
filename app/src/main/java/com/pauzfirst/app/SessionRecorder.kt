@@ -86,12 +86,12 @@ object SessionRecorder {
         if (r != null && f != null) {
             var ok = true
             try { r.stop() } catch (e: Exception) { ok = false }
-            try { r.release() } catch (e: Exception) { }
+            try { r.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionRecorder step failed", e) }
             if (ok) save(ctx, f, "audio/mp4", false)
         }
         if (serviceOn) {
             serviceOn = false
-            try { ctx.stopService(Intent(ctx, ScreenRecordService::class.java)) } catch (e: Exception) { }
+            try { ctx.stopService(Intent(ctx, ScreenRecordService::class.java)) } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionRecorder step failed", e) }
         }
     }
 
@@ -128,9 +128,9 @@ object SessionRecorder {
         } catch (e: Exception) {
             where = ""
         }
-        try { src.delete() } catch (e: Exception) { }
+        try { src.delete() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionRecorder step failed", e) }
         if (savedUri.isNotEmpty()) {
-            try { LocalExtras.addRecording(savedUri, video, startedMs) } catch (e: Exception) { }
+            try { LocalExtras.addRecording(savedUri, video, startedMs) } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionRecorder step failed", e) }
         }
         val msg = if (where.isNotEmpty()) "Training recording saved in " + where else "Couldn't save the training recording."
         Handler(Looper.getMainLooper()).post { Toast.makeText(app, msg, Toast.LENGTH_LONG).show() }

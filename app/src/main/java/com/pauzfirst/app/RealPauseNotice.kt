@@ -76,6 +76,7 @@ object RealPauseNotice {
                 .build()
             nm.notify(ID, note)
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "RealPauseNotice step failed", e)
         }
     }
 
@@ -83,6 +84,7 @@ object RealPauseNotice {
         try {
             (ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(ID)
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "RealPauseNotice step failed", e)
         }
     }
 }
@@ -97,20 +99,22 @@ class RealPauseReceiver : BroadcastReceiver() {
                     try {
                         context.startActivity(Intent(context, LoginActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     } catch (e: Exception) {
+                        android.util.Log.w("PauzFirst", "RealPauseNotice step failed", e)
                     }
                     return
                 }
                 val pr = goAsync()
                 Thread {
                     try {
-                        try { HistoryStore.recordReal() } catch (e: Exception) { }
-                        try { StreakWidget.refresh(context) } catch (e: Exception) { }
+                        try { HistoryStore.recordReal() } catch (e: Exception) { android.util.Log.w("PauzFirst", "RealPauseNotice step failed", e) }
+                        try { StreakWidget.refresh(context) } catch (e: Exception) { android.util.Log.w("PauzFirst", "RealPauseNotice step failed", e) }
                         if (RealPauseNotice.enabled) RealPauseNotice.post(context, true)
                         // send it online in the background; if offline it waits on the phone and goes later
-                        try { HistoryStore.flush() } catch (e: Exception) { }
+                        try { HistoryStore.flush() } catch (e: Exception) { android.util.Log.w("PauzFirst", "RealPauseNotice step failed", e) }
                         Thread.sleep(2500L)
                         RealPauseNotice.sync(context)
                     } catch (e: Exception) {
+                        android.util.Log.w("PauzFirst", "RealPauseNotice step failed", e)
                     } finally {
                         pr.finish()
                     }

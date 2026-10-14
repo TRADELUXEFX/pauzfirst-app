@@ -22,6 +22,7 @@ object ListCache {
             for ((name, qs) in raw) a.put(JSONObject().put("name", name).put("questions", qs))
             Session.prefs.edit().putString(key(), a.toString()).apply()
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Offline step failed", e)
         }
     }
 
@@ -113,11 +114,12 @@ class NetWatch(private val ctx: Context, private val onChange: (Boolean) -> Unit
             cm.registerDefaultNetworkCallback(c)
             cb = c
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Offline step failed", e)
         }
     }
 
     fun stop() {
-        try { cb?.let { cm.unregisterNetworkCallback(it) } } catch (e: Exception) { }
+        try { cb?.let { cm.unregisterNetworkCallback(it) } } catch (e: Exception) { android.util.Log.w("PauzFirst", "Offline step failed", e) }
         cb = null
         last = null
     }
@@ -161,7 +163,7 @@ object VoiceCheck {
             h.post {
                 val t = engine
                 val ok = if (status == TextToSpeech.SUCCESS && t != null) hasOfflineVoice(t) else false
-                try { t?.shutdown() } catch (e: Exception) { }
+                try { t?.shutdown() } catch (e: Exception) { android.util.Log.w("PauzFirst", "Offline step failed", e) }
                 done(ok)
             }
         }

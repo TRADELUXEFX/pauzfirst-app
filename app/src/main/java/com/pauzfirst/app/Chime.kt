@@ -58,8 +58,9 @@ object Chime {
                 t.play()
                 Thread.sleep(data.size * 1000L / RATE + 150L)
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "Chime step failed", e)
             } finally {
-                try { track?.release() } catch (e: Exception) { }
+                try { track?.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "Chime step failed", e) }
             }
         }.start()
     }

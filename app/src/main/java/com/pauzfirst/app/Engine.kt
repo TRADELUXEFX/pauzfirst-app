@@ -113,7 +113,7 @@ object Engine {
         if (voiceNoticeShown) return
         voiceNoticeShown = true
         val ctx = app ?: return
-        try { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() } catch (e: Exception) { }
+        try { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
     }
 
     private fun ensureTts() {
@@ -145,7 +145,7 @@ object Engine {
                             val off = VoiceCheck.offlineVoices(t)
                             val cur = t.voice
                             if (off.isNotEmpty() && (cur == null || cur.isNetworkConnectionRequired)) t.setVoice(off[0])
-                        } catch (e: Exception) { }
+                        } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
                     }
                     if (voice && !NetWatch.validated(ctx) && !VoiceCheck.hasOfflineVoice(t)) {
                         voiceNotice("No offline voice on this phone, so questions won't be read aloud. Install one in Settings > Text-to-speech, or go online.")
@@ -206,6 +206,7 @@ object Engine {
                 am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
             }
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Engine step failed", e)
         }
     }
 
@@ -220,6 +221,7 @@ object Engine {
                 am.abandonAudioFocus(null)
             }
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Engine step failed", e)
         }
     }
 
@@ -268,7 +270,7 @@ object Engine {
         activeId = ""
         queued = null
         voiceStopped()
-        try { tts?.stop() } catch (e: Exception) { }
+        try { tts?.stop() } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
     }
 
     // ---- timers (all guarded by gen so a stop/phase change cancels them) ----
@@ -452,6 +454,7 @@ object Engine {
                 v.vibrate(pattern, -1)
             }
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Engine step failed", e)
         }
     }
 
@@ -476,7 +479,7 @@ object Engine {
         ensureTts()
         if (ttsFailed) {
             val ctx = app ?: return
-            try { Toast.makeText(ctx, "Text-to-speech isn't available on this phone.", Toast.LENGTH_LONG).show() } catch (e: Exception) { }
+            try { Toast.makeText(ctx, "Text-to-speech isn't available on this phone.", Toast.LENGTH_LONG).show() } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
             return
         }
         if (!ttsReady) {
@@ -637,7 +640,7 @@ object Engine {
         val a = app ?: return
         // a new session is starting: keep the recording that was just set up for it
         if (!starting) SessionRecorder.stop(a)
-        try { a.stopService(Intent(a, TrainingService::class.java)) } catch (e: Exception) { }
+        try { a.stopService(Intent(a, TrainingService::class.java)) } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
     }
 
     private fun saveSession() {
@@ -702,8 +705,8 @@ object Engine {
                 // not critical: questions may repeat sooner
             }
             // you trained today, so a reminder that is already showing has done its job
-            try { Reminder.dismiss(app) } catch (e: Exception) { }
-            try { StreakWidget.refresh(app!!) } catch (e: Exception) { }
+            try { Reminder.dismiss(app) } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
+            try { StreakWidget.refresh(app!!) } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
             h.post { onSaved?.invoke() }
         }.start()
     }

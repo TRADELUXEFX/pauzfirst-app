@@ -36,7 +36,9 @@ android {
             // Same release key as the old Capacitor build so this installs over it.
             // Falls back to the debug key only if the secrets are missing.
             signingConfig hasReleaseKs ? signingConfigs.release : signingConfigs.debug
-            minifyEnabled false
+            // R8 removes unused library code. The app's own classes are kept as-is (see proguard-rules.pro).
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 

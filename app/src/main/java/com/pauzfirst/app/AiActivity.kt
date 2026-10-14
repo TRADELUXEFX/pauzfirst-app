@@ -202,7 +202,7 @@ class AiActivity : BaseActivity() {
             // like the website: only AI output from the default prompts (no theme) goes into the shared bank
             val fresh = r.questions
             if (theme.isEmpty() && fresh != null && fresh.isNotEmpty()) {
-                try { Api.sendToBank(fresh) } catch (e: Exception) { }
+                try { if (!Api.sendToBank(fresh)) android.util.Log.w("PauzFirst", "AI questions not sent to bank") } catch (e: Exception) { android.util.Log.w("PauzFirst", "AI questions not sent to bank", e) }
             }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread

@@ -152,14 +152,14 @@ class SessionAudio(private val projection: MediaProjection?, private val micMute
             } catch (e: Exception) {
                 // whatever was written so far is kept
             }
-            try { mic.stop() } catch (e: Exception) { }
-            try { playRec?.stop() } catch (e: Exception) { }
+            try { mic.stop() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
+            try { playRec?.stop() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
             mic.release()
             playRec?.release()
-            try { codec.stop() } catch (e: Exception) { }
-            try { codec.release() } catch (e: Exception) { }
+            try { codec.stop() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
+            try { codec.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
             try { if (started) muxer.stop() } catch (e: Exception) { wrote = false }
-            try { muxer.release() } catch (e: Exception) { }
+            try { muxer.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
             ok = wrote
         }
         thread = t
@@ -169,7 +169,7 @@ class SessionAudio(private val projection: MediaProjection?, private val micMute
     /** Stops and waits for the file to be finished. */
     fun stop() {
         running = false
-        try { thread?.join(3000L) } catch (e: Exception) { }
+        try { thread?.join(3000L) } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
         thread = null
     }
 
@@ -220,9 +220,9 @@ class SessionAudio(private val projection: MediaProjection?, private val micMute
             } catch (e: Exception) {
                 return false
             } finally {
-                try { muxer?.release() } catch (e: Exception) { }
-                try { vEx.release() } catch (e: Exception) { }
-                try { aEx.release() } catch (e: Exception) { }
+                try { muxer?.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
+                try { vEx.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
+                try { aEx.release() } catch (e: Exception) { android.util.Log.w("PauzFirst", "SessionAudio step failed", e) }
             }
         }
     }

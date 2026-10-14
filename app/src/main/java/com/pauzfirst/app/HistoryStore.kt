@@ -219,7 +219,7 @@ object HistoryStore {
         val merged = merge(remote, pend)
         if (!Api.saveHistory(merged)) return false
         // keep the copy on the phone current, so the next surprise adds to the right total
-        try { Session.prefs.edit().putString(cacheKey(), merged.toString()).apply() } catch (e: Exception) { }
+        try { Session.prefs.edit().putString(cacheKey(), merged.toString()).apply() } catch (e: Exception) { android.util.Log.w("PauzFirst", "history cache not saved", e) }
         // remember exactly what was sent: an entry with the same date but new numbers (a Surprise Pauses card
         // that grew while this was running) has not been sent yet and stays waiting
         val sent = HashMap<String, String>()
@@ -245,6 +245,7 @@ object HistoryStore {
                 val d = f.parse(iso)
                 if (d != null) return d.time
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "HistoryStore step failed", e)
             }
         }
         return 0L
@@ -352,7 +353,7 @@ object HistoryStore {
     /** Called while online (from the home screen) so History already works offline the very first time it is opened. */
     fun warmCache() {
         val remote = Api.fetchHistory() ?: return
-        try { Session.prefs.edit().putString(cacheKey(), remote.toString()).apply() } catch (e: Exception) { }
+        try { Session.prefs.edit().putString(cacheKey(), remote.toString()).apply() } catch (e: Exception) { android.util.Log.w("PauzFirst", "history cache not saved", e) }
     }
 
     /** Newest first. Null only when offline and nothing is saved on the phone. */
@@ -362,7 +363,7 @@ object HistoryStore {
         val pend = pending()
         lastLoadOnline = remote != null
         if (remote != null) {
-            try { Session.prefs.edit().putString(cacheKey(), remote.toString()).apply() } catch (e: Exception) { }
+            try { Session.prefs.edit().putString(cacheKey(), remote.toString()).apply() } catch (e: Exception) { android.util.Log.w("PauzFirst", "history cache not saved", e) }
             return merge(remote, pend)
         }
         // offline: show the last history that was loaded, plus anything still waiting on the phone

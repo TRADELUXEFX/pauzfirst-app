@@ -527,9 +527,11 @@ class TrainingActivity : AppCompatActivity() {
                 try {
                     future.get().unbindAll()
                 } catch (e: Exception) {
+                    android.util.Log.w("PauzFirst", "TrainingActivity step failed", e)
                 }
             }, ContextCompat.getMainExecutor(this))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "TrainingActivity step failed", e)
         }
     }
 

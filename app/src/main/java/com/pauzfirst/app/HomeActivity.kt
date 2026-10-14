@@ -915,12 +915,12 @@ class HomeActivity : BaseActivity() {
             }
             val remoteLists = if (offlineNow) null else Api.fetchLists()
             if (!offlineNow && Defaults.bankDue()) {
-                try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }
+                try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { android.util.Log.w("PauzFirst", "bank not refreshed", e) }
             }
             val remoteUsed = if (offlineNow) null else Api.fetchUsed()
             val synced = try { !offlineNow && waiting > 0 && HistoryStore.flush() } catch (e: Exception) { false }
             // keep a copy of the history on the phone so the History tab also works offline
-            if (!offlineNow) try { HistoryStore.warmCache() } catch (e: Exception) { }
+            if (!offlineNow) try { HistoryStore.warmCache() } catch (e: Exception) { android.util.Log.w("PauzFirst", "HomeActivity step failed", e) }
             if (remoteUsed != null) UsedStore.syncFromRemote(remoteUsed)
             var mergedVar: JSONObject? = null
             if (remoteStats != null) {
@@ -934,7 +934,7 @@ class HomeActivity : BaseActivity() {
                 if (ahead) {
                     try {
                         if (Api.saveStats(m)) synchronized(StatsStore.lock) { StatsStore.clearDelta(sent) }
-                    } catch (e: Exception) { }
+                    } catch (e: Exception) { android.util.Log.w("PauzFirst", "HomeActivity step failed", e) }
                 } else {
                     synchronized(StatsStore.lock) { StatsStore.clearDelta(sent) }
                 }

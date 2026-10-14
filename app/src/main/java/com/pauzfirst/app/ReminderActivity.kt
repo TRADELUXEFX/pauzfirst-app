@@ -155,6 +155,7 @@ class ReminderActivity : BaseActivity() {
                 )
             )
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "ReminderActivity step failed", e)
         }
     }
 

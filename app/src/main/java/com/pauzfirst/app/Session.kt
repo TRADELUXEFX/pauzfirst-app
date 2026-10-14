@@ -78,6 +78,7 @@ object Session {
                         }
                     }
                 } catch (e: Exception) {
+                    android.util.Log.w("PauzFirst", "Session step failed", e)
                 }
             }
         }
@@ -265,6 +266,7 @@ object Settings {
             val a = JSONArray(Session.prefs.getString("s_pinned", "[]") ?: "[]")
             for (i in 0 until a.length()) out.add(a.getString(i))
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "Session step failed", e)
         }
         return out
     }

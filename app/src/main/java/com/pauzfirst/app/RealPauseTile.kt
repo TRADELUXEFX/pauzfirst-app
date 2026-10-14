@@ -30,16 +30,17 @@ class RealPauseTile : TileService() {
                 @Suppress("DEPRECATION")
                 startActivityAndCollapse(i)
             } catch (e: Exception) {
+                android.util.Log.w("PauzFirst", "RealPauseTile step failed", e)
             }
             return
         }
         tick()
         Thread {
-            try { HistoryStore.recordReal() } catch (e: Exception) { }
-            try { StreakWidget.refresh(applicationContext) } catch (e: Exception) { }
+            try { HistoryStore.recordReal() } catch (e: Exception) { android.util.Log.w("PauzFirst", "RealPauseTile step failed", e) }
+            try { StreakWidget.refresh(applicationContext) } catch (e: Exception) { android.util.Log.w("PauzFirst", "RealPauseTile step failed", e) }
             h.post { paint(true) }
             // send it online in the background; if offline it waits on the phone and goes later
-            try { HistoryStore.flush() } catch (e: Exception) { }
+            try { HistoryStore.flush() } catch (e: Exception) { android.util.Log.w("PauzFirst", "RealPauseTile step failed", e) }
         }.start()
         // back to normal a moment later
         h.postDelayed({ paint(false) }, 2500L)
@@ -75,6 +76,7 @@ class RealPauseTile : TileService() {
                 v.vibrate(40L)
             }
         } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "RealPauseTile step failed", e)
         }
     }
 }
