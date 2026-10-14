@@ -1256,14 +1256,14 @@ class HomeActivity : BaseActivity() {
         }
         for (p in list) {
             val card = Ui.card(c)
-            card.orientation = LinearLayout.HORIZONTAL
-            card.gravity = Gravity.CENTER_VERTICAL
-            val col = LinearLayout(c)
-            col.orientation = LinearLayout.VERTICAL
-            col.addView(Ui.text(c, p.name, 15f, Ui.TEXT, Ui.BOLD))
-            col.addView(Ui.text(c, Presets.summary(p), 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
-            card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            card.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
+            // top row: the name and the arrow stay up; the info line goes under, across the full width
+            val top = LinearLayout(c)
+            top.orientation = LinearLayout.HORIZONTAL
+            top.gravity = Gravity.CENTER_VERTICAL
+            top.addView(Ui.text(c, p.name, 15f, Ui.TEXT, Ui.BOLD), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            top.addView(Ui.text(c, "\u203A", 22f, Ui.BLUE, Ui.BOLD))
+            card.addView(top, Ui.lp(c))
+            card.addView(Ui.presetInfo(c, p), Ui.lp(c, 3))
             card.setOnClickListener {
                 // open the preset on Training: check its settings and question list, then Start training
                 openPresetHere(p)

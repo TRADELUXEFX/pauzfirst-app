@@ -61,12 +61,12 @@ class TrainingDetailActivity : BaseActivity() {
 
         // header: the mode's name, back arrow on the left, the mode's eye icon on the right (as Presence)
         val modeIcon: View? = if (isSurprise) null else {
-            val path = when (mode) {
-                "eyes-closed" -> Icons.EYE_OFF
-                "mirror" -> Icons.MIRROR
-                else -> Icons.EYE
+            if (mode == "mirror") {
+                Ui.headerIconView(c, FsFillIconView(c, Icons.MIRROR, 122.88f, 94.69f, Ui.WHITE), modeLabel(mode)) { }
+            } else {
+                val path = if (mode == "eyes-closed") Icons.EYE_OFF else Icons.EYE
+                Ui.headerIcon(c, path, modeLabel(mode)) { }
             }
-            Ui.headerIcon(c, path, modeLabel(mode)) { }
         }
         val root = LinearLayout(c)
         root.orientation = LinearLayout.VERTICAL

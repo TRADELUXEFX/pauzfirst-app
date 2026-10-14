@@ -36,6 +36,31 @@ class FsIconView(ctx: Context, d: String, color: Int = Color.WHITE) : View(ctx) 
     }
 }
 
+/** A filled icon taken from the website (SVG path data with its own view box), e.g. the Mirror icon. */
+class FsFillIconView(ctx: Context, d: String, private val vw: Float, private val vh: Float, color: Int = Color.WHITE) : View(ctx) {
+    private val path = PathParser.createPathFromPathData(d).also { it.fillType = android.graphics.Path.FillType.EVEN_ODD }
+    private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    init {
+        p.style = Paint.Style.FILL
+        p.color = color
+    }
+
+    fun setColor(color: Int) {
+        p.color = color
+        invalidate()
+    }
+
+    override fun onDraw(c: Canvas) {
+        val s = Math.min(width / vw, height / vh)
+        c.save()
+        c.translate((width - vw * s) / 2f, (height - vh * s) / 2f)
+        c.scale(s, s)
+        c.drawPath(path, p)
+        c.restore()
+    }
+}
+
 /** Listen / Pause / Respond guide for the full-screen camera, drawn like the website's. */
 class PhaseGuideView(ctx: Context) : View(ctx) {
     var active: Int = -1

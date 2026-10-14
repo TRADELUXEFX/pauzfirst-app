@@ -369,8 +369,36 @@ object Ui {
         return h
     }
 
+    /**
+     * The line under a preset's name, across the full width of the card: the mode and question count, an icon when the preset records
+     * (headphones = audio, video camera = video), and the clock with the estimated length ("46s", "1m 23s").
+     */
+    fun presetInfo(c: Context, p: Preset): LinearLayout {
+        val row = LinearLayout(c)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.addView(text(c, Presets.summary(p), 12f, MUTED, REG))
+        if (p.recordScreen || p.recordAudio) {
+            row.addView(text(c, "  \u00B7  ", 12f, MUTED, REG))
+            val rec = FsIconView(c, if (p.recordScreen) Icons.VIDEO else Icons.HEADPHONES, MUTED)
+            rec.contentDescription = if (p.recordScreen) "Video recording" else "Audio recording"
+            row.addView(rec, LinearLayout.LayoutParams(dp(c, 14), dp(c, 14)))
+        }
+        row.addView(text(c, "  \u00B7  ", 12f, MUTED, REG))
+        row.addView(FsIconView(c, Icons.CLOCK, MUTED), LinearLayout.LayoutParams(dp(c, 14), dp(c, 14)))
+        val t = text(c, StatsStore.formatDuration(Presets.estimateSeconds(p).toLong()), 12f, MUTED, REG)
+        val tlp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        tlp.leftMargin = dp(c, 4)
+        row.addView(t, tlp)
+        return row
+    }
+
     /** Round 40dp icon button for a header edge: the same look as Save on Training. */
-    fun headerIcon(c: Context, path: String, desc: String, onClick: () -> Unit): FrameLayout {
+    fun headerIcon(c: Context, path: String, desc: String, onClick: () -> Unit): FrameLayout =
+        headerIconView(c, FsIconView(c, path, WHITE), desc, onClick)
+
+    /** Same round header button, holding any icon view. */
+    fun headerIconView(c: Context, icon: View, desc: String, onClick: () -> Unit): FrameLayout {
         val box = FrameLayout(c)
         val circle = GradientDrawable()
         circle.shape = GradientDrawable.OVAL
@@ -379,7 +407,7 @@ object Ui {
         box.contentDescription = desc
         box.minimumWidth = dp(c, 40)
         box.minimumHeight = dp(c, 40)
-        box.addView(FsIconView(c, path, WHITE), FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
+        box.addView(icon, FrameLayout.LayoutParams(dp(c, 22), dp(c, 22), Gravity.CENTER))
         box.setOnClickListener { onClick() }
         return box
     }

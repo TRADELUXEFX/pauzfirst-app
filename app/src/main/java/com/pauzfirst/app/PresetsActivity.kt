@@ -61,20 +61,22 @@ class PresetsActivity : BaseActivity() {
     private fun card(p: Preset): LinearLayout {
         val c = this
         val card = Ui.card(c)
-        card.orientation = LinearLayout.HORIZONTAL
-        card.gravity = Gravity.CENTER_VERTICAL
-        val col = LinearLayout(c)
-        col.orientation = LinearLayout.VERTICAL
+        // top row: the name and the icons stay up; the info line goes under, across the full width
+        val top = LinearLayout(c)
+        top.orientation = LinearLayout.HORIZONTAL
+        top.gravity = Gravity.CENTER_VERTICAL
         val title = Ui.text(c, p.name, 15f, Ui.TEXT, Ui.BOLD)
         title.maxLines = 1
         title.ellipsize = android.text.TextUtils.TruncateAt.END
-        col.addView(title)
-        col.addView(Ui.text(c, Presets.summary(p), 12f, Ui.MUTED, Ui.REG), Ui.lp(c, 3))
-        card.addView(col, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        card.addView(iconButton(Icons.COPY, "Duplicate preset") { duplicatePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
-        card.addView(iconButton(Icons.TRASH, "Delete preset") { confirmDelete(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
-        // only the name and summary open the preset; the icons beside them do their own action
-        col.setOnClickListener { openPreset(p) }
+        top.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(iconButton(Icons.COPY, "Duplicate preset") { duplicatePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
+        top.addView(iconButton(Icons.TRASH, "Delete preset") { confirmDelete(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
+        card.addView(top, Ui.lp(c))
+        val info = Ui.presetInfo(c, p)
+        card.addView(info, Ui.lp(c, 3))
+        // only the name and the info line open the preset; the icons do their own action
+        title.setOnClickListener { openPreset(p) }
+        info.setOnClickListener { openPreset(p) }
         return card
     }
 

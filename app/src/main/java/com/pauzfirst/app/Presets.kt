@@ -246,16 +246,20 @@ object Presets {
         Settings.source = p.source
     }
 
-    /** Short line under the name: "Mirror · 5Q · Deep Pause · 3-Why". */
-    fun summary(p: Preset): String {
-        val parts = ArrayList<String>()
-        parts.add(modeName(p.mode))
-        parts.add(p.total.toString() + "Q")
-        if (p.deep) parts.add("Deep Pause")
-        if (p.deep && p.threeWhy) parts.add("3-Why")
-        if (p.recordScreen) parts.add("Video rec") else if (p.recordAudio) parts.add("Audio rec")
-        return parts.joinToString("  ·  ")
+    /**
+     * Estimated length of a preset in seconds, worked out exactly like the Training time card:
+     * each question takes its pause and answer time, plus the rest between questions (2s, or 3s in Deep Pause).
+     * In Deep Pause the pause is user-paced, so it is not counted.
+     */
+    fun estimateSeconds(p: Preset): Int {
+        val gap = if (p.deep) 3 else 2
+        val rest = Math.max(0, p.total - 1) * gap
+        val pause = if (p.deep) 0 else p.pause
+        return p.total * (pause + p.answer) + rest
     }
+
+    /** The essentials under the name: "Mirror · 5Q". Recording and the time are added by Ui.presetInfo as icons. */
+    fun summary(p: Preset): String = modeName(p.mode) + "  \u00B7  " + p.total + "Q"
 
     /** The preset opened on Training and not started yet. Marked as recent only when its training starts. */
     var loaded: String? = null
