@@ -88,6 +88,14 @@ class TrainingActivity : AppCompatActivity() {
     private var counting = false
     private val uiH = Handler(Looper.getMainLooper())
 
+    // Animated eyes: question, tip and phases stay hidden until the person taps the screen
+    private var peek = false
+    private var peekPhase: Engine.Phase? = null
+    private val peekOff = Runnable {
+        peek = false
+        render()
+    }
+
     private val camPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) {
             startCamera()
@@ -256,6 +264,14 @@ class TrainingActivity : AppCompatActivity() {
         fs = FrameLayout(c)
         fs.setBackgroundColor(Color.BLACK)
         fs.visibility = View.GONE
+        if (Settings.animatedEyes) {
+            fs.setOnClickListener {
+                peek = !peek
+                uiH.removeCallbacks(peekOff)
+                if (peek) uiH.postDelayed(peekOff, 6000L)
+                render()
+            }
+        }
         val match = FrameLayout.LayoutParams.MATCH_PARENT
 
         fsPv = PreviewView(c)
@@ -666,9 +682,14 @@ class TrainingActivity : AppCompatActivity() {
         fsBadge.visibility = if (p == Engine.Phase.DONE) View.INVISIBLE else View.VISIBLE
         fsQuestion.text = questionText
         currentQ = questionText
-        // Animated eyes trains answering from audio cues only (like a real conversation): no question, tip or phases on screen.
-        // The finish message still shows.
-        val focusHide = Settings.animatedEyes && p != Engine.Phase.DONE
+        // Animated eyes trains answering from audio cues only (like a real conversation): no question, tip or phases on screen
+        // unless the person taps the screen (they hide again after 6 seconds, or at the next phase). The finish message still shows.
+        if (peekPhase != p) {
+            peekPhase = p
+            peek = false
+            uiH.removeCallbacks(peekOff)
+        }
+        val focusHide = Settings.animatedEyes && p != Engine.Phase.DONE && !peek
         fsCard.visibility = if (questionText.isEmpty() || focusHide) View.INVISIBLE else View.VISIBLE
         fsTip.visibility = if (focusHide) View.INVISIBLE else View.VISIBLE
 

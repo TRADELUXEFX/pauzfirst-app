@@ -36,6 +36,7 @@ class RealPauseTile : TileService() {
         tick()
         Thread {
             try { HistoryStore.recordReal() } catch (e: Exception) { }
+            try { StreakWidget.refresh(applicationContext) } catch (e: Exception) { }
             h.post { paint(true) }
             // send it online in the background; if offline it waits on the phone and goes later
             try { HistoryStore.flush() } catch (e: Exception) { }

@@ -50,12 +50,18 @@ object RealPauseNotice {
                 Intent(ctx, RealPauseReceiver::class.java).setAction(ACTION_REPOST),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
+            // tapping anywhere else on the notification opens the app; only the Log button logs
+            val open = PendingIntent.getActivity(
+                ctx, 44,
+                Intent(ctx, HomeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
             val row = RemoteViews(ctx.packageName, R.layout.notice_real)
             row.setTextViewText(
                 R.id.notice_real_title,
-                if (logged) "Logged \u2022 " + n + " today" else if (n > 0) "Real Pause \u2022 " + n + " today" else "Real Pause"
+                if (n > 0) "Real Pause \u2022 " + n + " today" else "Real Pause"
             )
-            row.setTextViewText(R.id.notice_real_btn, if (logged) "Logged" else "Log")
+            row.setTextViewText(R.id.notice_real_label, if (logged) "Logged" else "Log")
             row.setInt(R.id.notice_real_btn, "setBackgroundResource", if (logged) R.drawable.widget_btn_done else R.drawable.widget_btn)
             row.setOnClickPendingIntent(R.id.notice_real_btn, log)
             val b = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(ctx, CHANNEL) else Notification.Builder(ctx)
@@ -63,7 +69,7 @@ object RealPauseNotice {
                 .setCustomContentView(row)
                 .setSmallIcon(R.drawable.ic_stat_pauzfirst)
                 .setColor(Ui.BLUE)
-                .setContentIntent(log)
+                .setContentIntent(open)
                 .setDeleteIntent(gone)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
@@ -98,7 +104,8 @@ class RealPauseReceiver : BroadcastReceiver() {
                 Thread {
                     try {
                         try { HistoryStore.recordReal() } catch (e: Exception) { }
-                        RealPauseNotice.post(context, true)
+                        try { StreakWidget.refresh(context) } catch (e: Exception) { }
+                        if (RealPauseNotice.enabled) RealPauseNotice.post(context, true)
                         // send it online in the background; if offline it waits on the phone and goes later
                         try { HistoryStore.flush() } catch (e: Exception) { }
                         Thread.sleep(2500L)

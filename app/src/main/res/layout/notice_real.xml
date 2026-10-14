@@ -17,19 +17,34 @@
         android:maxLines="2"
         android:text="Real Pause"
         android:textAppearance="@android:style/TextAppearance.Material.Notification.Title"
-        android:textSize="14sp" />
+        android:textSize="15sp" />
 
-    <TextView
+    <LinearLayout
         android:id="@+id/notice_real_btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/widget_btn"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         android:paddingStart="14dp"
-        android:paddingTop="9dp"
-        android:paddingEnd="14dp"
-        android:paddingBottom="9dp"
-        android:text="Log"
-        android:textColor="#FFFFFF"
-        android:textSize="13sp"
-        android:textStyle="bold" />
+        android:paddingTop="10dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="10dp">
+
+        <ImageView
+            android:id="@+id/notice_real_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_stat_pauzfirst" />
+
+        <TextView
+            android:id="@+id/notice_real_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="Log"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>

@@ -129,7 +129,7 @@ object Reminder {
     fun schedule(ctx: Context) {
         scheduleStreak(ctx)
         WeeklySummary.schedule(ctx)
-        if (Session.loggedIn()) StartNotice.post(ctx)
+        StartNotice.cancel(ctx)
         RealPauseNotice.sync(ctx)
         cancel(ctx)
         if (!enabled) return

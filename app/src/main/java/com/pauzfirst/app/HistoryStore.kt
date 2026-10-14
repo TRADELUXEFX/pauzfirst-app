@@ -247,6 +247,33 @@ object HistoryStore {
         return out
     }
 
+    /** For each of the last [days] days (last item = today): was there a real training? Surprise and Real Pauses don't count. */
+    fun trainedDays(days: Int): BooleanArray {
+        val out = BooleanArray(days)
+        val starts = LongArray(days)
+        for (i in 0 until days) {
+            val c = Calendar.getInstance()
+            c.set(Calendar.HOUR_OF_DAY, 0)
+            c.set(Calendar.MINUTE, 0)
+            c.set(Calendar.SECOND, 0)
+            c.set(Calendar.MILLISECOND, 0)
+            c.add(Calendar.DAY_OF_YEAR, -(days - 1 - i))
+            starts[i] = c.timeInMillis
+        }
+        val h = saved() ?: return out
+        for (k in 0 until h.length()) {
+            val o = h.optJSONObject(k) ?: continue
+            val mode = o.optString("mode", "")
+            if (mode == REAL || mode == SURPRISE) continue
+            val ms = parseIso(o.optString("date", ""))
+            if (ms < starts[0]) continue
+            var idx = days - 1
+            while (idx > 0 && starts[idx] > ms) idx--
+            out[idx] = true
+        }
+        return out
+    }
+
     /** Sessions, questions and seconds between two moments (fromMs inclusive, toMs exclusive), from what is saved on the phone. */
     fun totals(fromMs: Long, toMs: Long): LongArray {
         val out = LongArray(3)
