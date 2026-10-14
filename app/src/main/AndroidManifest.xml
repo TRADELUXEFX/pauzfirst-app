@@ -126,6 +126,10 @@
                 android:resource="@xml/streak_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".RealPauseReceiver"
+            android:exported="false" />
+
         <service
             android:name=".TrainingService"
             android:exported="false"

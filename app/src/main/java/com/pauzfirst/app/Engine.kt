@@ -235,22 +235,6 @@ object Engine {
         }
     }
 
-    /** True when sound is going to wired, USB or Bluetooth headphones/earbuds (checked each time a cue is spoken). */
-    private fun headphonesConnected(): Boolean {
-        val a = app ?: return false
-        return try {
-            val am = a.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {
-                when (it.type) {
-                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET,
-                    AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> true
-                    else -> Build.VERSION.SDK_INT >= 31 && (it.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
-                }
-            }
-        } catch (ex: Exception) { false }
-    }
-
     private fun speakNow(text: String, rate: Float, cb: (() -> Unit)?) {
         val t = tts ?: return
         uttSeq++
@@ -261,11 +245,7 @@ object Engine {
         speakStart = SystemClock.uptimeMillis()
         speaking = true
         requestVoiceFocus()
-        val params = Bundle()
-        if (headphonesConnected()) {
-            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, Settings.headphoneVolume / 100f)
-        }
-        t.speak(text, TextToSpeech.QUEUE_FLUSH, params, id)
+        t.speak(text, TextToSpeech.QUEUE_FLUSH, Bundle(), id)
     }
 
     /** Speaks text, then runs cb (only if the session was not stopped/advanced meanwhile). */
@@ -430,16 +410,19 @@ object Engine {
         }
     }
 
-    /** The soft chime (if switched on), at the headphone volume when headphones are connected. */
+    /** The soft chime (if switched on). Loudness follows the phone's volume buttons. */
     private fun chime(pulses: Int) {
         if (!Settings.chime) return
-        val vol = if (headphonesConnected()) Settings.headphoneVolume / 100f else 1f
-        Chime.play(pulses, vol)
+        Chime.play(pulses, 1f)
     }
 
     /** A short vibration for a phase change: one pulse = Pause, two pulses = Respond. */
     private fun buzz(pulses: Int) {
         if (!Settings.haptics) return
+        vibrate(if (pulses <= 1) longArrayOf(0L, 60L) else longArrayOf(0L, 60L, 110L, 60L))
+    }
+
+    private fun vibrate(pattern: LongArray) {
         val a = app ?: return
         try {
             val v: Vibrator? = if (Build.VERSION.SDK_INT >= 31) {
@@ -449,7 +432,6 @@ object Engine {
                 a.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             }
             if (v == null || !v.hasVibrator()) return
-            val pattern = if (pulses <= 1) longArrayOf(0L, 60L) else longArrayOf(0L, 60L, 110L, 60L)
             if (Build.VERSION.SDK_INT >= 26) {
                 v.vibrate(VibrationEffect.createWaveform(pattern, -1))
             } else {
@@ -458,6 +440,37 @@ object Engine {
             }
         } catch (e: Exception) {
         }
+    }
+
+    // ---- try-out of each cue (press and hold its icon on the Training screen), even when the cue is switched off ----
+
+    /** One buzz (Pause), then two (Respond). */
+    fun previewVibrate() {
+        if (phase != Phase.IDLE && phase != Phase.DONE) return
+        vibrate(longArrayOf(0L, 60L, 500L, 60L, 110L, 60L))
+    }
+
+    /** One note (Pause), then two rising notes (Respond). */
+    fun previewChime() {
+        if (phase != Phase.IDLE && phase != Phase.DONE) return
+        Chime.play(1, 1f)
+        h.postDelayed({ Chime.play(2, 1f) }, 800L)
+    }
+
+    /** Says a short sample with the phone's voice. */
+    fun previewVoice() {
+        if (phase != Phase.IDLE && phase != Phase.DONE) return
+        ensureTts()
+        if (ttsFailed) {
+            val ctx = app ?: return
+            try { Toast.makeText(ctx, "Text-to-speech isn't available on this phone.", Toast.LENGTH_LONG).show() } catch (e: Exception) { }
+            return
+        }
+        if (!ttsReady) {
+            queued = Queued("Pause. Then respond.", 0.9f, null)
+            return
+        }
+        speakNow("Pause. Then respond.", 0.9f, null)
     }
 
     private fun startPause() {

@@ -130,6 +130,7 @@ object Reminder {
         scheduleStreak(ctx)
         WeeklySummary.schedule(ctx)
         if (Session.loggedIn()) StartNotice.post(ctx)
+        RealPauseNotice.sync(ctx)
         cancel(ctx)
         if (!enabled) return
         try {

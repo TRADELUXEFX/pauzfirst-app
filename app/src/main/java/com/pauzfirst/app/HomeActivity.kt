@@ -492,6 +492,7 @@ class HomeActivity : BaseActivity() {
                     Btn("Logout", Kind.DANGER) {
                         Engine.stop()
                         StartNotice.cancel(this)
+                        RealPauseNotice.cancel(this)
                         Session.clear()
                         goLogin()
                     }
@@ -964,8 +965,8 @@ class HomeActivity : BaseActivity() {
         if (Settings.mirror && !Settings.deepPause) {
             items.add(HelpPopup.Item(Icons.EYE, "Phases", "Shows Listen, Pause and Respond on the screen."))
         }
-        items.add(HelpPopup.Item(Icons.HEADPHONES, "Headset buttons", "When a training shows a Next button, press your headphone button once or twice for Next. It works with the screen off. If there is no Next button, it does nothing."))
-        HelpPopup.show(this, "How cues work", "Pick how PauzFirst guides you during training.", items)
+        items.add(HelpPopup.Item(Icons.HEADPHONES, "Headset buttons", "Press your headphone button for Next."))
+        HelpPopup.show(this, "How cues work", "Pick how PauzFirst guides you. Press and hold an icon to try it.", items)
     }
 
     private var afterRecordPrep: (() -> Unit)? = null
@@ -1146,7 +1147,7 @@ class HomeActivity : BaseActivity() {
         sound.addTo(soundHead, 0)
 
         // one round button per cue: filled blue when on, an empty blue ring when off (no On/Off text)
-        fun cueToggle(icon: String, name: String, get: () -> Boolean, set: (Boolean) -> Unit): LinearLayout {
+        fun cueToggle(icon: String, name: String, get: () -> Boolean, set: (Boolean) -> Unit, preview: (() -> Unit)? = null): LinearLayout {
             val col = LinearLayout(c)
             col.orientation = LinearLayout.VERTICAL
             col.gravity = Gravity.CENTER_HORIZONTAL
@@ -1155,6 +1156,7 @@ class HomeActivity : BaseActivity() {
             circle.addView(ic, android.widget.FrameLayout.LayoutParams(Ui.dp(c, 26), Ui.dp(c, 26), Gravity.CENTER))
             col.addView(circle, LinearLayout.LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)))
             val label = Ui.text(c, name, 13f, Ui.TEXT, Ui.REG)
+            label.gravity = Gravity.CENTER_HORIZONTAL
             col.addView(label, Ui.lp(c, 6))
             fun paint() {
                 val on = get()
@@ -1168,35 +1170,30 @@ class HomeActivity : BaseActivity() {
                 set(!get())
                 paint()
             }
+            // press and hold: try the cue out (works even when it is switched off)
+            if (preview != null) {
+                col.setOnLongClickListener {
+                    preview()
+                    true
+                }
+            }
             return col
         }
         val cueRow = LinearLayout(c)
         cueRow.orientation = LinearLayout.HORIZONTAL
-        cueRow.addView(cueToggle(Icons.VOLUME, "Voice", { Settings.voice }, { Settings.voice = it }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        cueRow.addView(cueToggle(Icons.VIBRATE, "Vibrate", { Settings.haptics }, { Settings.haptics = it }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        cueRow.addView(cueToggle(Icons.BELL, "Chime", { Settings.chime }, { Settings.chime = it }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        cueRow.addView(cueToggle(Icons.VOLUME, "Voice", { Settings.voice }, { Settings.voice = it }, { Engine.previewVoice() }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        cueRow.addView(cueToggle(Icons.VIBRATE, "Vibrate", { Settings.haptics }, { Settings.haptics = it }, { Engine.previewVibrate() }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        cueRow.addView(cueToggle(Icons.BELL, "Chime", { Settings.chime }, { Settings.chime = it }, { Engine.previewChime() }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         // Phases only applies to Mirror (not Deep Pause); it is shown or hidden by the refresh below
-        val guideRow = cueToggle(Icons.EYE, "Phases", { Settings.phaseGuide }, { Settings.phaseGuide = it })
+        val guideRow = cueToggle(Icons.EYE, "Phases", { Settings.phaseGuide }, { Settings.phaseGuide = it }, {
+            // a quick look at what shows on the training screen: Listen, Pause, Respond
+            val hh = android.os.Handler(android.os.Looper.getMainLooper())
+            listOf("Listen", "Pause", "Respond").forEachIndexed { i, w ->
+                hh.postDelayed({ Toast.makeText(this, w, Toast.LENGTH_SHORT).show() }, i * 1000L)
+            }
+        })
         cueRow.addView(guideRow, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         sound.addTo(cueRow, 10)
-        // headphone volume: how loud the spoken cue is when headphones are connected
-        val hpLabel = Ui.text(c, "Headphone volume: " + Settings.headphoneVolume + "%", 13f, Ui.MUTED, Ui.MED)
-        val hpSeek = android.widget.SeekBar(c)
-        hpSeek.max = 100
-        hpSeek.progress = Settings.headphoneVolume
-        hpSeek.contentDescription = "Voice volume when headphones are connected"
-        hpSeek.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(s: android.widget.SeekBar?, p: Int, fromUser: Boolean) {
-                hpLabel.text = "Headphone volume: " + p + "%"
-                if (fromUser) Settings.headphoneVolume = p
-            }
-            override fun onStartTrackingTouch(s: android.widget.SeekBar?) {}
-            override fun onStopTrackingTouch(s: android.widget.SeekBar?) {}
-        })
-        hpSeek.progressTintList = android.content.res.ColorStateList.valueOf(Ui.BLUE)
-        hpSeek.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.BLUE)
-        sound.addTo(hpLabel, 12)
-        sound.addTo(hpSeek, 2)
         val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
         lower.addView(sound, soundLp)

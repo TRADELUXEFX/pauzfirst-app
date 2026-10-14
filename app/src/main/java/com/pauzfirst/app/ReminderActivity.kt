@@ -120,6 +120,19 @@ class ReminderActivity : BaseActivity() {
         body.addTo(streakCard, 12)
 
         body.addTo(buildSurpriseCard(is24), 12)
+
+        val realCard = Ui.card(c)
+        realCard.addTo(Ui.switchRow(c, "Real Pause button", "A notification with one tap to log a pause you took in real life", RealPauseNotice.enabled) { on ->
+            RealPauseNotice.enabled = on
+            RealPauseNotice.sync(this)
+            if (on) {
+                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                if (!nm.areNotificationsEnabled()) {
+                    Toast.makeText(this, "Turn on notifications for PAUZFIRST in your phone's Settings to see it.", Toast.LENGTH_LONG).show()
+                }
+            }
+        })
+        body.addTo(realCard, 12)
         body.addTo(Ui.note(c, "No reminder on days you've already practiced."), 12)
 
         val scroll = ScrollView(c)

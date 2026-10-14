@@ -21,6 +21,7 @@ class PauzApp : Application() {
         Session.init(this)
         Engine.init(this)
         Ui.dark = Settings.isDark(this)
+        RealPauseNotice.sync(this)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(a: Activity, s: Bundle?) {
                 themeOf[a] = Ui.dark
