@@ -32,6 +32,7 @@ class HomeActivity : BaseActivity() {
     private lateinit var goalCard: LinearLayout
     private lateinit var presetBox: LinearLayout
     private lateinit var presetHeadView: LinearLayout
+    private lateinit var loadingRing: LinearLayout
     private lateinit var trainTitle: TextView
     // the Training page starts with only the question list and the four modes; the rest shows once a mode is chosen
     private var modeChosen = false  // Training shows the defaults until a mode is picked, or a saved preset is opened
@@ -410,6 +411,11 @@ class HomeActivity : BaseActivity() {
         val gLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         gLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 12), Ui.dp(c, 16), 0)
         body.addView(goalCard, gLp)
+        // same sweeping ring as List and History, shown while the first numbers load
+        loadingRing = Loading.page(c)
+        loadingRing.minimumHeight = Ui.dp(c, 220)
+        loadingRing.visibility = View.GONE
+        body.addView(loadingRing, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
 
         // recent presets: tap one to start training straight away; the Presets pill opens the full list
@@ -898,13 +904,19 @@ class HomeActivity : BaseActivity() {
         Thread {
             val waiting = HistoryStore.pendingCount()
             Api.resetNetFail()
-            val remoteLists = Api.fetchLists()
+            val remoteStats = Api.fetchStats()
             // no connection: the first request already waited, so the rest are skipped instead of waiting one by one
-            val offlineNow = remoteLists == null && Api.recentlyOffline()
+            val offlineNow = remoteStats == null && Api.recentlyOffline()
+            // numbers are in: stop the loading ring now instead of waiting for the lists and sync below
+            if (remoteStats != null) runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                stopStatsPulse()
+                showStats(remoteStats)
+            }
+            val remoteLists = if (offlineNow) null else Api.fetchLists()
             if (!offlineNow && Defaults.bankDue()) {
                 try { Api.fetchBank()?.let { Defaults.saveBank(it) } } catch (e: Exception) { }
             }
-            val remoteStats = if (offlineNow) null else Api.fetchStats()
             val remoteUsed = if (offlineNow) null else Api.fetchUsed()
             val synced = try { !offlineNow && waiting > 0 && HistoryStore.flush() } catch (e: Exception) { false }
             // keep a copy of the history on the phone so the History tab also works offline
@@ -968,6 +980,7 @@ class HomeActivity : BaseActivity() {
         if (::goalCard.isInitialized) goalCard.visibility = View.GONE
         if (::presetHeadView.isInitialized) presetHeadView.visibility = View.GONE
         if (::presetBox.isInitialized) presetBox.visibility = View.GONE
+        if (::loadingRing.isInitialized) loadingRing.visibility = View.VISIBLE
         val a = android.animation.ValueAnimator.ofFloat(0.35f, 1f)
         a.duration = 750
         a.repeatMode = android.animation.ValueAnimator.REVERSE
@@ -986,6 +999,7 @@ class HomeActivity : BaseActivity() {
     private fun stopStatsPulse() {
         statsPulse?.cancel()
         statsPulse = null
+        if (::loadingRing.isInitialized) loadingRing.visibility = View.GONE
         if (!::tileSessions.isInitialized) return
         (tileSessions.parent as View).alpha = 1f
         (tileQuestions.parent as View).alpha = 1f
