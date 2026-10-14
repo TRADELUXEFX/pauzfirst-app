@@ -261,6 +261,7 @@ object Api {
      * Null if it failed.
      */
     fun shareList(name: String, lines: List<String>): String? {
+        lastShareError = ""
         val qs = JSONArray()
         for (l in lines) qs.put(l)
         val body = JSONObject()
@@ -268,9 +269,84 @@ object Api {
             .put("p_questions", qs)
             .toString()
         val r = authed("POST", "/rest/v1/rpc/share_list", body, null)
-        if (!r.ok) return null
-        val code = r.body.trim().removeSurrounding("\"")
-        return if (code.length == 6) code else null
+        if (r.ok) {
+            val code = r.body.trim().removeSurrounding("\"")
+            if (code.length == 6) return code
+        }
+        // The database function is missing or failed: share the same way the website does.
+        val why = shareWhy(r)
+        val direct = shareListDirect(name, qs)
+        if (direct != null) return direct
+        if (lastShareError.isEmpty()) lastShareError = why
+        return null
+    }
+
+    /** Why the last share failed, in plain words. Shown to the user. */
+    @Volatile var lastShareError: String = ""
+
+    private fun shareWhy(r: Result): String {
+        if (r.code == 0) return "No internet connection."
+        if (r.code == 401 || r.code == 403) return "Please log out and log in again."
+        if (r.code == 404) return "The share function is not set up on the server yet."
+        return "Server said " + r.code + "."
+    }
+
+    private fun makeCode(): String {
+        val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        val rnd = java.security.SecureRandom()
+        val sb = StringBuilder()
+        for (i in 0 until 6) sb.append(chars[rnd.nextInt(chars.length)])
+        return sb.toString()
+    }
+
+    /** Same steps as the website: reuse this list's code if it has one, otherwise make a new one. */
+    private fun shareListDirect(name: String, qs: JSONArray): String? {
+        val uid = Session.userId
+        val find = authed(
+            "GET",
+            "/rest/v1/shared_lists?select=code&limit=1&user_id=eq." + uid + "&list_name=eq." + enc(name),
+            null, null
+        )
+        if (!find.ok) return null
+        try {
+            val arr = JSONArray(find.body)
+            if (arr.length() > 0) {
+                val code = arr.getJSONObject(0).optString("code", "")
+                if (code.isNotEmpty()) {
+                    val upd = authed(
+                        "PATCH",
+                        "/rest/v1/shared_lists?user_id=eq." + uid + "&list_name=eq." + enc(name),
+                        JSONObject().put("questions", qs).toString(), "return=minimal"
+                    )
+                    return if (upd.ok) code else null
+                }
+            }
+        } catch (e: Exception) {
+            return null
+        }
+        for (attempt in 1..10) {
+            val code = makeCode()
+            val ins = authed(
+                "POST", "/rest/v1/shared_lists",
+                JSONObject().put("code", code).put("user_id", uid).put("list_name", name)
+                    .put("questions", qs).toString(),
+                "return=minimal"
+            )
+            if (ins.ok) {
+                // Remember the code on the list itself (best effort, like the website).
+                authed(
+                    "PATCH",
+                    "/rest/v1/question_lists?user_id=eq." + uid + "&name=eq." + enc(name),
+                    JSONObject().put("share_code", code).toString(), "return=minimal"
+                )
+                return code
+            }
+            if (ins.code != 409) {
+                lastShareError = if (ins.code == 0) "No internet connection." else "Server said " + ins.code + "."
+                return null
+            }
+        }
+        return null
     }
 
     /** Links an imported list to the code it came with, so sharing it again reuses that code while it is unchanged. */
@@ -323,6 +399,7 @@ object Api {
      * (and its shared copy is refreshed); a new preset gets a new code. Null if it failed.
      */
     fun sharePreset(name: String, settings: JSONObject, listName: String?, questions: JSONArray?): String? {
+        lastShareError = ""
         val body = JSONObject()
             .put("p_name", name)
             .put("p_settings", settings)
@@ -330,7 +407,10 @@ object Api {
             .put("p_questions", questions ?: JSONObject.NULL)
             .toString()
         val r = authed("POST", "/rest/v1/rpc/share_preset", body, null)
-        if (!r.ok) return null
+        if (!r.ok) {
+            lastShareError = shareWhy(r)
+            return null
+        }
         val code = r.body.trim().removeSurrounding("\"")
         return if (code.length == 6) code else null
     }

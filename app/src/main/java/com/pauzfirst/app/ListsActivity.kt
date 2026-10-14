@@ -831,7 +831,7 @@ class ListsActivity : BaseActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (code == null) {
-                    Toast.makeText(this, "Couldn't create a share code. Try again.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Couldn't create a share code. " + Api.lastShareError.ifEmpty { "Try again." }, Toast.LENGTH_LONG).show()
                 } else {
                     showCode(name, code)
                 }
@@ -889,7 +889,7 @@ class ListsActivity : BaseActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (code == null) {
-                    Toast.makeText(this, "Couldn't create a share code. Try again.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Couldn't create a share code. " + Api.lastShareError.ifEmpty { "Try again." }, Toast.LENGTH_LONG).show()
                 } else {
                     showPresetCode(p.name, code)
                 }
