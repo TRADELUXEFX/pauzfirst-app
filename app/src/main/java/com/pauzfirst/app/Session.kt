@@ -239,6 +239,16 @@ object Settings {
     /** Mode name saved to history and stats (Animated eyes has its own entry, like the website). */
     val recordMode: String get() = mode
 
+    /** A soft chime at Pause (one note) and Respond (two notes), in addition to voice and vibration. */
+    var chime: Boolean
+        get() = getBool("s_chime", false)
+        set(v) = putBool("s_chime", v)
+
+    /** How loud the spoken cue and chime are while headphones are connected, 0-100 (100 = same as the phone speaker). Kept on the phone, not part of presets. */
+    var headphoneVolume: Int
+        get() = Session.prefs.getInt("s_headphone_vol", 100).coerceIn(0, 100)
+        set(v) { Session.prefs.edit().putInt("s_headphone_vol", v.coerceIn(0, 100)).apply() }
+
     /** A short buzz at Pause (one) and Respond (two), so a drill with no screen to read still has clear cues. */
     var haptics: Boolean
         get() = getBool("s_haptics", true)

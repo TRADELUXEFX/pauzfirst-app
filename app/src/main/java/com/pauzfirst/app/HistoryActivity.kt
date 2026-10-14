@@ -529,6 +529,7 @@ class HistoryActivity : BaseActivity() {
         "mirror" -> "Mirror"
         "animated-eyes" -> "Animated eyes"
         HistoryStore.SURPRISE -> "Surprise Pauses"
+        HistoryStore.REAL -> "Real Pause"
         else -> m
     }
 
@@ -566,7 +567,7 @@ class HistoryActivity : BaseActivity() {
         }
 
         // filter chips: only the modes that actually appear in the history
-        val order = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes", HistoryStore.SURPRISE)
+        val order = listOf("eyes-closed", "eyes-open", "mirror", "animated-eyes", HistoryStore.SURPRISE, HistoryStore.REAL)
         val present = ArrayList<String>()
         for (m in order) {
             for (i in 0 until h.length()) {
@@ -595,25 +596,44 @@ class HistoryActivity : BaseActivity() {
         }
 
         val weekCutoff = cutoffMillis(7)
-        var week = 0
-        var totalSecs = 0L
-        for (o in items) {
-            totalSecs += o.optInt("time", 0)
-            if (parse(o.optString("date", "")) >= weekCutoff) week++
+        // Real Pause cards are not trainings: they are kept out of the training numbers
+        val trainItems = items.filter { it.optString("mode", "") != HistoryStore.REAL }
+        if (trainItems.isNotEmpty()) {
+            var week = 0
+            var totalSecs = 0L
+            for (o in trainItems) {
+                totalSecs += o.optInt("time", 0)
+                if (parse(o.optString("date", "")) >= weekCutoff) week++
+            }
+            val avg = totalSecs / trainItems.size
+
+            // All time with no mode chosen: the real lifetime total, even when older entries are no longer in the list
+            val lifetime = StatsStore.local().optLong("lifetimeSessions", 0L)
+            val shownTotal = if (rangeIdx == 2 && filter == null && lifetime > trainItems.size) lifetime else trainItems.size.toLong()
+
+            // the three numbers follow the mode filter and the range switch
+            historyTop.addTo(tileRow(
+                metric("Trainings", shownTotal.toString()),
+                metric("Last 7 days", week.toString()),
+                metric("Avg. length", StatsStore.formatDuration(avg)),
+                tint = true
+            ), 10)
+        } else {
+            // only Real Pause cards are showing: days, pauses, and pauses in the last 7 days
+            var pauses = 0
+            var weekPauses = 0
+            for (o in items) {
+                val n = o.optInt("questions", 0)
+                pauses += n
+                if (parse(o.optString("date", "")) >= weekCutoff) weekPauses += n
+            }
+            historyTop.addTo(tileRow(
+                metric("Days", items.size.toString()),
+                metric("Pauses", pauses.toString()),
+                metric("Last 7 days", weekPauses.toString()),
+                tint = true
+            ), 10)
         }
-        val avg = totalSecs / items.size
-
-        // All time with no mode chosen: the real lifetime total, even when older entries are no longer in the list
-        val lifetime = StatsStore.local().optLong("lifetimeSessions", 0L)
-        val shownTotal = if (rangeIdx == 2 && filter == null && lifetime > items.size) lifetime else items.size.toLong()
-
-        // the three numbers follow the mode filter and the range switch
-        historyTop.addTo(tileRow(
-            metric("Trainings", shownTotal.toString()),
-            metric("Last 7 days", week.toString()),
-            metric("Avg. length", StatsStore.formatDuration(avg)),
-            tint = true
-        ), 10)
 
         val df = SimpleDateFormat("EEE d MMM, h:mm a", Locale.getDefault())
         val tf = SimpleDateFormat("h:mm a", Locale.getDefault())
@@ -621,7 +641,8 @@ class HistoryActivity : BaseActivity() {
         val ratings = LocalExtras.allRatings()
         for (o in items) {
             val ms = parse(o.optString("date", ""))
-            val isSurprise = o.optString("mode", "") == HistoryStore.SURPRISE
+            val isReal = o.optString("mode", "") == HistoryStore.REAL
+            val isSurprise = o.optString("mode", "") == HistoryStore.SURPRISE || isReal
             val whenText = when {
                 ms <= 0L -> o.optString("date", "")
                 isSurprise && android.text.format.DateUtils.isToday(ms) -> "Today"
@@ -643,13 +664,17 @@ class HistoryActivity : BaseActivity() {
             val subRow = LinearLayout(c)
             subRow.orientation = LinearLayout.HORIZONTAL
             subRow.gravity = Gravity.CENTER_VERTICAL
-            subRow.addView(Ui.text(c, q.toString() + "Q" + "  •  ", 12f, Ui.MUTED_TINT, Ui.REG))
-            // the clock sits right next to the time
-            subRow.addView(FsIconView(c, Icons.CLOCK, Ui.MUTED_TINT), LinearLayout.LayoutParams(Ui.dp(c, 13), Ui.dp(c, 13)))
-            val timeText = Ui.text(c, StatsStore.formatDuration(o.optInt("time", 0).toLong()), 12f, Ui.MUTED_TINT, Ui.REG)
-            val timeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            timeLp.leftMargin = Ui.dp(c, 4)
-            subRow.addView(timeText, timeLp)
+            if (isReal) {
+                subRow.addView(Ui.text(c, q.toString() + (if (q == 1) " pause" else " pauses"), 12f, Ui.MUTED_TINT, Ui.REG))
+            } else {
+                subRow.addView(Ui.text(c, q.toString() + "Q" + "  •  ", 12f, Ui.MUTED_TINT, Ui.REG))
+                // the clock sits right next to the time
+                subRow.addView(FsIconView(c, Icons.CLOCK, Ui.MUTED_TINT), LinearLayout.LayoutParams(Ui.dp(c, 13), Ui.dp(c, 13)))
+                val timeText = Ui.text(c, StatsStore.formatDuration(o.optInt("time", 0).toLong()), 12f, Ui.MUTED_TINT, Ui.REG)
+                val timeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                timeLp.leftMargin = Ui.dp(c, 4)
+                subRow.addView(timeText, timeLp)
+            }
             if (rated in 1..3) {
                 // the rating as a drawn face, same icons as the finish page
                 subRow.addView(Ui.text(c, "  •  ", 12f, Ui.MUTED_TINT, Ui.REG))

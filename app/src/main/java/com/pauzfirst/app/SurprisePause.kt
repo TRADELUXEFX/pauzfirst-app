@@ -33,6 +33,45 @@ object SurprisePause {
         get() = Session.prefs.getInt("sp_end", 20 * 60)
         set(v) { Session.prefs.edit().putInt("sp_end", v).apply() }
 
+    /** Days surprises are allowed on, one bit per weekday (bit 0 = Sunday ... bit 6 = Saturday). Default: every day. */
+    private var daysMask: Int
+        get() { val m = Session.prefs.getInt("sp_days", 127) and 127; return if (m == 0) 127 else m }
+        set(v) { Session.prefs.edit().putInt("sp_days", v and 127).apply() }
+
+    /** dow is Calendar.DAY_OF_WEEK (1 = Sunday ... 7 = Saturday). */
+    fun dayOn(dow: Int): Boolean = (daysMask shr (dow - 1)) and 1 == 1
+
+    /** Flips one weekday. Returns false (and changes nothing) if that would leave no day on. */
+    fun toggleDay(dow: Int): Boolean {
+        val next = daysMask xor (1 shl (dow - 1))
+        if (next == 0) return false
+        daysMask = next
+        return true
+    }
+
+    /** An optional quiet break inside the window (lunch, a meeting): no surprises between these times. */
+    var breakOn: Boolean
+        get() = Session.prefs.getBoolean("sp_break_on", false)
+        set(v) { Session.prefs.edit().putBoolean("sp_break_on", v).apply() }
+
+    /** Break start, minutes after midnight. Default 12:00. */
+    var breakStart: Int
+        get() = Session.prefs.getInt("sp_break_start", 12 * 60)
+        set(v) { Session.prefs.edit().putInt("sp_break_start", v).apply() }
+
+    /** Break end, minutes after midnight. Default 13:00. */
+    var breakEnd: Int
+        get() = Session.prefs.getInt("sp_break_end", 13 * 60)
+        set(v) { Session.prefs.edit().putInt("sp_break_end", v).apply() }
+
+    private fun inBreak(min: Int): Boolean = breakOn && breakEnd > breakStart && min >= breakStart && min < breakEnd
+
+    /** True right now on a day that is switched off or during the quiet break. */
+    private fun quietNow(): Boolean {
+        val c = Calendar.getInstance()
+        return !dayOn(c.get(Calendar.DAY_OF_WEEK)) || inBreak(c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE))
+    }
+
     const val MIN_PER_DAY = 10
     const val MAX_PER_DAY = 100
 
@@ -94,10 +133,12 @@ object SurprisePause {
         if (!enabled || !windowOk()) return
         try {
             val now = System.currentTimeMillis()
-            for (offset in 0..1) {
+            for (offset in 0..7) {
                 val day = Calendar.getInstance()
                 day.add(Calendar.DAY_OF_YEAR, offset)
+                if (!dayOn(day.get(Calendar.DAY_OF_WEEK))) continue
                 for (m in planFor(day)) {
+                    if (inBreak(m)) continue
                     val t = day.clone() as Calendar
                     t.set(Calendar.HOUR_OF_DAY, m / 60)
                     t.set(Calendar.MINUTE, m % 60)
@@ -161,7 +202,7 @@ object SurprisePause {
 
     /** A surprise is due: speak only if the phone is in use right now, otherwise skip this one. */
     fun onDue(ctx: Context) {
-        if (!Engine.isActive() && inUse(ctx)) run(ctx)
+        if (!Engine.isActive() && inUse(ctx) && !quietNow()) run(ctx)
         schedule(ctx)
     }
 

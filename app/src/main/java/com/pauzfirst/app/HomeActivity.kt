@@ -960,9 +960,11 @@ class HomeActivity : BaseActivity() {
         val items = ArrayList<HelpPopup.Item>()
         items.add(HelpPopup.Item(Icons.VOLUME, "Voice", "Reads each question aloud, so you can train with your eyes closed."))
         items.add(HelpPopup.Item(Icons.VIBRATE, "Vibrate", "One short buzz at Pause and two at Respond."))
+        items.add(HelpPopup.Item(Icons.BELL, "Chime", "A soft note at Pause and two rising notes at Respond."))
         if (Settings.mirror && !Settings.deepPause) {
             items.add(HelpPopup.Item(Icons.EYE, "Phases", "Shows Listen, Pause and Respond on the screen."))
         }
+        items.add(HelpPopup.Item(Icons.HEADPHONES, "Headset buttons", "When a training shows a Next button, press your headphone button once or twice for Next. It works with the screen off. If there is no Next button, it does nothing."))
         HelpPopup.show(this, "How cues work", "Pick how PauzFirst guides you during training.", items)
     }
 
@@ -1172,10 +1174,29 @@ class HomeActivity : BaseActivity() {
         cueRow.orientation = LinearLayout.HORIZONTAL
         cueRow.addView(cueToggle(Icons.VOLUME, "Voice", { Settings.voice }, { Settings.voice = it }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         cueRow.addView(cueToggle(Icons.VIBRATE, "Vibrate", { Settings.haptics }, { Settings.haptics = it }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        cueRow.addView(cueToggle(Icons.BELL, "Chime", { Settings.chime }, { Settings.chime = it }), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         // Phases only applies to Mirror (not Deep Pause); it is shown or hidden by the refresh below
         val guideRow = cueToggle(Icons.EYE, "Phases", { Settings.phaseGuide }, { Settings.phaseGuide = it })
         cueRow.addView(guideRow, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         sound.addTo(cueRow, 10)
+        // headphone volume: how loud the spoken cue is when headphones are connected
+        val hpLabel = Ui.text(c, "Headphone volume: " + Settings.headphoneVolume + "%", 13f, Ui.MUTED, Ui.MED)
+        val hpSeek = android.widget.SeekBar(c)
+        hpSeek.max = 100
+        hpSeek.progress = Settings.headphoneVolume
+        hpSeek.contentDescription = "Voice volume when headphones are connected"
+        hpSeek.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: android.widget.SeekBar?, p: Int, fromUser: Boolean) {
+                hpLabel.text = "Headphone volume: " + p + "%"
+                if (fromUser) Settings.headphoneVolume = p
+            }
+            override fun onStartTrackingTouch(s: android.widget.SeekBar?) {}
+            override fun onStopTrackingTouch(s: android.widget.SeekBar?) {}
+        })
+        hpSeek.progressTintList = android.content.res.ColorStateList.valueOf(Ui.BLUE)
+        hpSeek.thumbTintList = android.content.res.ColorStateList.valueOf(Ui.BLUE)
+        sound.addTo(hpLabel, 12)
+        sound.addTo(hpSeek, 2)
         val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
         lower.addView(sound, soundLp)

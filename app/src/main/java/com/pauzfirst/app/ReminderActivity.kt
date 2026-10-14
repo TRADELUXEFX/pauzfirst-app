@@ -3,6 +3,7 @@ package com.pauzfirst.app
 import android.app.NotificationManager
 import android.app.TimePickerDialog
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.text.format.DateFormat
 import android.view.Gravity
@@ -154,7 +155,7 @@ class ReminderActivity : BaseActivity() {
     /** Surprise Pauses: a few random one-question nudges per day inside a window. */
     private fun buildSurpriseCard(is24: Boolean): LinearLayout {
         val c = this
-        fun timeRow(label: String, get: () -> Int, set: (Int) -> Boolean): LinearLayout {
+        fun timeRow(label: String, get: () -> Int, err: String = "Leave at least 30 minutes between start and end.", set: (Int) -> Boolean): LinearLayout {
             val value = Ui.text(c, SurprisePause.clockText(get(), is24), 15f, Ui.BLUE, Ui.BOLD)
             val row = LinearLayout(c)
             row.orientation = LinearLayout.HORIZONTAL
@@ -172,7 +173,7 @@ class ReminderActivity : BaseActivity() {
                         value.text = SurprisePause.clockText(get(), is24)
                         SurprisePause.schedule(this)
                     } else {
-                        Toast.makeText(this, "Leave at least 30 minutes between start and end.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, err, Toast.LENGTH_SHORT).show()
                     }
                 }, cur / 60, cur % 60, is24).show()
             }
@@ -191,6 +192,51 @@ class ReminderActivity : BaseActivity() {
             SurprisePause.perDay = it
             SurprisePause.schedule(this)
         }, SurprisePause.MIN_PER_DAY, SurprisePause.MAX_PER_DAY, 10) { it.toString() }, 14)
+        // active days: tap a letter to switch that weekday on or off
+        options.addTo(Ui.text(c, "Active days", 15f, Ui.TEXT, Ui.MED), 16)
+        val dayNames = arrayOf("S", "M", "T", "W", "T", "F", "S")
+        val daysRow = LinearLayout(c)
+        daysRow.orientation = LinearLayout.HORIZONTAL
+        for (i in 0..6) {
+            val chip = Ui.text(c, dayNames[i], 14f, Ui.TEXT, Ui.BOLD)
+            chip.gravity = Gravity.CENTER
+            fun paint() {
+                val on = SurprisePause.dayOn(i + 1)
+                chip.background = Ui.rounded(c, if (on) Ui.BLUE else Ui.SOFT, 14)
+                chip.setTextColor(if (on) Ui.WHITE else Ui.MUTED)
+            }
+            paint()
+            chip.setOnClickListener {
+                if (SurprisePause.toggleDay(i + 1)) {
+                    paint()
+                    SurprisePause.schedule(this)
+                } else {
+                    Toast.makeText(this, "Keep at least one day on.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            val lp = LinearLayout.LayoutParams(0, Ui.dp(c, 40), 1f)
+            lp.setMargins(Ui.dp(c, 2), 0, Ui.dp(c, 2), 0)
+            daysRow.addView(chip, lp)
+        }
+        options.addTo(daysRow, 8)
+
+        // quiet break: no surprises between two times (lunch, meetings)
+        val breakTimes = LinearLayout(c)
+        breakTimes.orientation = LinearLayout.VERTICAL
+        val breakErr = "The break must end after it starts."
+        breakTimes.addTo(timeRow("Quiet from", { SurprisePause.breakStart }, breakErr) { v ->
+            if (v < SurprisePause.breakEnd) { SurprisePause.breakStart = v; true } else false
+        })
+        breakTimes.addTo(timeRow("Quiet until", { SurprisePause.breakEnd }, breakErr) { v ->
+            if (v > SurprisePause.breakStart) { SurprisePause.breakEnd = v; true } else false
+        }, 10)
+        breakTimes.visibility = if (SurprisePause.breakOn) View.VISIBLE else View.GONE
+        options.addTo(Ui.switchRow(c, "Quiet break", "No surprises during this time, such as lunch or meetings", SurprisePause.breakOn) { on ->
+            SurprisePause.breakOn = on
+            breakTimes.visibility = if (on) View.VISIBLE else View.GONE
+            SurprisePause.schedule(this)
+        }, 16)
+        options.addTo(breakTimes, 10)
         options.visibility = if (SurprisePause.enabled) View.VISIBLE else View.GONE
 
         val card = Ui.card(c)

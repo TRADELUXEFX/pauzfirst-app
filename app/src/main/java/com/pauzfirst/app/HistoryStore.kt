@@ -19,6 +19,9 @@ object HistoryStore {
     /** History mode for Surprise Pauses: one card per day that keeps growing, instead of one card per question. */
     const val SURPRISE = "surprise"
 
+    /** History mode for Real Pause (shown as "Real Pause"; the saved key stays "real-life" so nothing already saved breaks): one card per day, with every time of the day inside it. */
+    const val REAL = "real-life"
+
     fun isoNow(): String {
         val f = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
         f.timeZone = TimeZone.getTimeZone("UTC")
@@ -69,28 +72,48 @@ object HistoryStore {
 
     private fun localDay(ms: Long): String = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(ms))
 
-    /** The phone-calendar day of a Surprise Pauses card, or null for any other entry. */
-    private fun surpriseDay(o: JSONObject): String? {
-        if (o.optString("mode", "") != SURPRISE) return null
+    /** "mode|day" of a card that exists once per day (Surprise Pauses, Real Pause), or null for any other entry. */
+    private fun dailyKey(o: JSONObject): String? {
+        val mode = o.optString("mode", "")
+        if (mode != SURPRISE && mode != REAL) return null
         val d = o.optString("day", "")
-        if (d.isNotEmpty()) return d
+        if (d.isNotEmpty()) return mode + "|" + d
         val ms = parseIso(o.optString("date", ""))
-        return if (ms > 0L) localDay(ms) else null
+        return if (ms > 0L) mode + "|" + localDay(ms) else null
+    }
+
+    /** Adds one finished surprise to today's single Surprise Pauses card (creates it on the first one of the day). */
+    fun recordSurprise(questions: Int, seconds: Int) = recordDaily(SURPRISE, questions, seconds, null)
+
+    /** Adds one Real Pause to today's single Real Pause card (creates it on the first one of the day). */
+    fun recordReal() = recordDaily(REAL, 1, 0, System.currentTimeMillis())
+
+    /** How many real-life pauses are logged today (from what is on the phone). */
+    fun realToday(): Int {
+        val key = REAL + "|" + localDay(System.currentTimeMillis())
+        val h = saved() ?: return 0
+        for (i in 0 until h.length()) {
+            val o = h.optJSONObject(i) ?: continue
+            if (dailyKey(o) == key) return o.optInt("questions", 0)
+        }
+        return 0
     }
 
     /**
-     * Adds one finished surprise to today's single Surprise Pauses card (creates it on the first one of the day).
+     * Adds to today's card of this mode (creates it on the first one of the day).
      * Same "date" every time, so it replaces itself everywhere instead of piling up new cards.
+     * For Real Pause, "questions" is the number of pauses and "at" lists the time of each one.
      */
     @Synchronized
-    fun recordSurprise(questions: Int, seconds: Int) {
+    private fun recordDaily(mode: String, questions: Int, seconds: Int, atMs: Long?) {
         val today = localDay(System.currentTimeMillis())
+        val key = mode + "|" + today
         val pend = pending()
         var existing: JSONObject? = null
         for (src in listOf(pend, cached())) {
             for (i in 0 until src.length()) {
                 val o = src.optJSONObject(i) ?: continue
-                if (surpriseDay(o) == today) {
+                if (dailyKey(o) == key) {
                     if (existing == null || o.optInt("questions", 0) > existing.optInt("questions", 0)) existing = o
                 }
             }
@@ -101,7 +124,7 @@ object HistoryStore {
             if (remote != null) {
                 for (i in 0 until remote.length()) {
                     val o = remote.optJSONObject(i) ?: continue
-                    if (surpriseDay(o) == today) { existing = o; break }
+                    if (dailyKey(o) == key) { existing = o; break }
                 }
             }
         }
@@ -109,15 +132,22 @@ object HistoryStore {
         val e = JSONObject()
             .put("date", date)
             .put("day", today)
-            .put("mode", SURPRISE)
+            .put("mode", mode)
             .put("time", (existing?.optInt("time", 0) ?: 0) + seconds)
             .put("deepPause", false)
             .put("questions", (existing?.optInt("questions", 0) ?: 0) + questions)
+        if (atMs != null) {
+            val times = JSONArray()
+            val old = existing?.optJSONArray("at")
+            if (old != null) for (i in 0 until old.length()) times.put(old.optLong(i))
+            times.put(atMs)
+            e.put("at", times)
+        }
         val out = JSONArray()
         out.put(e)
         for (i in 0 until pend.length()) {
             val o = pend.get(i) as JSONObject
-            if (surpriseDay(o) != today) out.put(o)
+            if (dailyKey(o) != key) out.put(o)
         }
         savePending(out)
     }
@@ -125,16 +155,16 @@ object HistoryStore {
     private fun merge(remote: JSONArray, pend: JSONArray): JSONArray {
         val items = ArrayList<JSONObject>()
         val seen = HashSet<String>()
-        val surpriseAt = HashMap<String, Int>()
+        val dailyAt = HashMap<String, Int>()
         for (src in listOf(pend, remote)) {
             for (i in 0 until src.length()) {
                 val o = src.optJSONObject(i) ?: continue
-                val sd = surpriseDay(o)
-                if (sd != null) {
-                    // one Surprise Pauses card per day: keep the one with the most questions
-                    val at: Int = surpriseAt[sd] ?: -1
+                val dk = dailyKey(o)
+                if (dk != null) {
+                    // one card per day and kind (Surprise Pauses, Real Pause): keep the one with the most in it
+                    val at: Int = dailyAt[dk] ?: -1
                     if (at < 0) {
-                        surpriseAt[sd] = items.size
+                        dailyAt[dk] = items.size
                         items.add(o)
                     } else if (o.optInt("questions", 0) > items.get(at).optInt("questions", 0)) {
                         items.set(at, o)
@@ -223,6 +253,7 @@ object HistoryStore {
         val h = saved() ?: return out
         for (k in 0 until h.length()) {
             val o = h.optJSONObject(k) ?: continue
+            if (o.optString("mode", "") == REAL) continue
             val ms = parseIso(o.optString("date", ""))
             if (ms < fromMs || ms >= toMs) continue
             out[0] += 1L

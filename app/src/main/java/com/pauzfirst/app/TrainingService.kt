@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -15,6 +17,7 @@ import android.os.PowerManager
 /** Keeps the session alive (and the CPU awake) while the screen is off or the app is in the background. */
 class TrainingService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
+    private var mediaSession: MediaSession? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -35,10 +38,43 @@ class TrainingService : Service() {
         // the service starts a moment after the first question: put that question in the notification now
         Engine.updateNotification()
 
+        startHeadsetButtons()
+
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "pauzfirst:training")
             wakeLock?.acquire(3 * 60 * 60 * 1000L)
+        } catch (e: Exception) {
+        }
+    }
+
+    /**
+     * Headphone button while a session runs: one press or a double press = Next (only when the training has a Next button), even with the screen off.
+     * The session is only active while training runs.
+     */
+    private fun startHeadsetButtons() {
+        try {
+            val s = MediaSession(this, "pauzfirst-training")
+            if (Build.VERSION.SDK_INT < 26) {
+                @Suppress("DEPRECATION")
+                s.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
+            }
+            s.setCallback(object : MediaSession.Callback() {
+                override fun onPlay() { Engine.headsetNext() }
+                override fun onPause() { Engine.headsetNext() }
+                override fun onSkipToNext() { Engine.headsetNext() }
+            })
+            s.setPlaybackState(
+                PlaybackState.Builder()
+                    .setActions(
+                        PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
+                            PlaybackState.ACTION_SKIP_TO_NEXT
+                    )
+                    .setState(PlaybackState.STATE_PLAYING, PlaybackState.PLAYBACK_POSITION_UNKNOWN, 1f)
+                    .build()
+            )
+            s.isActive = true
+            mediaSession = s
         } catch (e: Exception) {
         }
     }
@@ -153,6 +189,12 @@ class TrainingService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            mediaSession?.isActive = false
+            mediaSession?.release()
+        } catch (e: Exception) {
+        }
+        mediaSession = null
         try {
             val wl = wakeLock
             if (wl != null && wl.isHeld) wl.release()

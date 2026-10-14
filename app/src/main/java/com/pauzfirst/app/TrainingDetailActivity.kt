@@ -39,6 +39,7 @@ class TrainingDetailActivity : BaseActivity() {
         "mirror" -> "Mirror"
         "animated-eyes" -> "Animated eyes"
         HistoryStore.SURPRISE -> "Surprise Pauses"
+        HistoryStore.REAL -> "Real Pause"
         else -> m
     }
 
@@ -55,9 +56,10 @@ class TrainingDetailActivity : BaseActivity() {
         val c = this
         val date = o.optString("date", "")
         val mode = o.optString("mode", "")
-        val isSurprise = mode == HistoryStore.SURPRISE
+        val isReal = mode == HistoryStore.REAL
+        val isSurprise = mode == HistoryStore.SURPRISE || isReal
         val ms = HistoryStore.parseIso(date)
-        val whenText = if (ms > 0L) SimpleDateFormat("EEE d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(ms)) else date
+        val whenText = if (ms > 0L) SimpleDateFormat(if (isReal) "EEE d MMM yyyy" else "EEE d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(ms)) else date
 
         // header: the mode's name, back arrow on the left, the mode's eye icon on the right (as Presence)
         val modeIcon: View? = if (isSurprise) null else {
@@ -83,8 +85,12 @@ class TrainingDetailActivity : BaseActivity() {
 
         // the details, two to a row; a last one with no partner takes the full row
         val cells = ArrayList<Pair<String, String>>()
-        cells.add("Questions" to o.optInt("questions", 0).toString())
-        cells.add("Time" to StatsStore.formatDuration(o.optInt("time", 0).toLong()))
+        if (isReal) {
+            cells.add("Pauses" to o.optInt("questions", 0).toString())
+        } else {
+            cells.add("Questions" to o.optInt("questions", 0).toString())
+            cells.add("Time" to StatsStore.formatDuration(o.optInt("time", 0).toLong()))
+        }
         if (!isSurprise) cells.add("Deep Pause" to (if (o.optBoolean("deepPause", false)) "On" else "Off"))
         var i = 0
         while (i < cells.size) {
@@ -98,6 +104,19 @@ class TrainingDetailActivity : BaseActivity() {
             }
             body.addView(line, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = if (i == 0) Ui.dp(c, 14) else Ui.dp(c, 8) })
             i += 2
+        }
+
+        if (isReal) {
+            // every time of the day this was logged, earliest first
+            val at = o.optJSONArray("at")
+            val tf = SimpleDateFormat("h:mm a", Locale.getDefault())
+            val times = ArrayList<Long>()
+            if (at != null) for (k in 0 until at.length()) { val t = at.optLong(k); if (t > 0L) times.add(t) }
+            times.sort()
+            if (times.isNotEmpty()) {
+                val text = times.joinToString("\n") { tf.format(Date(it)) }
+                body.addView(cell("Times", text), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = Ui.dp(c, 8) })
+            }
         }
 
         if (!isSurprise) {

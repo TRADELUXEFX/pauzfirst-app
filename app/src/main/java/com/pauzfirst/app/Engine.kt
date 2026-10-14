@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.Bundle
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -233,6 +235,22 @@ object Engine {
         }
     }
 
+    /** True when sound is going to wired, USB or Bluetooth headphones/earbuds (checked each time a cue is spoken). */
+    private fun headphonesConnected(): Boolean {
+        val a = app ?: return false
+        return try {
+            val am = a.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {
+                when (it.type) {
+                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                    AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> true
+                    else -> Build.VERSION.SDK_INT >= 31 && (it.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
+                }
+            }
+        } catch (ex: Exception) { false }
+    }
+
     private fun speakNow(text: String, rate: Float, cb: (() -> Unit)?) {
         val t = tts ?: return
         uttSeq++
@@ -243,7 +261,11 @@ object Engine {
         speakStart = SystemClock.uptimeMillis()
         speaking = true
         requestVoiceFocus()
-        t.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
+        val params = Bundle()
+        if (headphonesConnected()) {
+            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, Settings.headphoneVolume / 100f)
+        }
+        t.speak(text, TextToSpeech.QUEUE_FLUSH, params, id)
     }
 
     /** Speaks text, then runs cb (only if the session was not stopped/advanced meanwhile). */
@@ -376,6 +398,11 @@ object Engine {
         }
     }
 
+    /** Headset button: same as tapping Next. Does nothing when this training has no Next button right now. */
+    fun headsetNext() {
+        if (isActive() && showNext) nextTapped()
+    }
+
     fun nextLabel(): String {
         val last = index + 1 >= questions.size
         val finishes = when (phase) {
@@ -401,6 +428,13 @@ object Engine {
         say(currentQuestion(), 0.8f) {
             later(1000L) { if (deep) startDeep() else startPause() }
         }
+    }
+
+    /** The soft chime (if switched on), at the headphone volume when headphones are connected. */
+    private fun chime(pulses: Int) {
+        if (!Settings.chime) return
+        val vol = if (headphonesConnected()) Settings.headphoneVolume / 100f else 1f
+        Chime.play(pulses, vol)
     }
 
     /** A short vibration for a phase change: one pulse = Pause, two pulses = Respond. */
@@ -434,6 +468,7 @@ object Engine {
         showNext = false
         notifyUi()
         buzz(1)
+        chime(1)
         say("Pause and think", 0.9f, null)
         every {
             seconds--
@@ -458,6 +493,7 @@ object Engine {
         showNext = infinite
         notifyUi()
         buzz(2)
+        chime(2)
         say("Respond", 0.9f, null)
         if (!infinite) {
             every {

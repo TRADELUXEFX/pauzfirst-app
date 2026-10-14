@@ -130,6 +130,16 @@
             android:name=".TrainingService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <service
+            android:name=".RealPauseTile"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_pauzfirst"
+            android:label="Real Pause"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
         <activity android:name=".TrainingDetailActivity" android:exported="false" />
         <activity android:name=".WeeklySummaryActivity" android:exported="false" />
     </application>
