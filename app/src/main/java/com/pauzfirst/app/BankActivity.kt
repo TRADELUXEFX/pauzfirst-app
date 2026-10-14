@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -14,6 +15,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.view.doOnLayout
 import com.pauzfirst.app.Ui.addTo
 import java.text.NumberFormat
 import java.util.Locale
@@ -28,6 +30,10 @@ class BankActivity : BaseActivity() {
     private var pctView: TextView? = null         // the "12% used" pill, on the right of the header
     private var toggleHolder: LinearLayout? = null // the Left | Used switch, inside the blue header
     private var loadingView: View? = null         // the ring, pinned on screen (not inside the scrolling list)
+    private var indexStrip: LinearLayout? = null   // A-Z fast-scroll strip down the right side
+    private var bubble: TextView? = null           // big letter shown while dragging on the strip
+    private var indexLetters: List<Char> = emptyList()
+    private var lastLetter = ' '
     private var listCard: LinearLayout? = null   // the card the question rows are added to
     private var listItems: List<String> = emptyList()
     private var loaded = 0                       // how many rows of listItems are on screen; more load while scrolling
@@ -43,13 +49,14 @@ class BankActivity : BaseActivity() {
         column.orientation = LinearLayout.VERTICAL
         column.setBackgroundColor(Ui.BG)
         // blue header: back + total on top, the Left | Used switch inside the same blue
-        val pct0 = Ui.text(c, "0% used", 13f, Ui.WHITE, Ui.BOLD)
+        val pct0 = Ui.text(c, "0%", 13f, Ui.WHITE, Ui.BOLD)
         pct0.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)  // pill, same soft white as the back circle
         // same 40dp height as the back button, so the two line up across the header
         pct0.gravity = Gravity.CENTER
         pct0.minHeight = Ui.dp(c, 40)
         pct0.minimumHeight = Ui.dp(c, 40)
         pct0.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0)
+        pct0.maxLines = 1
         pctView = pct0
         val head = Ui.header(c, "Questions", null, pct0) { finish() }
         titleView = head.getChildAt(1) as? TextView
@@ -83,7 +90,20 @@ class BankActivity : BaseActivity() {
         scroll.addView(holder)
         Ui.noClip(holder, scroll)
         Ui.padInsets(holder, bottom = true)
-        column.addView(scroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        val scrollFrame = FrameLayout(c)
+        scrollFrame.addView(scroll, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        val strip = buildIndexStrip()
+        indexStrip = strip
+        val stripLp = FrameLayout.LayoutParams(Ui.dp(c, 20), FrameLayout.LayoutParams.MATCH_PARENT, Gravity.END or Gravity.TOP)
+        stripLp.setMargins(0, Ui.dp(c, 12), Ui.dp(c, 2), Ui.dp(c, 130))
+        scrollFrame.addView(strip, stripLp)
+        val bub = Ui.text(c, "A", 30f, Ui.WHITE, Ui.BOLD)
+        bub.gravity = Gravity.CENTER
+        bub.background = Ui.rounded(c, Ui.BLUE, 20)
+        bub.visibility = View.GONE
+        bubble = bub
+        scrollFrame.addView(bub, FrameLayout.LayoutParams(Ui.dp(c, 72), Ui.dp(c, 72), Gravity.CENTER))
+        column.addView(scrollFrame, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         // the questions scroll on under the search bar; no "Show more", the next ones load as you reach them
         scroll.setOnScrollChangeListener { v, _, y, _, _ ->
@@ -92,7 +112,16 @@ class BankActivity : BaseActivity() {
 
         val root = FrameLayout(c)
         root.addView(column, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-        root.addView(buildSearchBar(), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
+        // soft fade, so the cards melt into the page instead of being cut off by the search bar
+        val barWrap = LinearLayout(c)
+        barWrap.orientation = LinearLayout.VERTICAL
+        val fade = View(c)
+        fade.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Ui.BG and 0x00FFFFFF, Ui.BG))
+        val fadeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 44))
+        fadeLp.bottomMargin = -Ui.dp(c, 24)   // runs on behind the bar's curved corners
+        barWrap.addView(fade, fadeLp)
+        barWrap.addView(buildSearchBar(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        root.addView(barWrap, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
         // loading ring sits over the screen, so it never scrolls with the questions
         val ring = Loading.page(c)
         ring.isClickable = false
@@ -205,15 +234,15 @@ class BankActivity : BaseActivity() {
         titleView?.text = n(total) + " questions"
 
         // how much is used: the pill by the title
-        pctView?.text = pct.toString() + "% used"
+        pctView?.text = pct.toString() + "%"
 
         // Left | Used switch lives in the blue header
         val toggle = LinearLayout(c)
         toggle.orientation = LinearLayout.HORIZONTAL
         toggle.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 14)
         toggle.setPadding(Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4))
-        toggle.addView(tabView("Left \u00B7 " + n(unused.size), 0), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        toggle.addView(tabView("Used \u00B7 " + n(done.size), 1), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        toggle.addView(tabView(n(unused.size) + " Left", 0), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        toggle.addView(tabView(n(done.size) + " Used", 1), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         toggleHolder?.removeAllViews()
         toggleHolder?.addView(toggle, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
@@ -221,22 +250,11 @@ class BankActivity : BaseActivity() {
         val all = if (tab == 0) unused else done
         listItems = if (query.isEmpty()) all else all.filter { it.contains(query, ignoreCase = true) }
         loaded = 0
+        updateIndex()
         val list = LinearLayout(c)
         list.orientation = LinearLayout.VERTICAL
         listCard = list
-        if (listItems.isEmpty()) {
-            val msg = when {
-                query.isNotEmpty() -> "No questions match your search."
-                tab == 0 -> "Every question has been used. The list starts over next time."
-                else -> "No questions used yet."
-            }
-            val e = Ui.text(c, msg, 14f, Ui.MUTED, Ui.MED)
-            e.setLineSpacing(0f, 1.2f)
-            // plain centered note, not a card
-            e.gravity = Gravity.CENTER
-            e.setPadding(Ui.dp(c, 24), Ui.dp(c, 48), Ui.dp(c, 24), 0)
-            list.addView(e, Ui.lp(c, 0))
-        }
+        if (listItems.isEmpty()) list.addView(emptyState(), Ui.lp(c, 0))
         holder.addTo(list, 12)
         addRows(PAGE)
     }
@@ -248,6 +266,9 @@ class BankActivity : BaseActivity() {
         val end = Math.min(listItems.size, loaded + count)
         for (i in loaded until end) {
             val r = Ui.card(c)
+            // lighter shadow; in dark mode a thin outline so the cards still stand off the page
+            r.elevation = Ui.dp(c, 1).toFloat()
+            r.background = Ui.rounded(c, Ui.SURFACE, 22, if (Ui.dark) Ui.LINE else 0, if (Ui.dark) 1 else 0)
             r.orientation = LinearLayout.HORIZONTAL
             r.gravity = Gravity.CENTER_VERTICAL
             r.setPadding(Ui.dp(c, 18), Ui.dp(c, 14), Ui.dp(c, 18), Ui.dp(c, 14))
@@ -264,6 +285,108 @@ class BankActivity : BaseActivity() {
             list.addView(r, rLp)
         }
         loaded = end
+    }
+
+    /** Empty list: a soft icon circle, a title and one line of help. */
+    private fun emptyState(): LinearLayout {
+        val c = this
+        val icon: String
+        val title: String
+        val sub: String
+        when {
+            query.isNotEmpty() -> { icon = Icons.SEARCH; title = "No matches"; sub = "Try a different word or spelling." }
+            tab == 0 -> { icon = Icons.CHECK; title = "All caught up"; sub = "Every question has been used. The list starts over next time." }
+            else -> { icon = Icons.CLOCK; title = "Nothing used yet"; sub = "Questions you use will show up here." }
+        }
+        val col = LinearLayout(c)
+        col.orientation = LinearLayout.VERTICAL
+        col.gravity = Gravity.CENTER_HORIZONTAL
+        col.setPadding(Ui.dp(c, 32), Ui.dp(c, 56), Ui.dp(c, 32), 0)
+        val circle = FrameLayout(c)
+        circle.background = Ui.rounded(c, Ui.BLUE_SOFT, 36)
+        circle.addView(FsIconView(c, icon, Ui.BLUE), FrameLayout.LayoutParams(Ui.dp(c, 32), Ui.dp(c, 32), Gravity.CENTER))
+        col.addView(circle, LinearLayout.LayoutParams(Ui.dp(c, 72), Ui.dp(c, 72)))
+        val t = Ui.text(c, title, 17f, Ui.TEXT, Ui.BOLD)
+        t.gravity = Gravity.CENTER
+        col.addView(t, Ui.lp(c, 16))
+        val d = Ui.text(c, sub, 14f, Ui.MUTED, Ui.MED)
+        d.gravity = Gravity.CENTER
+        d.setLineSpacing(0f, 1.2f)
+        col.addView(d, Ui.lp(c, 6))
+        return col
+    }
+
+    /** First usable character of a question, as A-Z, or # for anything else. */
+    private fun letterOf(s: String): Char {
+        val ch = s.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar() ?: return '#'
+        return if (ch in 'A'..'Z') ch else '#'
+    }
+
+    /** The A-Z strip on the right: drag a finger down it to jump through the list. */
+    private fun buildIndexStrip(): LinearLayout {
+        val c = this
+        val strip = LinearLayout(c)
+        strip.orientation = LinearLayout.VERTICAL
+        strip.background = Ui.rounded(c, (Ui.BLUE_SOFT and 0x00FFFFFF) or (0xE6 shl 24), 10)
+        strip.setPadding(0, Ui.dp(c, 6), 0, Ui.dp(c, 6))
+        strip.visibility = View.GONE
+        strip.setOnTouchListener { v, ev ->
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                    v.parent?.requestDisallowInterceptTouchEvent(true)
+                    val n = indexLetters.size
+                    val inner = v.height - v.paddingTop - v.paddingBottom
+                    if (n > 0 && inner > 0) {
+                        val i = (((ev.y - v.paddingTop) / inner) * n).toInt().coerceIn(0, n - 1)
+                        jumpToLetter(indexLetters[i])
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    bubble?.visibility = View.GONE
+                    lastLetter = ' '
+                    true
+                }
+                else -> false
+            }
+        }
+        return strip
+    }
+
+    /** Fills the strip with the letters the current list really has; hidden for short lists and while searching. */
+    private fun updateIndex() {
+        val c = this
+        val strip = indexStrip ?: return
+        lastLetter = ' '
+        bubble?.visibility = View.GONE
+        strip.removeAllViews()
+        indexLetters = if (query.isEmpty() && listItems.size >= 40) listItems.map { letterOf(it) }.distinct().sorted() else emptyList()
+        if (indexLetters.size < 2) {
+            indexLetters = emptyList()
+            strip.visibility = View.GONE
+            return
+        }
+        for (ch in indexLetters) {
+            val t = Ui.text(c, ch.toString(), 10f, Ui.BLUE, Ui.BOLD)
+            t.gravity = Gravity.CENTER
+            t.includeFontPadding = false
+            strip.addView(t, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        }
+        strip.visibility = View.VISIBLE
+    }
+
+    private fun jumpToLetter(ch: Char) {
+        if (ch == lastLetter) return
+        lastLetter = ch
+        val idx = listItems.indexOfFirst { letterOf(it) == ch }
+        if (idx < 0) return
+        bubble?.text = ch.toString()
+        bubble?.visibility = View.VISIBLE
+        // rows load in pages, so bring in enough of them to reach this letter
+        while (loaded <= idx) addRows(PAGE)
+        val list = listCard ?: return
+        val row = list.getChildAt(idx) ?: return
+        row.doOnLayout { scroll.scrollTo(0, Math.max(0, list.top + it.top - Ui.dp(this, 8))) }
     }
 
     private fun tabView(label: String, which: Int): TextView {

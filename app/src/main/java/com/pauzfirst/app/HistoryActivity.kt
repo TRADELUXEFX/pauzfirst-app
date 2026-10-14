@@ -24,6 +24,8 @@ class HistoryActivity : BaseActivity() {
     private lateinit var historyBody: LinearLayout
     private lateinit var statsScroll: android.widget.ScrollView
     private lateinit var historyScroll: android.widget.ScrollView
+    private lateinit var historyTop: LinearLayout      // chips, range switch and totals: fixed, they stay put
+    private lateinit var historyPane: LinearLayout     // historyTop on top, then the scrolling list of trainings
     private lateinit var tabStats: TextView
     private lateinit var tabHistory: TextView
     private var tab = 0               // 0 = Training Stats, 1 = Training History
@@ -100,7 +102,16 @@ class HistoryActivity : BaseActivity() {
         body = statsBody
         val host = android.widget.FrameLayout(c)
         host.addView(statsScroll, android.widget.FrameLayout.LayoutParams(-1, -1))
-        host.addView(historyScroll, android.widget.FrameLayout.LayoutParams(-1, -1))
+        // History: the filters and totals stay fixed; only the list of trainings scrolls
+        historyTop = LinearLayout(c)
+        historyTop.orientation = LinearLayout.VERTICAL
+        historyTop.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 2))
+        Ui.noClip(historyTop)
+        historyPane = LinearLayout(c)
+        historyPane.orientation = LinearLayout.VERTICAL
+        historyPane.addView(historyTop, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        historyPane.addView(historyScroll, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        host.addView(historyPane, android.widget.FrameLayout.LayoutParams(-1, -1))
         page.addView(host, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         page.addView(Nav.bar(this, Nav.HISTORY), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -172,7 +183,7 @@ class HistoryActivity : BaseActivity() {
         exportIcon.visibility = android.view.View.VISIBLE   // export is in the banner on both tabs
         body = if (i == 0) statsBody else historyBody
         statsScroll.visibility = if (i == 0) android.view.View.VISIBLE else android.view.View.GONE
-        historyScroll.visibility = if (i == 1) android.view.View.VISIBLE else android.view.View.GONE
+        historyPane.visibility = if (i == 1) android.view.View.VISIBLE else android.view.View.GONE
         applyBodyPad()
         if (i == 0) {
             renderStats()
@@ -180,6 +191,7 @@ class HistoryActivity : BaseActivity() {
             render(history)
         } else {
             body.removeAllViews()
+            historyTop.removeAllViews()
             body.addView(Loading.page(this))
         }
     }
@@ -536,6 +548,7 @@ class HistoryActivity : BaseActivity() {
         body = historyBody
         val c = this
         body.removeAllViews()
+        historyTop.removeAllViews()
         if (h == null) {
             body.addView(Ui.note(c, "No saved history on this phone yet. Connect to the internet once and it will be kept here, even offline."))
             return
@@ -547,7 +560,7 @@ class HistoryActivity : BaseActivity() {
         if (!HistoryStore.lastLoadOnline) {
             val off = Ui.text(c, "You're offline. Showing your last saved history.", 12f, Ui.MUTED, Ui.MED)
             off.gravity = Gravity.CENTER
-            body.addTo(off, 8)
+            historyTop.addTo(off, 0)
         }
 
         // filter chips: only the modes that actually appear in the history
@@ -559,10 +572,10 @@ class HistoryActivity : BaseActivity() {
             }
         }
         if (filter != null && !present.contains(filter)) filter = null
-        if (present.size > 1) body.addTo(filterRow(present), 10)
+        if (present.size > 1) historyTop.addTo(filterRow(present), 2)
 
         // visible range switch: 7 days | 30 days | All time (filters the list and the numbers)
-        body.addTo(rangeSwitch(), 10)
+        historyTop.addTo(rangeSwitch(), 10)
         val rangeDays = when (rangeIdx) { 0 -> 7; 1 -> 30; else -> null }
         val rangeCutoff = if (rangeDays != null) cutoffMillis(rangeDays) else 0L
 
@@ -593,7 +606,7 @@ class HistoryActivity : BaseActivity() {
         val shownTotal = if (rangeIdx == 2 && filter == null && lifetime > items.size) lifetime else items.size.toLong()
 
         // the three numbers follow the mode filter and the range switch
-        body.addTo(tileRow(
+        historyTop.addTo(tileRow(
             metric("Trainings", shownTotal.toString()),
             metric("Last 7 days", week.toString()),
             metric("Avg. length", StatsStore.formatDuration(avg)),
@@ -601,7 +614,7 @@ class HistoryActivity : BaseActivity() {
         ), 10)
 
         if (shownTotal > items.size) {
-            body.addTo(Ui.note(c, "The list below shows your latest " + items.size + " trainings. The total above counts all of them."), 8)
+            historyTop.addTo(Ui.note(c, "The list below shows your latest " + items.size + " trainings. The total above counts all of them."), 8)
         }
 
         val df = SimpleDateFormat("EEE d MMM, h:mm a", Locale.getDefault())
