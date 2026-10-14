@@ -281,28 +281,26 @@ class HomeActivity : BaseActivity() {
         val logoLp = LinearLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 30))
         logoLp.rightMargin = Ui.dp(c, 8)
         titleRow.addView(logoImg, logoLp)
-        val title = Ui.text(c, "PAUZFIRST", 20f, Ui.WHITE, Ui.BOLD)
-        title.letterSpacing = 0.08f
+        val title = Ui.text(c, "PAUZFIRST", 18f, Ui.WHITE, Ui.BOLD)
+        title.letterSpacing = 0.05f
         title.maxLines = 1
         titleRow.addView(title)
         top.addView(titleRow, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val logout = Ui.text(c, "Logout", 12f, Ui.WHITE, Ui.BOLD)
-        logout.background = Ui.rounded(c, Ui.RED, 20)
-        logout.setPadding(Ui.dp(c, 14), Ui.dp(c, 9), Ui.dp(c, 14), Ui.dp(c, 9))
 
-        fun headerIcon(path: String, desc: String, onLong: (() -> Unit)? = null, onClick: () -> Unit) {
+        fun headerIcon(path: String, desc: String, onLong: (() -> Unit)? = null, onClick: () -> Unit): android.widget.FrameLayout {
             val box = android.widget.FrameLayout(c)
             val bg = GradientDrawable()
             bg.shape = GradientDrawable.OVAL
             bg.setColor(Color.parseColor("#33FFFFFF"))
             box.background = bg
             box.contentDescription = desc
-            box.addView(FsIconView(c, path, Ui.WHITE), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 21), Ui.dp(c, 21), Gravity.CENTER))
+            box.addView(FsIconView(c, path, Ui.WHITE), android.widget.FrameLayout.LayoutParams(Ui.dp(c, 19), Ui.dp(c, 19), Gravity.CENTER))
             box.setOnClickListener { onClick() }
             if (onLong != null) box.setOnLongClickListener { onLong(); true }
-            val lp = LinearLayout.LayoutParams(Ui.dp(c, 38), Ui.dp(c, 38))
-            lp.rightMargin = Ui.dp(c, 8)
+            val lp = LinearLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 34))
+            lp.rightMargin = Ui.dp(c, 5)
             top.addView(box, lp)
+            return box
         }
         val followPhone = {
             Settings.followPhone()
@@ -316,7 +314,13 @@ class HomeActivity : BaseActivity() {
             recreate()
         }
         headerIcon(Icons.BELL, "Daily reminder") { startActivity(Intent(this, ReminderActivity::class.java)) }
-        top.addView(logout, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        headerIcon(Icons.FLIP, "Sync: export and import") { showSyncDialog() }
+        val logout = headerIcon(Icons.LOGOUT, "Logout") { }
+        val logoutBg = GradientDrawable()
+        logoutBg.shape = GradientDrawable.OVAL
+        logoutBg.setColor(Ui.RED)
+        logout.background = logoutBg
+        (logout.layoutParams as LinearLayout.LayoutParams).rightMargin = 0
         hero.addTo(top)
 
         val tiles = LinearLayout(c)
@@ -570,6 +574,68 @@ class HomeActivity : BaseActivity() {
     }
 
     /** Save on an open preset: update that preset with the current settings and question list. */
+    // ---------- Sync: export / import all details ----------
+    private val exportPicker = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        Toast.makeText(this, "Exporting...", Toast.LENGTH_SHORT).show()
+        Thread {
+            val ok = try {
+                val text = DataBackup.build().toString()
+                contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray(Charsets.UTF_8)) } != null
+            } catch (e: Exception) {
+                false
+            }
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed) Toast.makeText(this, if (ok) "Export saved" else "Could not export", Toast.LENGTH_LONG).show()
+            }
+        }.start()
+    }
+
+    private val importPicker = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        Toast.makeText(this, "Importing...", Toast.LENGTH_SHORT).show()
+        Thread {
+            val ok = try {
+                val text = contentResolver.openInputStream(uri)?.use { String(it.readBytes(), Charsets.UTF_8) } ?: ""
+                DataBackup.restore(JSONObject(text))
+            } catch (e: Exception) {
+                false
+            }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (ok) {
+                    Toast.makeText(this, "Import done", Toast.LENGTH_LONG).show()
+                    recreate()
+                } else {
+                    Toast.makeText(this, "That is not a PAUZFIRST export file", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun showSyncDialog() {
+        if (isFinishing) return
+        AppDialog.show(
+            this,
+            "Sync",
+            message = "Export saves your presets and question lists in one file you can share. Your history, ratings and used questions are never included. Import adds a file like that: presets and lists you already have stay as they are.",
+            buttons = listOf(
+                Btn("Export", Kind.PRIMARY) {
+                    val day = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+                    exportPicker.launch("pauzfirst-export-" + day + ".json")
+                },
+                Btn("Import", Kind.SOFT) {
+                    importPicker.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                },
+                Btn("Cancel", Kind.SOFT)
+            )
+        )
+    }
+
     private fun confirmUpdatePreset(name: String) {
         AppDialog.show(
             this,
