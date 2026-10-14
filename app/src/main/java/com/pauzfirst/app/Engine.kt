@@ -31,7 +31,7 @@ object Engine {
         app = ctx.applicationContext
     }
 
-    var phase: Phase = Phase.IDLE
+    @Volatile var phase: Phase = Phase.IDLE
         private set
     var questions: List<String> = emptyList()
         private set
@@ -272,7 +272,7 @@ object Engine {
         starting = false
         pauseT = Settings.pauseTime
         answerT = Settings.answerTime
-        voice = Settings.voice
+        voice = Settings.voice || Settings.animatedEyes
         deep = Settings.deepPause
         threeWhy = Settings.threeWhy
         tip = Settings.tip

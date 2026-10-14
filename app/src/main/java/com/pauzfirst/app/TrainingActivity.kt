@@ -73,16 +73,12 @@ class TrainingActivity : AppCompatActivity() {
     private lateinit var fsQuestion: TextView
     private lateinit var fsCard: FrameLayout
     private lateinit var fsGuide: PhaseGuideView
+    private lateinit var fsTip: TextView
     private lateinit var fsWhy: TextView
     private lateinit var fsDeep: LinearLayout
     private lateinit var fsSecs: TextView
     private lateinit var fsNext: LinearLayout
     private lateinit var fsEnd: LinearLayout
-    private lateinit var fsMeter: AudioLevelView
-    private lateinit var rootMeter: AudioLevelView   // sound bars at the bottom of the normal (Eyes closed / Eyes open) screen
-    private var micOn = false
-    private var micAsked = false
-    @Volatile private var micGen = 0
     private var fsOn = false
     private var doneClosePosted = false
 
@@ -95,14 +91,9 @@ class TrainingActivity : AppCompatActivity() {
     private val camPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) {
             startCamera()
-            ensureMic()
         } else {
             hideCamera()
         }
-    }
-
-    private val micPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) startMic()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -205,10 +196,6 @@ class TrainingActivity : AppCompatActivity() {
         spacer = View(c)
         root.addView(spacer, LinearLayout.LayoutParams(1, 0, 1f))
 
-        // live sound bars, down at the bottom just above Next
-        rootMeter = AudioLevelView(c)
-        root.addView(rootMeter, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-
         nextBtn = Ui.pill(c, "Next", Ui.GREEN)
         root.addTo(nextBtn, 12)
 
@@ -232,13 +219,7 @@ class TrainingActivity : AppCompatActivity() {
                     camPerm.launch(Manifest.permission.CAMERA)
                 }
             }
-            // ask for the mic after the camera question so two pop-ups never fight
-            if (Settings.animatedEyes || ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                ensureMic()
-            }
         }
-        // Eyes closed / Eyes open: the sound bars run on the normal screen
-        if (!Settings.mirror) ensureMic()
         if (counting) startCountdown()
     }
 
@@ -303,6 +284,7 @@ class TrainingActivity : AppCompatActivity() {
         tipLp.topMargin = Ui.dp(c, 8)
         tipLp.gravity = Gravity.CENTER_HORIZONTAL
         fsOverlay.addView(tip, tipLp)
+        fsTip = tip
 
         // question card with the logo on its top edge
         fsCard = FrameLayout(c)
@@ -381,8 +363,6 @@ class TrainingActivity : AppCompatActivity() {
             if (i > 0) lp.leftMargin = Ui.dp(c, 10)
             btns.addView(btnViews[i], lp)
         }
-        fsMeter = AudioLevelView(c)
-        fsOverlay.addView(fsMeter, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         val btnsLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         btnsLp.topMargin = Ui.dp(c, 8)
         btnsLp.bottomMargin = Ui.dp(c, 16)
@@ -467,13 +447,10 @@ class TrainingActivity : AppCompatActivity() {
     private fun closeFs() {
         if (!fsOn) return
         fsOn = false
-        stopMic()
         fsEyes?.visibility = View.GONE
         fs.visibility = View.GONE
         applyImmersive(false)
         render()
-        // camera refused: the normal screen takes over, so the sound bars go there
-        if (Engine.phase != Engine.Phase.DONE) ensureMic()
     }
 
     private fun endSession() {
@@ -483,72 +460,6 @@ class TrainingActivity : AppCompatActivity() {
             Engine.stop()
         }
         finish()
-    }
-
-    // ---------------------------------------------------------------- mic level bars
-
-    /** Ask for the mic once; if it is already allowed, start the bars. */
-    private fun ensureMic() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            startMic()
-        } else if (!micAsked) {
-            micAsked = true
-            micPerm.launch(Manifest.permission.RECORD_AUDIO)
-        }
-    }
-
-    @android.annotation.SuppressLint("MissingPermission")
-    private fun startMic() {
-        if (micOn) return
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return
-        val rate = 16000
-        val minBuf = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        if (minBuf <= 0) return
-        micOn = true
-        val my = ++micGen
-        val meter = if (fsOn) fsMeter else rootMeter
-        Thread {
-            var rec: AudioRecord? = null
-            try {
-                rec = AudioRecord(
-                    MediaRecorder.AudioSource.MIC, rate,
-                    AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                    Math.max(minBuf, 4096)
-                )
-                if (rec.state == AudioRecord.STATE_INITIALIZED) {
-                    rec.startRecording()
-                    val buf = ShortArray(1024)
-                    val seg = buf.size / AudioLevelView.BARS
-                    val out = FloatArray(AudioLevelView.BARS)
-                    while (micGen == my) {
-                        val n = rec.read(buf, 0, buf.size)
-                        if (n < 0) break
-                        if (n < buf.size) continue
-                        for (b in 0 until AudioLevelView.BARS) {
-                            var sum = 0f
-                            for (k in 0 until seg) {
-                                val v = buf[b * seg + k] / 32768f
-                                sum += v * v
-                            }
-                            out[b] = Math.sqrt((sum / seg).toDouble()).toFloat()
-                        }
-                        meter.push(out)
-                    }
-                }
-            } catch (e: Exception) {
-                // no mic: the bars simply stay flat
-            } finally {
-                try { rec?.stop() } catch (e: Exception) { }
-                try { rec?.release() } catch (e: Exception) { }
-                meter.clear()
-                runOnUiThread { if (micGen == my) micOn = false }
-            }
-        }.start()
-    }
-
-    private fun stopMic() {
-        micGen++
-        micOn = false
     }
 
     // ---------------------------------------------------------------- camera
@@ -605,19 +516,14 @@ class TrainingActivity : AppCompatActivity() {
         if (!::question.isInitialized) return
         Engine.listener = { render() }
         render()
-        if (Engine.phase != Engine.Phase.DONE &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        ) startMic()
     }
 
     override fun onPause() {
         super.onPause()
         Engine.listener = null
-        stopMic()
     }
 
     override fun onDestroy() {
-        stopMic()
         uiH.removeCallbacksAndMessages(null)
         if (isFinishing) PendingStart.clear()
         super.onDestroy()
@@ -753,7 +659,11 @@ class TrainingActivity : AppCompatActivity() {
         fsBadge.visibility = if (p == Engine.Phase.DONE) View.INVISIBLE else View.VISIBLE
         fsQuestion.text = questionText
         currentQ = questionText
-        fsCard.visibility = if (questionText.isEmpty()) View.INVISIBLE else View.VISIBLE
+        // Animated eyes trains answering from audio cues only (like a real conversation): no question, tip or phases on screen.
+        // The finish message still shows.
+        val focusHide = Settings.animatedEyes && p != Engine.Phase.DONE
+        fsCard.visibility = if (questionText.isEmpty() || focusHide) View.INVISIBLE else View.VISIBLE
+        fsTip.visibility = if (focusHide) View.INVISIBLE else View.VISIBLE
 
         val activeIdx = when (p) {
             Engine.Phase.LISTEN -> 0
@@ -761,7 +671,7 @@ class TrainingActivity : AppCompatActivity() {
             Engine.Phase.RESPOND -> 2
             else -> -1
         }
-        fsGuide.visibility = if (Settings.phaseGuide && !Settings.deepPause && activeIdx >= 0) View.VISIBLE else View.GONE
+        fsGuide.visibility = if (Settings.phaseGuide && !Settings.deepPause && activeIdx >= 0 && !focusHide) View.VISIBLE else View.GONE
         fsGuide.active = activeIdx
 
         val deepOn = p == Engine.Phase.DEEP || p == Engine.Phase.WHY
