@@ -97,6 +97,7 @@ class HistoryActivity : BaseActivity() {
         // Stats and History each have their own body and scroll view, so each keeps its own scroll position
         statsBody = tabBody()
         historyBody = tabBody()
+        historyBody.setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 16), Ui.dp(c, 24))   // the first training sits 10 + 10dp under the tiles
         statsScroll = tabScroll(statsBody)
         historyScroll = tabScroll(historyBody)
         body = statsBody
@@ -105,7 +106,8 @@ class HistoryActivity : BaseActivity() {
         // History: the filters and totals stay fixed; only the list of trainings scrolls
         historyTop = LinearLayout(c)
         historyTop.orientation = LinearLayout.VERTICAL
-        historyTop.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 2))
+        // gaps are the original ones (22 / 10 / 10); only tiles > first training is bigger (10 + 10)
+        historyTop.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 10))
         Ui.noClip(historyTop)
         historyPane = LinearLayout(c)
         historyPane.orientation = LinearLayout.VERTICAL
@@ -550,7 +552,7 @@ class HistoryActivity : BaseActivity() {
         body.removeAllViews()
         historyTop.removeAllViews()
         if (h == null) {
-            body.addView(Ui.note(c, "No saved history on this phone yet. Connect to the internet once and it will be kept here, even offline."))
+            body.addTo(Ui.note(c, "No saved history on this phone yet. Connect to the internet once and it will be kept here, even offline."), 14)
             return
         }
         if (h.length() == 0) {
@@ -572,7 +574,7 @@ class HistoryActivity : BaseActivity() {
             }
         }
         if (filter != null && !present.contains(filter)) filter = null
-        if (present.size > 1) historyTop.addTo(filterRow(present), 2)
+        if (present.size > 1) historyTop.addTo(filterRow(present), 10)
 
         // visible range switch: 7 days | 30 days | All time (filters the list and the numbers)
         historyTop.addTo(rangeSwitch(), 10)
