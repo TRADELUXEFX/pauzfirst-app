@@ -632,9 +632,6 @@ class HistoryActivity : BaseActivity() {
                 else -> df.format(Date(ms))
             }
             val q = o.optInt("questions", 0)
-            var sub = q.toString() + (if (q == 1) " question" else " questions") +
-                "  •  " + StatsStore.formatDuration(o.optInt("time", 0).toLong())
-            if (o.optBoolean("deepPause", false)) sub += "  •  Deep Pause"
             val rated = if (isSurprise) 0 else ratings.optInt(o.optString("date", ""), 0)
 
             val row = LinearLayout(c)
@@ -646,7 +643,13 @@ class HistoryActivity : BaseActivity() {
             val subRow = LinearLayout(c)
             subRow.orientation = LinearLayout.HORIZONTAL
             subRow.gravity = Gravity.CENTER_VERTICAL
-            subRow.addView(Ui.text(c, sub, 12f, Ui.MUTED_TINT, Ui.REG))
+            subRow.addView(Ui.text(c, q.toString() + "Q" + "  •  ", 12f, Ui.MUTED_TINT, Ui.REG))
+            // the clock sits right next to the time
+            subRow.addView(FsIconView(c, Icons.CLOCK, Ui.MUTED_TINT), LinearLayout.LayoutParams(Ui.dp(c, 13), Ui.dp(c, 13)))
+            val timeText = Ui.text(c, StatsStore.formatDuration(o.optInt("time", 0).toLong()), 12f, Ui.MUTED_TINT, Ui.REG)
+            val timeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            timeLp.leftMargin = Ui.dp(c, 4)
+            subRow.addView(timeText, timeLp)
             if (rated in 1..3) {
                 // the rating as a drawn face, same icons as the finish page
                 subRow.addView(Ui.text(c, "  •  ", 12f, Ui.MUTED_TINT, Ui.REG))
