@@ -570,34 +570,44 @@ object Api {
         )
     )
 
-    /** The website's prompt, one call per item type. */
+    /** The website's prompt, one call per item type. With a theme, the theme is a hard rule for every item. */
     private fun typePrompt(t: GenType, n: Int, theme: String): String {
-        val themeLine = if (theme.isBlank()) "" else "\n\nTHEME: Lean the items toward this theme: " + theme.trim() + "."
+        val hasTheme = theme.isNotBlank()
+        val themeBlock = if (!hasTheme) "" else
+            "THEME (MANDATORY): \"" + theme.trim() + "\"\n" +
+            "- EVERY single item must be clearly about this theme: it must name it, or name something that is directly part of it. An item that is not about the theme is a failure.\n" +
+            "- The examples above show the format and tone ONLY. Do NOT copy their topics.\n" +
+            "- Keep the rule for this type (" + t.label + "), but build every item around the theme. Make each one a different absurd situation with the theme, varying the action and the details.\n\n"
+        // with a theme, the topics stay on the theme; without one they are randomized as before
+        val topicRules = if (hasTheme)
+            "- Every item must use a completely different action verb. No verb may appear more than once across the batch. The theme (or things closely tied to it) can be the subject each time, but every situation must be different.\n"
+        else
+            "- RANDOMIZE topics \u2014 animals, food, space, body, everyday objects, sports, weather, school. Do not repeat the same subject.\n" +
+            "- STRICT: Every single item must use a completely different subject AND a completely different action verb. No verb may appear more than once across the entire batch. No subject word may repeat either. Treat this as a hard rule \u2014 violations mean the batch fails.\n"
         return "You are a content creator for PAUZFIRST, a public speaking training app.\n\n" +
             "Generate exactly " + n + " unique items for a pause-training exercise.\n\n" +
             "TYPE: " + t.desc + "\n\n" +
             "CRITICAL RULE FOR THIS TYPE: " + t.rule + "\n\n" +
             "EXAMPLES of correct items for this type:\n" + t.examples + "\n\n" +
+            themeBlock +
             "RULES:\n" +
             "- Obviously absurd, untrue, or ridiculous \u2014 triggers instant urge to react or correct\n" +
             "- So simple a 10-year-old gets it immediately\n" +
             "- Maximum 6 words. Short, punchy, direct.\n" +
             "- No complex vocabulary. Every item completely unique.\n" +
-            "- RANDOMIZE topics \u2014 animals, food, space, body, everyday objects, sports, weather, school. Do not repeat the same subject.\n" +
-            "- STRICT: Every single item must use a completely different subject AND a completely different action verb. No verb may appear more than once across the entire batch. No subject word may repeat either. Treat this as a hard rule \u2014 violations mean the batch fails.\n" +
+            topicRules +
             "- BANNED VERBS \u2014 never use these under any circumstances: whisper, knit, weave, mend, sew, hum, sing, bake, brew, sculpt, juggle, paint, sketch, wander, stitch. Pick completely different verbs for every item.\n" +
             "- Every question must be grammatically complete and specific \u2014 clear subject, clear action, makes full sense on its own\n" +
-            "- Every question must place the subject in a specific absurd situation or comparison \u2014 NEVER ask if something simply does what it normally does (e.g. \"Do birds fly?\" or \"Do fish swim?\" are banned \u2014 birds fly and fish swim, that is normal)" +
-            themeLine + "\n\n" +
+            "- Every question must place the subject in a specific absurd situation or comparison \u2014 NEVER ask if something simply does what it normally does (e.g. \"Do birds fly?\" or \"Do fish swim?\" are banned \u2014 birds fly and fish swim, that is normal)\n\n" +
             "CRITICAL: Generate exactly " + n + " items. Count as you write. Do not stop until you reach " + n + ".\n\n" +
             "OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: [\"Item one\", \"Item two\", \"Item three\"]. No code fences, no markdown, no backticks, no explanation. Just the raw JSON array starting with [ and ending with ]."
     }
 
-    private fun callGemini(prompt: String): GenResult {
+    private fun callGemini(prompt: String, temperature: Double = 1.4): GenResult {
         val parts = JSONArray().put(JSONObject().put("text", prompt))
         val body = JSONObject()
             .put("contents", JSONArray().put(JSONObject().put("parts", parts)))
-            .put("generationConfig", JSONObject().put("maxOutputTokens", 4096).put("temperature", 1.4))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 4096).put("temperature", temperature))
             .toString()
         val r = authed("POST", "/functions/v1/gemini-proxy", body, null)
         if (!r.ok) return GenResult(null, "Couldn't reach the AI service. Try again.")
@@ -636,7 +646,8 @@ object Api {
             while (got.size < needed && attempts < (if (active.size == 1) 1 else 3)) {
                 val extra = needed - got.size
                 val ask = Math.min(extra + Math.ceil(extra * 0.3).toInt(), 100)
-                val r = callGemini(typePrompt(t, ask, theme))
+                // a little calmer with a theme, so the items stay on the theme
+                val r = callGemini(typePrompt(t, ask, theme), if (theme.isBlank()) 1.4 else 1.1)
                 val lines = r.questions
                 if (lines == null) { lastError = r.error; break }
                 for (line in lines) {

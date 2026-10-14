@@ -615,10 +615,6 @@ class HistoryActivity : BaseActivity() {
             tint = true
         ), 10)
 
-        if (shownTotal > items.size) {
-            historyTop.addTo(Ui.note(c, "The list below shows your latest " + items.size + " trainings. The total above counts all of them."), 8)
-        }
-
         val df = SimpleDateFormat("EEE d MMM, h:mm a", Locale.getDefault())
         val tf = SimpleDateFormat("h:mm a", Locale.getDefault())
         val recs = LocalExtras.recordings()
