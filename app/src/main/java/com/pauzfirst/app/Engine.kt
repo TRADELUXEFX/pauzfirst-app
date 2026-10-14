@@ -655,6 +655,7 @@ object Engine {
         lastStreakUp = false
         if (q <= 0) return
         val m = mode
+        val why = threeWhy && deep
         val doneQs = questions.take(q)
         val bucket = usedBucket
         val pool = usedPool
@@ -690,7 +691,7 @@ object Engine {
             }
             try {
                 if (surprise) HistoryStore.recordSurprise(q, secs)
-                else HistoryStore.record(q, secs, m, deep, entryDate)
+                else HistoryStore.record(q, secs, m, deep, entryDate, why)
                 HistoryStore.flush()
             } catch (e: Exception) {
                 // the session stays waiting on the phone and is sent next time

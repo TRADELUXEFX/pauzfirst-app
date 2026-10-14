@@ -56,13 +56,14 @@ object HistoryStore {
     }
 
     @Synchronized
-    fun record(questions: Int, seconds: Int, mode: String, deepPause: Boolean, date: String = isoNow()) {
+    fun record(questions: Int, seconds: Int, mode: String, deepPause: Boolean, date: String = isoNow(), threeWhy: Boolean = false) {
         val e = JSONObject()
             .put("date", date)
             .put("mode", mode)
             .put("time", seconds)
             .put("deepPause", deepPause)
             .put("questions", questions)
+            .put("threeWhy", threeWhy)
         val old = pending()
         val out = JSONArray()
         out.put(e)

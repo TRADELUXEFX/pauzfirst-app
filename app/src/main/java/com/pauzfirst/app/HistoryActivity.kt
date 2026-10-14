@@ -258,10 +258,21 @@ class HistoryActivity : BaseActivity() {
         }
     }
 
+    /** Weekly total in full: "20s", "4m 12s", or "1 hour 30 minutes" once it passes an hour. */
+    private fun weekTotalText(secs: Long): String {
+        if (secs < 3600L) return StatsStore.formatDuration(secs)
+        val h = secs / 3600L
+        val m = (secs % 3600L) / 60L
+        val hourPart = h.toString() + (if (h == 1L) " hour" else " hours")
+        if (m == 0L) return hourPart
+        return hourPart + " " + m.toString() + (if (m == 1L) " minute" else " minutes")
+    }
+
+    /** Bar label, kept short: 20s, 1m, 90m for 1h 30m, and 1h only for exact hours. */
     private fun shortTime(secs: Long): String {
-        if (secs < 60L) return "<1m"
-        if (secs < 3600L) return (secs / 60L).toString() + "m"
-        return (secs / 3600L).toString() + "h" + ((secs % 3600L) / 60L).toString() + "m"
+        if (secs < 60L) return secs.toString() + "s"
+        if (secs % 3600L == 0L) return (secs / 3600L).toString() + "h"
+        return (secs / 60L).toString() + "m"
     }
 
     /** "Your practice": one card with a Week | Month switch. Week = 7-day bars, Month = calendar heat map. */
@@ -413,7 +424,7 @@ class HistoryActivity : BaseActivity() {
         var max = 1L
         var total = 0L
         for (v in secs) { total += v; if (v > max) max = v }
-        card.addTo(Ui.text(c, StatsStore.formatDuration(total) + " this week", 13f, Ui.MUTED_TINT, Ui.MED), 10)
+        card.addTo(Ui.text(c, weekTotalText(total) + " this week", 13f, Ui.MUTED_TINT, Ui.MED), 10)
 
         val dayFmt = SimpleDateFormat("EEEEE", Locale.getDefault())
         val barArea = Ui.dp(c, 96)
@@ -679,6 +690,17 @@ class HistoryActivity : BaseActivity() {
                 val timeLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 timeLp.leftMargin = Ui.dp(c, 4)
                 subRow.addView(timeText, timeLp)
+                if (o.optBoolean("threeWhy", false)) {
+                    // a small "3" badge at a glance: this session was the 3 Why challenge
+                    val tag3 = Ui.text(c, "3Y", 10f, Ui.WHITE, Ui.BOLD)
+                    tag3.gravity = Gravity.CENTER
+                    tag3.background = Ui.rounded(c, Ui.BLUE, 9)
+                    tag3.setPadding(Ui.dp(c, 7), 0, Ui.dp(c, 7), 0)
+                    tag3.contentDescription = "3 Why challenge"
+                    val t3Lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, Ui.dp(c, 18))
+                    t3Lp.leftMargin = Ui.dp(c, 6)
+                    subRow.addView(tag3, t3Lp)
+                }
             }
             if (rated in 1..3) {
                 // the rating as a drawn face, same icons as the finish page

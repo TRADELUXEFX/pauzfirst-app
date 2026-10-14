@@ -145,6 +145,40 @@ class LoginActivity : BaseActivity() {
         msg.text = text
     }
 
+    private var textFade: android.animation.ValueAnimator? = null
+
+    /** Swaps the button label for the spinning ring (on) or brings the label back (off). */
+    private fun showLoading(on: Boolean) {
+        textFade?.cancel()
+        if (!on) loginBtn.text = "Login"
+        val from = if (on) 255 else 0
+        val to = if (on) 0 else 255
+        textFade = android.animation.ValueAnimator.ofInt(from, to).apply {
+            duration = 180
+            addUpdateListener { a ->
+                loginBtn.setTextColor(android.graphics.Color.argb(a.animatedValue as Int, 255, 255, 255))
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (on) loginBtn.text = ""
+                }
+            })
+            start()
+        }
+        loginSpin.animate().cancel()
+        if (on) {
+            loginSpin.visibility = android.view.View.VISIBLE
+            loginSpin.alpha = 0f
+            loginSpin.scaleX = 0.5f
+            loginSpin.scaleY = 0.5f
+            loginSpin.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start()
+        } else {
+            loginSpin.animate().alpha(0f).scaleX(0.5f).scaleY(0.5f).setDuration(120)
+                .withEndAction { loginSpin.visibility = android.view.View.GONE }
+                .start()
+        }
+    }
+
     private fun doLogin() {
         val e = email.text.toString().trim()
         val p = password.text.toString()
@@ -154,14 +188,12 @@ class LoginActivity : BaseActivity() {
         }
         loginBtn.isEnabled = false
         setMsg("", true)
-        loginBtn.text = ""
-        loginSpin.visibility = android.view.View.VISIBLE
+        showLoading(true)
         Thread {
             val r = Api.signIn(e, p)
             runOnUiThread {
                 loginBtn.isEnabled = true
-                loginBtn.text = "Login"
-                loginSpin.visibility = android.view.View.GONE
+                showLoading(false)
                 if (r.ok) {
                     goHome()
                 } else if (r.code == 0) {

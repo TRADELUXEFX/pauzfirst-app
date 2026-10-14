@@ -92,6 +92,8 @@ class TrainingDetailActivity : BaseActivity() {
             cells.add("Time" to StatsStore.formatDuration(o.optInt("time", 0).toLong()))
         }
         if (!isSurprise) cells.add("Deep Pause" to (if (o.optBoolean("deepPause", false)) "On" else "Off"))
+        // only sessions saved with the flag show it (older ones do not know)
+        if (!isSurprise && o.has("threeWhy")) cells.add("3 Why challenge" to (if (o.optBoolean("threeWhy", false)) "On" else "Off"))
         var i = 0
         while (i < cells.size) {
             val line = LinearLayout(c)

@@ -1302,7 +1302,7 @@ class HomeActivity : BaseActivity() {
         cueRow.addView(guideRow, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         sound.addTo(cueRow, 10)
         val soundLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        soundLp.setMargins(pad, Ui.dp(c, 6), pad, 0)
+        soundLp.setMargins(pad, Ui.dp(c, 16), pad, 0)
         lower.addView(sound, soundLp)
 
         // ---------- recording ----------
