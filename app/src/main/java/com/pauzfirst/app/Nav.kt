@@ -61,7 +61,7 @@ object Nav {
                     return@setOnClickListener
                 }
                 val target = when (i) {
-                    HISTORY -> Intent(a, HistoryActivity::class.java)
+                    HISTORY -> Intent(a, HistoryActivity::class.java).putExtra(HistoryActivity.EXTRA_TAB, 1)
                     LIST -> Intent(a, ListsActivity::class.java)
                     else -> Intent(a, HomeActivity::class.java).putExtra(HomeActivity.EXTRA_PAGE, i)
                 }

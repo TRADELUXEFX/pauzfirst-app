@@ -19,6 +19,11 @@ import java.util.TimeZone
 
 /** "Your progress": a toggle between Training Stats (totals and streaks) and Training History (past trainings, newest first). */
 class HistoryActivity : BaseActivity() {
+    companion object {
+        /** Which tab to open: 0 = Training Stats (default), 1 = Training History. */
+        const val EXTRA_TAB = "tab"
+    }
+
     private lateinit var body: LinearLayout          // the body of the tab on screen
     private lateinit var statsBody: LinearLayout
     private lateinit var historyBody: LinearLayout
@@ -45,7 +50,7 @@ class HistoryActivity : BaseActivity() {
             return
         }
         buildUi()
-        showTab(0)
+        showTab(intent.getIntExtra(EXTRA_TAB, 0))
         // The history comes from the network, so it loads in the background while Stats is already on screen.
         Thread {
             // Step 1: show the copy saved on the phone straight away, so History opens instantly (and works offline)

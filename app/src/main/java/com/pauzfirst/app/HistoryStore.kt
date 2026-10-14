@@ -128,7 +128,8 @@ object HistoryStore {
                 }
             }
         }
-        val date = existing?.optString("date", "").orEmpty().ifEmpty { isoNow() }
+        // The card moves up to the time of the latest one (a 5 AM and a 7 AM pause -> the card sits at 7 AM), for Real Pause and Surprise Pauses.
+        val date = isoNow()
         val e = JSONObject()
             .put("date", date)
             .put("day", today)

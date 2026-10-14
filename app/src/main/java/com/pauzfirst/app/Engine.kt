@@ -419,7 +419,10 @@ object Engine {
     /** A short vibration for a phase change: one pulse = Pause, two pulses = Respond. */
     private fun buzz(pulses: Int) {
         if (!Settings.haptics) return
-        vibrate(if (pulses <= 1) longArrayOf(0L, 60L) else longArrayOf(0L, 60L, 110L, 60L))
+        // With the chime on, the buzz starts a hair later because the sound takes a moment to start.
+        // Respond: the second buzz comes 300 ms after the first, the same spacing as the two chime notes.
+        val lead = if (Settings.chime) 70L else 0L
+        vibrate(if (pulses <= 1) longArrayOf(lead, 60L) else longArrayOf(lead, 60L, 240L, 60L))
     }
 
     private fun vibrate(pattern: LongArray) {

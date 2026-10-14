@@ -339,7 +339,6 @@ class TrainingActivity : AppCompatActivity() {
         fsGuide = PhaseGuideView(c)
         fsGuide.setTimes("", Settings.pauseTime.toString() + "s", Settings.answerTime.toString() + "s")
         fsGuide.visibility = View.GONE
-        fsOverlay.addTo(fsGuide, 10)
 
         // Deep Pause: count-up + Why pill
         fsDeep = LinearLayout(c)
@@ -358,17 +357,13 @@ class TrainingActivity : AppCompatActivity() {
         fsSecs.gravity = Gravity.CENTER
         fsSecs.setShadowLayer(12f, 0f, 2f, Color.parseColor("#80000000"))
         fsDeep.addView(fsSecs, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-        val sub = Ui.text(c, "ANSWER WHEN YOU FEEL READY", 12f, Color.parseColor("#B3FFFFFF"), Ui.BOLD)
-        sub.letterSpacing = 0.15f
-        sub.gravity = Gravity.CENTER
-        sub.setShadowLayer(6f, 0f, 1f, Color.parseColor("#73000000"))
-        val subLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        subLp.topMargin = Ui.dp(c, 6)
-        fsDeep.addView(sub, subLp)
+        // Deep Pause shows only the timer: "Answer when you feel ready" is spoken (Voice tip), not written on screen
         fsDeep.visibility = View.GONE
-        fsOverlay.addTo(fsDeep, 16)
 
         fsOverlay.addView(View(c), LinearLayout.LayoutParams(1, 0, 1f))
+        // Listen / Pause / Respond (normal mode) and the Deep Pause timer both sit just above the End / Next buttons, so the face stays clear
+        fsOverlay.addTo(fsGuide, 8)
+        fsOverlay.addTo(fsDeep, 8)
 
         // bottom row: Flip, End, Next (all transparent, like the website)
         val btns = LinearLayout(c)

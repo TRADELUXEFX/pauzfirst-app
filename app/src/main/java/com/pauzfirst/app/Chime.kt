@@ -27,9 +27,11 @@ object Chime {
     }
 
     private fun build(pulses: Int): ShortArray {
-        val low = note(660.0, 450)
-        if (pulses <= 1) return low
-        val gap = ShortArray(RATE * 80 / 1000)
+        if (pulses <= 1) return note(660.0, 450)
+        // The second note starts exactly 300 ms after the first (260 ms note + 40 ms gap).
+        // The vibration for Respond uses the same 300 ms spacing (see Engine.buzz), so the two stay in step.
+        val low = note(660.0, 260)
+        val gap = ShortArray(RATE * 40 / 1000)
         val high = note(880.0, 450)
         return low + gap + high
     }
