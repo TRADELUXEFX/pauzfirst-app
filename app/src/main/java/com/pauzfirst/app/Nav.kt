@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.view.View
 import android.widget.LinearLayout
 import androidx.core.view.WindowCompat
 
@@ -44,7 +45,15 @@ object Nav {
             tab.orientation = LinearLayout.VERTICAL
             tab.gravity = Gravity.CENTER
             tab.setPadding(0, Ui.dp(a, 4), 0, Ui.dp(a, 4))
-            val icon = FsIconView(a, icons[i], col)
+            // Training uses the app's own pause-and-play mark; the other tabs keep their line icons
+            val icon: View = if (i == TRAINING) {
+                android.widget.ImageView(a).apply {
+                    setImageResource(R.drawable.ic_stat_pauzfirst)
+                    setColorFilter(col)
+                }
+            } else {
+                FsIconView(a, icons[i], col)
+            }
             val iconLp = LinearLayout.LayoutParams(Ui.dp(a, 22), Ui.dp(a, 22))
             iconLp.gravity = Gravity.CENTER_HORIZONTAL
             tab.addView(icon, iconLp)
