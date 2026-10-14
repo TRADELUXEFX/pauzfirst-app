@@ -17,6 +17,8 @@ import androidx.core.view.WindowCompat
 object Nav {
     const val HOME = 0
     const val TRAINING = 1
+    /** Pause bar and play arrow, as the app logo. Drawn with the same class as the other tab icons. */
+    const val TRAINING_MARK = "M5 5h3v14H5z M13 5l7 7-7 7z"
     const val LIST = 2
     const val HISTORY = 3
     const val NONE = -1
@@ -45,15 +47,8 @@ object Nav {
             tab.orientation = LinearLayout.VERTICAL
             tab.gravity = Gravity.CENTER
             tab.setPadding(0, Ui.dp(a, 4), 0, Ui.dp(a, 4))
-            // Training uses the app's own pause-and-play mark; the other tabs keep their line icons
-            val icon: View = if (i == TRAINING) {
-                android.widget.ImageView(a).apply {
-                    setImageResource(R.drawable.ic_nav_training)
-                    setColorFilter(col)
-                }
-            } else {
-                FsIconView(a, icons[i], col)
-            }
+            // every tab, Training included, is drawn by the same FsIconView class with the same colour rule
+            val icon = FsIconView(a, if (i == TRAINING) TRAINING_MARK else icons[i], col)
             val iconLp = LinearLayout.LayoutParams(Ui.dp(a, 22), Ui.dp(a, 22))
             iconLp.gravity = Gravity.CENTER_HORIZONTAL
             tab.addView(icon, iconLp)
