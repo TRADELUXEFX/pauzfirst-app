@@ -48,7 +48,7 @@ object Nav {
             // Training uses the app's own pause-and-play mark; the other tabs keep their line icons
             val icon: View = if (i == TRAINING) {
                 android.widget.ImageView(a).apply {
-                    setImageResource(R.drawable.ic_stat_pauzfirst)
+                    setImageResource(R.drawable.ic_nav_training)
                     setColorFilter(col)
                 }
             } else {
