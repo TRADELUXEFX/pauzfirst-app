@@ -121,7 +121,10 @@ class TrainingActivity : AppCompatActivity() {
         stopBtn = Ui.text(c, "End", 13f, Ui.RED, Ui.BOLD)
         stopBtn.background = Ui.rounded(c, Color.parseColor("#1AEF4444"), 20)
         stopBtn.setPadding(Ui.dp(c, 16), Ui.dp(c, 9), Ui.dp(c, 16), Ui.dp(c, 9))
-        top.addView(stopBtn, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        // "Question 1 of 1" sits in the middle; End now lives at the bottom of the screen
+        progress.gravity = Gravity.CENTER
+        stopBtn.gravity = Gravity.CENTER
+        stopBtn.setPadding(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 14))
         root.addTo(top)
 
         // segmented progress bar
@@ -198,6 +201,10 @@ class TrainingActivity : AppCompatActivity() {
 
         nextBtn = Ui.pill(c, "Next", Ui.GREEN)
         root.addTo(nextBtn, 12)
+
+        val stopLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        stopLp.topMargin = Ui.dp(c, 12)
+        root.addView(stopBtn, stopLp)
 
         nextBtn.setOnClickListener { Engine.nextTapped() }
         stopBtn.setOnClickListener { endSession() }
