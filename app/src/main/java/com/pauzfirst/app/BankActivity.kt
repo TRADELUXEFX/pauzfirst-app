@@ -25,7 +25,7 @@ class BankActivity : BaseActivity() {
     private var tab = 0                          // 0 = Left, 1 = Used
     private var query = ""                       // what is typed in the search bar at the bottom
     private var titleView: TextView? = null      // header title, shows the total e.g. "3,424 questions"
-    private var progHolder: LinearLayout? = null   // progress bar + % pill, in the blue header between total and toggle
+    private var pctView: TextView? = null         // the "12% used" pill, on the right of the header
     private var toggleHolder: LinearLayout? = null // the Left | Used switch, inside the blue header
     private var loadingView: View? = null         // the ring, pinned on screen (not inside the scrolling list)
     private var listCard: LinearLayout? = null   // the card the question rows are added to
@@ -43,8 +43,23 @@ class BankActivity : BaseActivity() {
         column.orientation = LinearLayout.VERTICAL
         column.setBackgroundColor(Ui.BG)
         // blue header: back + total on top, the Left | Used switch inside the same blue
-        val head = Ui.header(c, "Questions") { finish() }
+        val pct0 = Ui.text(c, "0% used", 13f, Ui.WHITE, Ui.BOLD)
+        pct0.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)  // pill, same soft white as the back circle
+        // same 40dp height as the back button, so the two line up across the header
+        pct0.gravity = Gravity.CENTER
+        pct0.minHeight = Ui.dp(c, 40)
+        pct0.minimumHeight = Ui.dp(c, 40)
+        pct0.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0)
+        pctView = pct0
+        val head = Ui.header(c, "Questions", null, pct0) { finish() }
         titleView = head.getChildAt(1) as? TextView
+        // slimmer side slots (same width both sides, so the title stays centered) to leave room for "3,424 questions"
+        for (idx in intArrayOf(0, 2)) {
+            val slot = head.getChildAt(idx)
+            val lp = slot.layoutParams
+            lp.width = Ui.dp(c, 88)
+            slot.layoutParams = lp
+        }
         head.background = null
         val headBox = LinearLayout(c)
         headBox.orientation = LinearLayout.VERTICAL
@@ -53,17 +68,11 @@ class BankActivity : BaseActivity() {
         hbg.cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, hr, hr, hr, hr)
         headBox.background = hbg
         headBox.addView(head)
-        val ph = LinearLayout(c)
-        ph.orientation = LinearLayout.VERTICAL
-        progHolder = ph
-        val phLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        phLp.setMargins(Ui.dp(c, 20), Ui.dp(c, 4), Ui.dp(c, 20), 0)
-        headBox.addView(ph, phLp)
         val th = LinearLayout(c)
         th.orientation = LinearLayout.VERTICAL
         toggleHolder = th
         val thLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        thLp.setMargins(Ui.dp(c, 16), Ui.dp(c, 14), Ui.dp(c, 16), Ui.dp(c, 18))
+        thLp.setMargins(Ui.dp(c, 16), 0, Ui.dp(c, 16), Ui.dp(c, 18))
         headBox.addView(th, thLp)
         column.addView(headBox)
         holder = LinearLayout(c)
@@ -195,31 +204,8 @@ class BankActivity : BaseActivity() {
         // total goes in the blue header
         titleView?.text = n(total) + " questions"
 
-        // how much is used: thin progress bar with the % pill beside it
-        val row = LinearLayout(c)
-        row.orientation = LinearLayout.HORIZONTAL
-        row.gravity = Gravity.CENTER_VERTICAL
-        val track = LinearLayout(c)
-        track.orientation = LinearLayout.HORIZONTAL
-        track.weightSum = 1000f
-        track.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 3)
-        val fillW = if (total == 0) 0f else done.size * 1000f / total
-        if (fillW > 0f) {
-            val fill = View(c)
-            fill.background = Ui.rounded(c, Color.WHITE, 3)
-            track.addView(fill, LinearLayout.LayoutParams(0, Ui.dp(c, 6), fillW))
-        } else {
-            track.addView(View(c), LinearLayout.LayoutParams(0, Ui.dp(c, 6), 0f))
-        }
-        row.addView(track, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        val pill = Ui.text(c, pct.toString() + "% used", 12f, Ui.WHITE, Ui.BOLD)
-        pill.background = Ui.rounded(c, Color.parseColor("#33FFFFFF"), 20)
-        pill.setPadding(Ui.dp(c, 12), Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 6))
-        val pillLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        pillLp.leftMargin = Ui.dp(c, 12)
-        row.addView(pill, pillLp)
-        progHolder?.removeAllViews()
-        progHolder?.addView(row, Ui.lp(c, 0))
+        // how much is used: the pill by the title
+        pctView?.text = pct.toString() + "% used"
 
         // Left | Used switch lives in the blue header
         val toggle = LinearLayout(c)
@@ -246,9 +232,10 @@ class BankActivity : BaseActivity() {
             }
             val e = Ui.text(c, msg, 14f, Ui.MUTED, Ui.MED)
             e.setLineSpacing(0f, 1.2f)
-            val eCard = Ui.card(c)
-            eCard.addView(e)
-            list.addView(eCard, Ui.lp(c, 0))
+            // plain centered note, not a card
+            e.gravity = Gravity.CENTER
+            e.setPadding(Ui.dp(c, 24), Ui.dp(c, 48), Ui.dp(c, 24), 0)
+            list.addView(e, Ui.lp(c, 0))
         }
         holder.addTo(list, 12)
         addRows(PAGE)
