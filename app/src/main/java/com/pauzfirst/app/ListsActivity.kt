@@ -507,11 +507,12 @@ class ListsActivity : BaseActivity() {
         }
     }
 
-    override fun onBackPressed() {
+    override fun handleBack(): Boolean {
         // opened from Training: back returns there; from the Lists tab: back goes to Home
         if (selectMode) setSelectMode(false)
-        else if (intent?.getBooleanExtra(Nav.EXTRA_FROM_TRAINING, false) == true) super.onBackPressed()
+        else if (intent?.getBooleanExtra(Nav.EXTRA_FROM_TRAINING, false) == true) return false
         else Nav.goHome(this)
+        return true
     }
 
     private fun listTexts(name: String): List<String> {
@@ -893,6 +894,7 @@ class ListsActivity : BaseActivity() {
                 }
             )
         )
+        field.requestFocus()
     }
 
     /** Share icon on a preset: publishes its settings, plus its question list when it uses one, under a new code. */

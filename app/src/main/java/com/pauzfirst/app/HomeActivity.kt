@@ -133,8 +133,9 @@ class HomeActivity : BaseActivity() {
     }
 
     /** Back on Training goes to Home; back on Home leaves the app. */
-    override fun onBackPressed() {
-        if (pageIdx == 1) showPage(0) else super.onBackPressed()
+    override fun handleBack(): Boolean {
+        if (pageIdx == 1) { showPage(0); return true }
+        return false
     }
 
     /**

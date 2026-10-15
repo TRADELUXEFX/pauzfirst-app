@@ -1,6 +1,7 @@
 package com.pauzfirst.app
 
 import android.os.Bundle
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 
 /**
@@ -11,5 +12,18 @@ abstract class BaseActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.edgeToEdge(this)
+        // Back goes through the dispatcher, because onBackPressed() is no longer called when the app targets Android 16.
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (!handleBack()) {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
+                }
+            }
+        })
     }
+
+    /** A screen returns true when it handled Back itself; false lets Back do its normal thing (close the screen). */
+    protected open fun handleBack(): Boolean = false
 }

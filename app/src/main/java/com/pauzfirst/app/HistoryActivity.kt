@@ -125,8 +125,9 @@ class HistoryActivity : BaseActivity() {
         setContentView(page)
     }
 
-    override fun onBackPressed() {
+    override fun handleBack(): Boolean {
         Nav.goHome(this)
+        return true
     }
 
     private fun tabBody(): LinearLayout {

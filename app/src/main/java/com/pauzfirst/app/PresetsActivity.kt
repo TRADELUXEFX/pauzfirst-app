@@ -145,6 +145,7 @@ class PresetsActivity : BaseActivity() {
                 }
             )
         )
+        field.requestFocus()
     }
 
     private fun confirmDelete(p: Preset) {
