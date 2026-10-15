@@ -84,7 +84,8 @@ class ScreenRecordService : Service() {
 
     private fun begin(code: Int, data: Intent) {
         val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        val p = mpm.getMediaProjection(code, data)
+        // newer Android versions can hand back nothing (permission already used up): stop cleanly instead of crashing
+        val p = mpm.getMediaProjection(code, data) ?: run { finish(); return }
         projection = p
         // Android 14 needs this callback before recording starts; it also fires if the user stops sharing
         p.registerCallback(object : MediaProjection.Callback() {
