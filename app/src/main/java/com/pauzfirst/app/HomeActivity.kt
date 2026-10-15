@@ -314,7 +314,8 @@ class HomeActivity : BaseActivity() {
             box.setOnClickListener { onClick() }
             if (onLong != null) box.setOnLongClickListener { onLong(); true }
             val lp = LinearLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 34))
-            lp.rightMargin = Ui.dp(c, 5)
+            // same 10dp gap as between the stat tiles below, so the header and tiles line up as one grid
+            lp.rightMargin = Ui.dp(c, 10)
             top.addView(box, lp)
             return box
         }

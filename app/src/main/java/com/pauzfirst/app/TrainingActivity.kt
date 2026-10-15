@@ -611,7 +611,7 @@ class TrainingActivity : AppCompatActivity() {
         when (p) {
             Engine.Phase.LISTEN -> {
                 accent = Ui.BLUE; bgTint = tintBlue(); label = "LISTEN"
-                timerText = "•••"; hintText = "Listen to the question"
+                timerText = "•••"; hintText = "Listen"
             }
             Engine.Phase.PAUSE -> {
                 accent = Ui.AMBER; bgTint = tintAmber(); label = "PAUSE"
