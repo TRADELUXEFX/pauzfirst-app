@@ -591,7 +591,7 @@ class TrainingActivity : AppCompatActivity() {
         val idx = if (counting) 0 else Engine.index
         val total = qs.size
         val shown = Math.min(idx + 1, total)
-        progress.text = if (p == Engine.Phase.DONE) "All $total done" else "Question $shown of $total"
+        progress.text = if (p == Engine.Phase.DONE) "All $total done" else "$shown of $total"
 
         // segment bar
         val filled = if (p == Engine.Phase.DONE) segCount else Math.min(idx, segCount)
