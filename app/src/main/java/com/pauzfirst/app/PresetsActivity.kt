@@ -69,6 +69,7 @@ class PresetsActivity : BaseActivity() {
         title.maxLines = 1
         title.ellipsize = android.text.TextUtils.TruncateAt.END
         top.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(iconButton(Icons.EDIT, "Rename preset") { showRename(p, p.name) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
         top.addView(iconButton(Icons.COPY, "Duplicate preset") { duplicatePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
         top.addView(iconButton(Icons.TRASH, "Delete preset") { confirmDelete(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
         card.addView(top, Ui.lp(c))
@@ -116,6 +117,34 @@ class PresetsActivity : BaseActivity() {
         val copy = Presets.duplicate(p.name)
         if (copy != null) Toast.makeText(this, "Duplicated as \"" + copy + "\"", Toast.LENGTH_SHORT).show()
         render()
+    }
+
+    /** Rename icon: a small box with the current name. A taken or empty name shows a message and the box opens again. */
+    private fun showRename(p: Preset, text: String) {
+        val c = this
+        val field = Ui.input(c, "Preset name", false)
+        field.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        field.filters = arrayOf(android.text.InputFilter.LengthFilter(40))
+        field.setText(text)
+        field.setSelection(field.text.length)
+        AppDialog.show(
+            this,
+            "Rename preset",
+            content = field,
+            showKeyboard = true,
+            buttons = listOf(
+                Btn("Save") {
+                    val typed = field.text.toString()
+                    val err = Presets.rename(p.name, typed)
+                    if (err != null) {
+                        Toast.makeText(c, err, Toast.LENGTH_SHORT).show()
+                        showRename(p, typed)
+                    } else {
+                        render()
+                    }
+                }
+            )
+        )
     }
 
     private fun confirmDelete(p: Preset) {

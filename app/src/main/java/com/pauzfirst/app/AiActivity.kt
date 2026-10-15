@@ -100,12 +100,9 @@ class AiActivity : BaseActivity() {
             styleChip(t, get())
             t.setOnClickListener {
                 val now = !get()
-                if (!now && (if (useQ) 1 else 0) + (if (useA) 1 else 0) + (if (useS) 1 else 0) == 1) {
-                    Toast.makeText(c, "Select at least one type.", Toast.LENGTH_SHORT).show()
-                } else {
-                    set(now)
-                    styleChip(t, now)
-                }
+                set(now)
+                styleChip(t, now)
+                refreshGen()
             }
             val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             if (!first) lp.leftMargin = Ui.dp(c, 8)
@@ -116,7 +113,7 @@ class AiActivity : BaseActivity() {
         typeChip("Statements", { useS }, { useS = it }, false)
         setup.addTo(typeRow, 10)
         setup.addTo(Ui.stepper(c, "How many", { count }, { count = it }, 10, 100, 10) { it.toString() }, 16)
-        genBtn = Ui.pill(c, "Generate questions")
+        genBtn = Ui.pill(c, "Generate")
         setup.addTo(genBtn, 18)
         status = Ui.text(c, "", 12f, Ui.RED, Ui.MED)
         status.visibility = View.GONE
@@ -173,14 +170,30 @@ class AiActivity : BaseActivity() {
                 countText.text = n.toString() + (if (n == 1) " question" else " questions")
             }
         })
-        genBtn.setOnClickListener { generate() }
+        genBtn.setOnClickListener {
+            if (noneSelected()) {
+                Toast.makeText(this, "Choose what to generate", Toast.LENGTH_SHORT).show()
+            } else {
+                generate()
+            }
+        }
         saveBtn.setOnClickListener { save() }
     }
 
-    private fun setBusy(busy: Boolean) {
+    private var busy = false
+
+    private fun noneSelected() = !useQ && !useA && !useS
+
+    /** Dims the button when no type is picked. It stays tappable so it can show the tip. */
+    private fun refreshGen() {
         genBtn.isEnabled = !busy
-        genBtn.alpha = if (busy) 0.6f else 1f
-        genBtn.text = if (resultCard.visibility == View.VISIBLE) "Generate again" else "Generate questions"
+        genBtn.alpha = if (busy) 0.6f else if (noneSelected()) 0.4f else 1f
+    }
+
+    private fun setBusy(busy: Boolean) {
+        this.busy = busy
+        refreshGen()
+        genBtn.text = if (resultCard.visibility == View.VISIBLE) "Generate again" else "Generate"
         loadingCard.visibility = if (busy) View.VISIBLE else View.GONE
         if (busy) {
             resultCard.visibility = View.GONE

@@ -344,6 +344,7 @@ class ListsActivity : BaseActivity() {
         title.ellipsize = android.text.TextUtils.TruncateAt.END
         top.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         top.addView(presetIconButton(Icons.SHARE, "Share preset") { if (!needsNet()) doSharePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
+        top.addView(presetIconButton(Icons.EDIT, "Rename preset") { showPresetRename(p, p.name) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
         top.addView(presetIconButton(Icons.COPY, "Duplicate preset") { duplicatePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
         top.addView(presetIconButton(Icons.TRASH, "Delete preset") { confirmDeletePreset(p) }, LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)).apply { leftMargin = Ui.dp(c, 6) })
         card.addView(top, Ui.lp(c))
@@ -865,6 +866,34 @@ class ListsActivity : BaseActivity() {
     }
 
     // ---------- preset share ----------
+
+    /** The pencil: the name in a box and one Save button. Tap outside to close without saving. */
+    private fun showPresetRename(p: Preset, text: String) {
+        val c = this
+        val field = Ui.input(c, "Preset name", false)
+        field.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        field.filters = arrayOf(android.text.InputFilter.LengthFilter(40))
+        field.setText(text)
+        field.setSelection(field.text.length)
+        AppDialog.show(
+            this,
+            "Rename preset",
+            content = field,
+            showKeyboard = true,
+            buttons = listOf(
+                Btn("Save", Kind.PRIMARY) {
+                    val typed = field.text.toString()
+                    val err = Presets.rename(p.name, typed)
+                    if (err != null) {
+                        Toast.makeText(c, err, Toast.LENGTH_SHORT).show()
+                        showPresetRename(p, typed)
+                    } else {
+                        renderPresets()
+                    }
+                }
+            )
+        )
+    }
 
     /** Share icon on a preset: publishes its settings, plus its question list when it uses one, under a new code. */
     private fun doSharePreset(p: Preset) {

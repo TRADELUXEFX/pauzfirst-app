@@ -203,6 +203,32 @@ object Presets {
         return finalName
     }
 
+    /**
+     * Renames a preset in place (it keeps its position and its Recent spot).
+     * Returns null when done, or a short reason when it can't: empty name, or another preset already has it.
+     */
+    fun rename(old: String, new: String): String? {
+        val clean = new.trim()
+        if (clean.isEmpty()) return "Give the preset a name."
+        if (clean == old) return null
+        val list = load()
+        if (list.any { !it.name.equals(old, ignoreCase = true) && it.name.equals(clean, ignoreCase = true) }) {
+            return "You already have a preset with that name."
+        }
+        write(list.map { p ->
+            if (p.name != old) p else Preset(
+                clean, p.mode, p.deep, p.total, p.pause, p.answer, p.voice, p.tip,
+                p.tipInterval, p.threeWhy, p.phaseGuide, p.source, p.recordAudio, p.recordScreen
+            )
+        })
+        val names = recentNames().map { if (it.equals(old, ignoreCase = true)) clean else it }
+        val a = JSONArray()
+        for (n in names) a.put(n)
+        Session.prefs.edit().putString(RECENT_KEY, a.toString()).apply()
+        if (loaded == old) loaded = clean
+        return null
+    }
+
     fun delete(name: String) {
         write(load().filter { it.name != name })
     }
