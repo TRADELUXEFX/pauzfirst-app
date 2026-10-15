@@ -177,7 +177,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.2'
+          gradle-version: '8.11.1'
 
       - name: Decode release keystore
         run: |
@@ -189,7 +189,7 @@ jobs:
           fi
 
       - name: Build APK
-        run: gradle assembleRelease
+        run: gradle assembleRelease bundleRelease
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: pauzfirst
@@ -200,6 +200,12 @@ jobs:
         with:
           name: pauzfirst-apk
           path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload AAB artifact (for Google Play)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pauzfirst-aab
+          path: app/build/outputs/bundle/release/app-release.aab
 
       - name: Upload APK to Releases
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
