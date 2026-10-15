@@ -105,7 +105,7 @@ object PickerDialog {
             row.orientation = LinearLayout.HORIZONTAL
             row.gravity = Gravity.CENTER_VERTICAL
             row.setPadding(Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14), Ui.dp(c, 14))
-            row.background = if (on) Ui.rounded(c, Ui.BLUE, 14) else Ui.rounded(c, Ui.FIELD, 14)
+            row.background = if (on) Ui.rounded(c, Ui.BLUE, 14) else Ui.rounded(c, Ui.BG, 14, Ui.LINE, 1)
 
             val mark = FrameLayout(c)
             val ring = View(c)

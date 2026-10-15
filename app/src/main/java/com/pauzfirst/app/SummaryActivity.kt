@@ -70,8 +70,8 @@ class SummaryActivity : BaseActivity() {
             val on = rating == i + 1
             val bg = GradientDrawable()
             bg.cornerRadius = Ui.dp(this, 18).toFloat()
-            bg.setColor(if (on) Ui.BLUE_SOFT else Ui.SURFACE)
-            bg.setStroke(Ui.dp(this, 3), if (on) Ui.BLUE else Color.TRANSPARENT)
+            bg.setColor(if (on) Ui.BLUE_SOFT else Ui.BG)
+            bg.setStroke(Ui.dp(this, if (on) 3 else 1), if (on) Ui.BLUE else Ui.LINE)
             rateTiles[i].background = bg
             rateTiles[i].alpha = if (rating == 0 || on) 1f else 0.55f
             rateLabels[i].setTextColor(if (on) Ui.BLUE else Ui.MUTED_TINT)

@@ -22,7 +22,7 @@ class WeeklySummaryActivity : BaseActivity() {
         val t = LinearLayout(this)
         t.orientation = LinearLayout.VERTICAL
         t.gravity = Gravity.CENTER
-        t.background = Ui.rounded(this, Ui.SURFACE, 18)
+        t.background = Ui.rounded(this, Ui.SURFACE, 18, Ui.LINE, 1)
         t.setPadding(Ui.dp(this, 8), Ui.dp(this, 14), Ui.dp(this, 8), Ui.dp(this, 14))
         t.addView(Ui.text(this, value, 20f, Ui.TEXT, Ui.BOLD))
         t.addView(Ui.text(this, label, 12f, Ui.MUTED, Ui.REG))
