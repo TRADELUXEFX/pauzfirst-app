@@ -142,12 +142,17 @@ object PickerDialog {
         fun makeTile(i: Int, minutes: String): View {
             val on = i == selected
             val tile = LinearLayout(c)
-            tile.orientation = LinearLayout.VERTICAL
+            tile.orientation = LinearLayout.HORIZONTAL
             tile.gravity = Gravity.CENTER
-            tile.setPadding(Ui.dp(c, 8), Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16))
+            tile.isBaselineAligned = true
+            tile.setPadding(Ui.dp(c, 8), Ui.dp(c, 20), Ui.dp(c, 8), Ui.dp(c, 20))
             tile.background = if (on) Ui.rounded(c, Ui.BLUE, 16) else Ui.rounded(c, Ui.FIELD, 16, Ui.LINE, 1)
-            tile.addView(Ui.text(c, minutes, 26f, if (on) Color.WHITE else Ui.TEXT, Ui.BOLD), Ui.lp(c))
-            tile.addView(Ui.text(c, "minutes", 12f, if (on) Color.WHITE else Ui.MUTED, Ui.REG), Ui.lp(c, 2))
+            val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
+            tile.addView(Ui.text(c, minutes, 26f, if (on) Color.WHITE else Ui.TEXT, Ui.BOLD), LinearLayout.LayoutParams(wrap, wrap))
+            tile.addView(
+                Ui.text(c, "min", 16f, if (on) Color.WHITE else Ui.MUTED, Ui.REG),
+                LinearLayout.LayoutParams(wrap, wrap).apply { leftMargin = Ui.dp(c, 2) }
+            )
             if (on) selectedView = tile
             pressFeedback(tile)
             tile.setOnClickListener { pick(i) }
