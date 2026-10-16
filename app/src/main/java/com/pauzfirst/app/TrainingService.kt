@@ -193,6 +193,14 @@ class TrainingService : Service() {
     }
 
     override fun onDestroy() {
+        // A foreground service's notification stays on screen after the service stops unless it is removed explicitly.
+        // Without this, the last question stays in the notification after the training ends.
+        try {
+            stopForeground(Service.STOP_FOREGROUND_REMOVE)
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(1001)
+        } catch (e: Exception) {
+            android.util.Log.w("PauzFirst", "TrainingService step failed", e)
+        }
         try {
             mediaSession?.isActive = false
             mediaSession?.release()
