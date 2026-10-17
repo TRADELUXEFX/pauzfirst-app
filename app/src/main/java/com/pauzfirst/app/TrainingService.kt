@@ -174,6 +174,8 @@ class TrainingService : Service() {
 
         /** Shows the current question in the running notification, so it can be read without opening the app. */
         fun show(ctx: Context, title: String, text: String) {
+            // no session running: never put the notice back
+            if (!Engine.isActive()) return
             if (title == lastTitle && text == lastText) return
             lastTitle = title
             lastText = text

@@ -326,7 +326,7 @@ object Engine {
         starting = false
         pauseT = Settings.pauseTime
         answerT = Settings.answerTime
-        voice = Settings.voice || Settings.animatedEyes
+        voice = Settings.voice   // Voice off means no question is read aloud, in every mode
         deep = Settings.deepPause
         threeWhy = Settings.threeWhy
         tip = Settings.tip
@@ -641,6 +641,8 @@ object Engine {
         // a new session is starting: keep the recording that was just set up for it
         if (!starting) SessionRecorder.stop(a)
         try { a.stopService(Intent(a, TrainingService::class.java)) } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
+        // remove the running notice even if a late update was posted after the service stopped
+        try { (a.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).cancel(1001) } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
     }
 
     private fun saveSession() {
