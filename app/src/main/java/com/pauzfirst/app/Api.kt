@@ -118,6 +118,9 @@ object Api {
         return call(b.build())
     }
 
+    /** Permanently deletes the signed-in account and its data on the server. */
+    fun deleteAccount(): Result = authed("POST", "/rest/v1/rpc/delete_my_account", "{}", null)
+
     private fun authed(method: String, path: String, bodyStr: String?, prefer: String?): Result {
         if (recentlyOffline()) return Result(false, 0, "offline")
         ensureFresh()

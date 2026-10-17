@@ -148,6 +148,10 @@ class HistoryActivity : BaseActivity() {
         val scroll = android.widget.ScrollView(this)
         scroll.addView(b)
         Ui.noClip(b, scroll)
+        // Content fades out at the top and bottom edges of the scroll area instead of being cut off.
+        scroll.setBackgroundColor(Ui.BG)
+        scroll.isVerticalFadingEdgeEnabled = true
+        scroll.setFadingEdgeLength(Ui.dp(this, 28))
         // content scrolling up under the toggle is cut with rounded corners instead of a hard straight edge
         val topR = Ui.dp(this, 20).toFloat()
         scroll.outlineProvider = object : android.view.ViewOutlineProvider() {

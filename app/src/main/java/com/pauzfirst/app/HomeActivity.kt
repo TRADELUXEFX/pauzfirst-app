@@ -298,6 +298,7 @@ class HomeActivity : BaseActivity() {
         val logoLp = LinearLayout.LayoutParams(Ui.dp(c, 34), Ui.dp(c, 30))
         logoLp.rightMargin = Ui.dp(c, 8)
         titleRow.addView(logoImg, logoLp)
+        logoImg.setOnClickListener { startActivity(Intent(this, ProfileActivity::class.java)) }
         val title = Ui.text(c, "PAUZFIRST", 18f, Ui.WHITE, Ui.BOLD)
         title.letterSpacing = 0.05f
         title.maxLines = 1

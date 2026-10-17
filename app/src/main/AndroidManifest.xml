@@ -146,5 +146,6 @@
         </service>
         <activity android:name=".TrainingDetailActivity" android:exported="false" />
         <activity android:name=".WeeklySummaryActivity" android:exported="false" />
+            <activity android:name=".ProfileActivity" android:exported="false" />
     </application>
 </manifest>
