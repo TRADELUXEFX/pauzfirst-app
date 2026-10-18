@@ -1069,7 +1069,7 @@ class HomeActivity : BaseActivity() {
     /** The "?" on the Cues and sounds card: the same pop-up as Generate with AI, one line per cue. */
     private fun showCuesHelp() {
         val items = ArrayList<HelpPopup.Item>()
-        items.add(HelpPopup.Item(Icons.VOLUME, "Voice", "Reads each question aloud, so you can train with your eyes closed."))
+        items.add(HelpPopup.Item(Icons.VOLUME, "Voice", "Questions are always read aloud. This switch turns the Pause and Respond voice cues on or off."))
         items.add(HelpPopup.Item(Icons.VIBRATE, "Vibrate", "One short buzz at Pause and two at Respond."))
         items.add(HelpPopup.Item(Icons.BELL, "Chime", "A soft note at Pause and two rising notes at Respond."))
         if (Settings.mirror && !Settings.deepPause) {

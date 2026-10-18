@@ -38,6 +38,12 @@ object SurprisePause {
         get() { val m = Session.prefs.getInt("sp_days", 127) and 127; return if (m == 0) 127 else m }
         set(v) { Session.prefs.edit().putInt("sp_days", v and 127).apply() }
 
+    /** How a Surprise Pause gives its cues. true = Voice tip (says "Pause and think" and "Respond" out loud),
+     *  false = Sound tip (vibrates and chimes instead, nothing extra is spoken). The question is read aloud either way. */
+    var voiceTip: Boolean
+        get() = Session.prefs.getBoolean("sp_voice_tip", true)
+        set(v) { Session.prefs.edit().putBoolean("sp_voice_tip", v).apply() }
+
     /** dow is Calendar.DAY_OF_WEEK (1 = Sunday ... 7 = Saturday). */
     fun dayOn(dow: Int): Boolean = (daysMask shr (dow - 1)) and 1 == 1
 

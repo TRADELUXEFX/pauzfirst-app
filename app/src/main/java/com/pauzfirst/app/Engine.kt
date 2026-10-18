@@ -67,6 +67,8 @@ object Engine {
     private var pauseT = 10
     private var answerT = 5
     private var voice = true
+    // true during a Surprise Pause with Sound tip: vibrate and chime always play, nothing spoken for Pause and Respond
+    private var soundTip = false
     private var deep = false
     private var threeWhy = false
     private var tip = true
@@ -147,7 +149,7 @@ object Engine {
                             if (off.isNotEmpty() && (cur == null || cur.isNetworkConnectionRequired)) t.setVoice(off[0])
                         } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
                     }
-                    if (voice && !NetWatch.validated(ctx) && !VoiceCheck.hasOfflineVoice(t)) {
+                    if (!NetWatch.validated(ctx) && !VoiceCheck.hasOfflineVoice(t)) {
                         voiceNotice("No offline voice on this phone, so questions won't be read aloud. Install one in Settings > Text-to-speech, or go online.")
                     }
                     val q = queued
@@ -155,7 +157,7 @@ object Engine {
                     if (q != null) speakNow(q.text, q.rate, q.cb)
                 } else {
                     ttsFailed = true
-                    if (voice) voiceNotice("Text-to-speech isn't available on this phone, so questions won't be read aloud.")
+                    voiceNotice("Text-to-speech isn't available on this phone, so questions won't be read aloud.")
                     val q = queued
                     queued = null
                     if (q != null && q.cb != null) h.postDelayed({ q.cb.invoke() }, 2500L)
@@ -251,10 +253,10 @@ object Engine {
     }
 
     /** Speaks text, then runs cb (only if the session was not stopped/advanced meanwhile). */
-    private fun say(text: String, rate: Float, cb: (() -> Unit)?) {
+    private fun say(text: String, rate: Float, cb: (() -> Unit)?, forceVoice: Boolean = false) {
         val g = gen
         val wrapped: (() -> Unit)? = if (cb == null) null else { { if (g == gen) cb() } }
-        if (!voice || ttsFailed) {
+        if ((!voice && !forceVoice) || ttsFailed) {
             if (wrapped != null) h.postDelayed({ wrapped() }, if (voice) 2500L else 3000L)
             return
         }
@@ -326,17 +328,19 @@ object Engine {
         starting = false
         pauseT = Settings.pauseTime
         answerT = Settings.answerTime
-        voice = Settings.voice   // Voice off means no question is read aloud, in every mode
+        voice = Settings.voice   // Voice off silences the cues (Pause, Respond, Why, tip); the question is always read
         deep = Settings.deepPause
         threeWhy = Settings.threeWhy
-        tip = Settings.tip
+        tip = Settings.tip   // the voice tip follows its own switch, not the Voice switch
         tipInt = Settings.tipInterval
         headlessRun = headless
+        soundTip = headless && !SurprisePause.voiceTip
         if (headless) {
-            // nobody is tapping Next: keep it to question, pause, answer time, and always speak
+            // nobody is tapping Next: keep it to question, pause, answer time, and always speak the question.
+            // Voice tip: Pause and Respond are spoken. Sound tip: only the vibrate and chime play.
             deep = false
             threeWhy = false
-            voice = true
+            voice = SurprisePause.voiceTip
         }
         mode = Settings.recordMode
         modeKey = Settings.mode
@@ -417,20 +421,20 @@ object Engine {
         whyCount = 0
         showNext = false
         notifyUi()
-        say(currentQuestion(), 0.8f) {
+        say(currentQuestion(), 0.8f, {
             later(1000L) { if (deep) startDeep() else startPause() }
-        }
+        }, forceVoice = true)
     }
 
     /** The soft chime (if switched on). Loudness follows the phone's volume buttons. */
     private fun chime(pulses: Int) {
-        if (!Settings.chime) return
+        if (!Settings.chime && !soundTip) return
         Chime.play(pulses, 1f)
     }
 
     /** A short vibration for a phase change: one pulse = Pause, two pulses = Respond. */
     private fun buzz(pulses: Int) {
-        if (!Settings.haptics) return
+        if (!Settings.haptics && !soundTip) return
         // With the chime on, the buzz starts a hair later because the sound takes a moment to start.
         // Respond: the second buzz comes 300 ms after the first, the same spacing as the two chime notes.
         val lead = if (Settings.chime) 70L else 0L
@@ -473,8 +477,32 @@ object Engine {
         h.postDelayed({ Chime.play(2, 1f) }, 800L)
     }
 
+    /** Press and hold the Voice tip choice: says the spoken cues, Pause and think, then Respond. */
+    fun previewVoiceTip() {
+        if (phase != Phase.IDLE && phase != Phase.DONE) return
+        ensureTts()
+        if (ttsFailed) {
+            val ctx = app ?: return
+            try { Toast.makeText(ctx, "Text-to-speech isn't available on this phone.", Toast.LENGTH_LONG).show() } catch (e: Exception) { android.util.Log.w("PauzFirst", "Engine step failed", e) }
+            return
+        }
+        if (!ttsReady) {
+            queued = Queued("Pause and think", 0.9f, null)
+            return
+        }
+        speakNow("Pause and think", 0.9f) { speakNow("Respond", 0.9f, null) }
+    }
+
+    /** Press and hold the Sound tip choice: one buzz and one chime for Pause, then two for Respond. */
+    fun previewSoundTip() {
+        if (phase != Phase.IDLE && phase != Phase.DONE) return
+        previewVibrate()
+        previewChime()
+    }
+
     /** Says a short sample with the phone's voice. */
     fun previewVoice() {
+        if (phase != Phase.IDLE && phase != Phase.DONE) return
         if (phase != Phase.IDLE && phase != Phase.DONE) return
         ensureTts()
         if (ttsFailed) {
@@ -560,7 +588,7 @@ object Engine {
         }
     }
 
-    private fun sayTip() { say("Answer when you feel ready", 0.9f, null) }
+    private fun sayTip() { say("Answer when you feel ready", 0.9f, null, forceVoice = true) }
 
     private fun tipLoop() {
         later(tipInt * 1000L) {
@@ -583,7 +611,7 @@ object Engine {
         seconds = 0
         showNext = true
         notifyUi()
-        say("Why did you say that?", 0.85f, null)
+        say("Why did you say that?", 0.85f, null, forceVoice = true)
         every {
             seconds++
             notifyUi()
@@ -618,7 +646,7 @@ object Engine {
             endService()
             return
         }
-        say("Training complete. Great job!", 0.9f) { endService() }
+        say("Training complete. Great job!", 0.9f, { endService() }, forceVoice = true)
         later(8000L) { endService() }
     }
 

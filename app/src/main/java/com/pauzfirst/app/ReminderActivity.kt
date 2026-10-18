@@ -234,6 +234,41 @@ class ReminderActivity : BaseActivity() {
         }
         options.addTo(daysRow, 8)
 
+        // tip style: Voice tip (spoken Pause and Respond) or Sound tip (vibrate and chime only)
+        options.addTo(Ui.text(c, "Tip style", 15f, Ui.TEXT, Ui.MED), 16)
+        val styleRow = LinearLayout(c)
+        styleRow.orientation = LinearLayout.HORIZONTAL
+        val voiceChip = Ui.text(c, "Voice tip", 14f, Ui.TEXT, Ui.BOLD)
+        val soundChip = Ui.text(c, "Sound tip", 14f, Ui.TEXT, Ui.BOLD)
+        val styleHelp = Ui.text(c, "", 12f, Ui.MUTED, Ui.MED)
+        fun paintStyle() {
+            val voice = SurprisePause.voiceTip
+            voiceChip.gravity = Gravity.CENTER
+            soundChip.gravity = Gravity.CENTER
+            voiceChip.background = Ui.rounded(c, if (voice) Ui.BLUE else Ui.SOFT, 14)
+            voiceChip.setTextColor(if (voice) Ui.WHITE else Ui.MUTED)
+            soundChip.background = Ui.rounded(c, if (voice) Ui.SOFT else Ui.BLUE, 14)
+            soundChip.setTextColor(if (voice) Ui.MUTED else Ui.WHITE)
+            styleHelp.text = if (voice) {
+                "Says \"Pause and think\" and \"Respond\" out loud. Press and hold to hear it."
+            } else {
+                "Vibrates and chimes instead. Nothing else is spoken. The question is still read aloud. Press and hold to feel it."
+            }
+        }
+        paintStyle()
+        voiceChip.setOnClickListener { SurprisePause.voiceTip = true; paintStyle() }
+        soundChip.setOnClickListener { SurprisePause.voiceTip = false; paintStyle() }
+        voiceChip.setOnLongClickListener { Engine.previewVoiceTip(); true }
+        soundChip.setOnLongClickListener { Engine.previewSoundTip(); true }
+        val chipLp1 = LinearLayout.LayoutParams(0, Ui.dp(c, 40), 1f)
+        chipLp1.setMargins(0, 0, Ui.dp(c, 4), 0)
+        styleRow.addView(voiceChip, chipLp1)
+        val chipLp2 = LinearLayout.LayoutParams(0, Ui.dp(c, 40), 1f)
+        chipLp2.setMargins(Ui.dp(c, 4), 0, 0, 0)
+        styleRow.addView(soundChip, chipLp2)
+        options.addTo(styleRow, 8)
+        options.addTo(styleHelp, 6)
+
         // quiet break: no surprises between two times (lunch, meetings)
         val breakTimes = LinearLayout(c)
         breakTimes.orientation = LinearLayout.VERTICAL
