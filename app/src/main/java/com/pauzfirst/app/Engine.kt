@@ -511,10 +511,10 @@ object Engine {
             return
         }
         if (!ttsReady) {
-            queued = Queued("Pause. Then respond.", 0.9f, null)
+            queued = Queued("Pause and think. Respond.", 0.9f, null)
             return
         }
-        speakNow("Pause. Then respond.", 0.9f, null)
+        speakNow("Pause and think. Respond.", 0.9f, null)
     }
 
     private fun startPause() {
