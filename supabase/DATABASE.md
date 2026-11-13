@@ -1,6 +1,6 @@
 # PauzFirst database: current state
 
-**Last updated:** 2026-10-15 (shared_lists lock-down APPLIED: steps A and B)
+**Last updated:** 2026-11-13 (`delete_my_account` added and APPLIED)
 **Where:** Supabase project used by both the Android app and the website (`www/`).
 **Last verified against the live database:** 2026-10-14 (schema report pasted by the owner).
 
@@ -116,7 +116,7 @@ Known weak spots:
 
 ---
 
-## Functions (5 live), all `security definer`
+## Functions (6 live), all `security definer`
 
 | Function | What it does | Status |
 |---|---|---|
@@ -125,6 +125,7 @@ Known weak spots:
 | `share_preset(p_name, p_settings, p_list_name, p_questions) returns text` | One code per preset per owner; sharing again refreshes it. | APPLIED |
 | `get_shared_preset(p_code) returns table` | Reads one preset by exact code. | APPLIED |
 | `get_shared_list(p_code text) returns table(list_name, questions text[])` | Reads one shared list by exact code, so the table does not need to be open to everyone. Callable by anon + signed-in. | APPLIED (20261018_a) |
+| `delete_my_account() returns void` | Signed-in user only. Deletes that user's rows in `question_lists`, `shared_lists`, `shared_presets` and `user_stats`, then their auth user. Used by the in-app Delete account button and required by Google Play. File: `20261113_delete_my_account.sql`. | APPLIED (owner ran it; confirmed the function exists in the live database) |
 
 ## Edge functions (not visible in the SQL report; unverified)
 - `gemini-proxy`: used by the app for AI question generation. Confirm it is deployed in Supabase > Edge Functions.
@@ -149,6 +150,7 @@ Known weak spots:
 
 | When | Change | Status |
 |---|---|---|
+| 2026-11-13 (time unknown) | Added `delete_my_account` so the in-app Delete account button works. The app already calls it, but no migration defined it. File: `20261113_delete_my_account.sql`. | APPLIED (owner ran it; function confirmed present in the live database) |
 | 2026-10-15 (time unknown) | Owner ran step A (`20261018_a_get_shared_list.sql`) and step B (`20261018_b_close_shared_lists.sql`). `shared_lists` now readable only by its owner; codes looked up through `get_shared_list`. | APPLIED (owner confirmed both ran) |
 | 2026-10-14 (time unknown) | Prepared lock-down of `shared_lists`: new function `get_shared_list` (step A) and policy swap (step B). App (`Api.kt`) and website (`www/index.html`) now look codes up through the function, with a fallback to the old table read. | Superseded by the 2026-10-15 entry above |
 | 2026-10-14 (time unknown) | Fixed `share_list` to convert jsonb to text[] (cause of "Couldn't create a share code"). Added UPDATE rule on `shared_lists`. File: `20261017_share_list_array_fix.sql`. | APPLIED. Owner ran it and generated a share code from the share icon (tested on the old app, before any app update) |

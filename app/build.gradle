@@ -32,9 +32,9 @@ android {
 
     buildTypes {
         release {
-            // Same release key as the old Capacitor build so this installs over it.
-            // Falls back to the debug key only if the secrets are missing.
-            signingConfig hasReleaseKs ? signingConfigs.release : signingConfigs.debug
+            // The release key from the GitHub secrets. The build stops if the key is missing (see below),
+            // so it can never ship signed with the debug key.
+            signingConfig signingConfigs.release
             // R8 removes unused library code. The app's own classes are kept as-is (see proguard-rules.pro).
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -68,4 +68,14 @@ dependencies {
     implementation 'androidx.camera:camera-camera2:1.3.4'
     implementation 'androidx.camera:camera-lifecycle:1.3.4'
     implementation 'androidx.camera:camera-view:1.3.4'
+}
+
+// A release build without the keystore secrets would be signed with the debug key, which Google Play rejects.
+// Stop with a clear message instead.
+gradle.taskGraph.whenReady { graph ->
+    if ((graph.hasTask(':app:assembleRelease') || graph.hasTask(':app:bundleRelease')) && !hasReleaseKs) {
+        throw new GradleException(
+            "Release keystore is missing. Add the GitHub secrets ANDROID_KEYSTORE_BASE64, " +
+            "KEYSTORE_PASSWORD and KEY_PASSWORD, then rebuild.")
+    }
 }
