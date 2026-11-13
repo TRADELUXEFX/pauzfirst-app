@@ -95,6 +95,10 @@ class ProfileActivity : BaseActivity() {
         val delete = Ui.pill(c, "Delete account", Ui.RED)
         delete.setOnClickListener { confirmDelete() }
         column.addTo(delete, 14)
+        val contactUs = Ui.text(c, "Contact us", 13f, Ui.MUTED, Ui.REG)
+        contactUs.gravity = Gravity.CENTER
+        contactUs.setOnClickListener { startActivity(Intent(this, ContactActivity::class.java)) }
+        column.addTo(contactUs, 22)
 
         val scroll = ScrollView(c)
         scroll.isFillViewport = true

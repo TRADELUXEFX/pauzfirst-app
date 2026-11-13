@@ -156,10 +156,18 @@ class LoginActivity : BaseActivity() {
         forgotRow.addView(forgotLink)
         card.addTo(forgotRow, 14)
 
+        val legalRow = LinearLayout(c)
+        legalRow.orientation = LinearLayout.HORIZONTAL
+        legalRow.gravity = Gravity.CENTER
         val privacy = Ui.text(c, "Privacy policy", 12f, Ui.MUTED, Ui.REG)
-        privacy.gravity = Gravity.CENTER
         privacy.setOnClickListener { startActivity(Intent(this, PrivacyActivity::class.java)) }
-        card.addTo(privacy, 14)
+        val legalDot = Ui.text(c, "  \u00B7  ", 12f, Ui.MUTED, Ui.REG)
+        val contactUs = Ui.text(c, "Contact us", 12f, Ui.MUTED, Ui.REG)
+        contactUs.setOnClickListener { startActivity(Intent(this, ContactActivity::class.java)) }
+        legalRow.addView(privacy)
+        legalRow.addView(legalDot)
+        legalRow.addView(contactUs)
+        card.addTo(legalRow, 14)
 
         applyMode()
 

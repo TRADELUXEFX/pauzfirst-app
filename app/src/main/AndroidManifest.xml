@@ -66,6 +66,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ContactActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ForgotPasswordActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

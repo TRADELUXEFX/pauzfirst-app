@@ -14,7 +14,7 @@ import androidx.browser.customtabs.CustomTabsIntent
  */
 class PrivacyActivity : Activity() {
     companion object {
-        const val PRIVACY_URL = "https://pauzfirst-privacy.netlify.app/"
+        const val PRIVACY_URL = "https://pauzfirst.netlify.app/privacy"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
