@@ -82,9 +82,12 @@ object Api {
     }
 
     /** Creates an account with email and password. If the project asks for email confirmation, no login comes back yet. */
-    fun signUp(email: String, password: String): Result {
-        val body = JSONObject().put("email", email).put("password", password).toString()
-        val req = builder("/auth/v1/signup", KEY).post(body.toRequestBody(JSON_TYPE)).build()
+    fun signUp(email: String, password: String, name: String = ""): Result {
+        val o = JSONObject().put("email", email).put("password", password)
+        if (name.isNotEmpty()) o.put("data", JSONObject().put("name", name))
+        val body = o.toString()
+        // the confirm link in the email opens the app (pauzfirst://auth-callback) and logs the person in
+        val req = builder("/auth/v1/signup?redirect_to=" + enc("pauzfirst://auth-callback"), KEY).post(body.toRequestBody(JSON_TYPE)).build()
         val r = call(req)
         if (r.ok && r.body.contains("access_token") && !saveTokens(r.body)) return Result(false, 500, "bad response")
         return r
@@ -127,6 +130,35 @@ object Api {
         return true
     }
 
+    /** Sends the confirmation link again. */
+    fun resendSignup(email: String): Result {
+        val body = JSONObject().put("type", "signup").put("email", email).toString()
+        val req = builder("/auth/v1/resend?redirect_to=" + enc("pauzfirst://auth-callback"), KEY).post(body.toRequestBody(JSON_TYPE)).build()
+        return call(req)
+    }
+
+    /** Name, email and sign-in method of the signed-in user (also kept on the phone for offline). Null if the request failed. */
+    fun fetchProfile(): Triple<String, String, String>? {
+        val r = authed("GET", "/auth/v1/user", null, null)
+        if (!r.ok) return null
+        return try {
+            val o = JSONObject(r.body)
+            val meta = o.optJSONObject("user_metadata")
+            var name = meta?.optString("name", "") ?: ""
+            if (name.isEmpty()) name = meta?.optString("full_name", "") ?: ""
+            val email = o.optString("email", "")
+            val provider = o.optJSONObject("app_metadata")?.optString("provider", "email") ?: "email"
+            Session.prefs.edit().putString("u_name", name).putString("u_email", email).putString("u_provider", provider).apply()
+            Triple(name, email, provider)
+        } catch (e: Exception) { null }
+    }
+
+    fun updateName(name: String): Result =
+        authed("PUT", "/auth/v1/user", JSONObject().put("data", JSONObject().put("name", name)).toString(), null)
+
+    fun changePassword(password: String): Result =
+        authed("PUT", "/auth/v1/user", JSONObject().put("password", password).toString(), null)
+
     fun sendReset(email: String): Result {
         val body = JSONObject().put("email", email).toString()
         val req = builder("/auth/v1/recover", KEY).post(body.toRequestBody(JSON_TYPE)).build()
@@ -158,6 +190,7 @@ object Api {
         when (method) {
             "POST" -> b.post((bodyStr ?: "{}").toRequestBody(JSON_TYPE))
             "PATCH" -> b.patch((bodyStr ?: "{}").toRequestBody(JSON_TYPE))
+            "PUT" -> b.put((bodyStr ?: "{}").toRequestBody(JSON_TYPE))
             "DELETE" -> b.delete()
             else -> b.get()
         }

@@ -31,7 +31,7 @@ object Session {
     fun loggedIn(): Boolean = refresh.isNotEmpty() && userId.isNotEmpty()
 
     fun clear() {
-        prefs.edit().remove("access").remove("refresh").remove("uid").remove("expires_at").apply()
+        prefs.edit().remove("access").remove("refresh").remove("uid").remove("expires_at").remove("u_name").remove("u_email").remove("u_provider").apply()
     }
 
     /** Training settings belong to one account. The display choice (dark mode) stays with the phone. */
