@@ -80,12 +80,9 @@ class ProfileActivity : BaseActivity() {
         column.orientation = LinearLayout.VERTICAL
         column.setPadding(Ui.dp(c, 20), Ui.dp(c, 22), Ui.dp(c, 20), Ui.dp(c, 24))
 
-        val editName = row("Edit name")
-        editName.setOnClickListener { editNameDialog() }
-        column.addTo(editName, 0)
         passRow = row("Change password")
         passRow.setOnClickListener { changePasswordDialog() }
-        column.addTo(passRow, 12)
+        column.addTo(passRow, 0)
 
         val logout = Ui.pill(c, "Log out", Ui.BLUE_SOFT, Ui.BLUE)
         logout.setOnClickListener { doLogout() }
@@ -126,7 +123,7 @@ class ProfileActivity : BaseActivity() {
         Avatar.show(c, avatarView, Session.prefs.getString("u_avatar", "") ?: "")
         // show what the phone already knows, then refresh from the server
         show(Session.prefs.getString("u_name", "") ?: "", Session.prefs.getString("u_email", "") ?: "",
-            Session.prefs.getString("u_provider", "email") ?: "email")
+            Session.prefs.getString("u_provider", "") ?: "")
         Thread {
             val p = Api.fetchProfile()
             runOnUiThread { if (p != null && !isFinishing && !isDestroyed) { show(p.first, p.second, p.third); Avatar.show(this, avatarView, Session.prefs.getString("u_avatar", "") ?: "") } }
@@ -148,30 +145,6 @@ class ProfileActivity : BaseActivity() {
         methodView.text = if (isEmailLogin) "Signed in with email" else "Signed in with Google"
         // Google users have no password to change
         passRow.visibility = if (isEmailLogin) View.VISIBLE else View.GONE
-    }
-
-    private fun editNameDialog() {
-        val c = this
-        val input = Ui.input(c, "Your name", false)
-        input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-        input.setText(Session.prefs.getString("u_name", "") ?: "")
-        input.setSelection(input.text.length)
-        AppDialog.show(this, "Edit name", content = input, showKeyboard = true, buttons = listOf(
-            Btn("Cancel", Kind.SOFT),
-            Btn("Save", Kind.PRIMARY) {
-                val n = input.text.toString().trim()
-                if (n.isNotEmpty()) Thread {
-                    val r = Api.updateName(n)
-                    runOnUiThread {
-                        if (isFinishing || isDestroyed) return@runOnUiThread
-                        if (r.ok) {
-                            Session.prefs.edit().putString("u_name", n).apply()
-                            nameView.text = n
-                        } else notice("Could not save the name", if (r.code == 0) "No internet connection. Please try again." else "Please try again in a moment.")
-                    }
-                }.start()
-            }
-        ))
     }
 
     private fun changePasswordDialog() {
