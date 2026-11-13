@@ -24,12 +24,19 @@ class LoginActivity : BaseActivity() {
     private lateinit var nameRow: View
     private lateinit var confirmRow: View
     private lateinit var orText: TextView
+    private lateinit var googleText: TextView
     private lateinit var tabLogin: TextView
     private lateinit var tabSignUp: TextView
     private var googleBusy = false
-    private lateinit var forgot: TextView
+    private lateinit var forgotRow: LinearLayout
+    private lateinit var forgotLink: TextView
     private var signUpMode = false
     private var btnLabel = "Login"
+
+    companion object {
+        // Set this to your live privacy policy page before release.
+        const val PRIVACY_URL = "https://YOUR-SITE/privacy.html"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,10 +95,10 @@ class LoginActivity : BaseActivity() {
         name = nameField.second
         name.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS
         nameRow = nameField.first
-        card.addTo(nameRow, 20)
+        card.addTo(nameRow, 18)
         val emailField = AuthUi.inputRow(c, AuthUi.MAIL, "Email address", false)
         email = emailField.second
-        card.addTo(emailField.first, 12)
+        card.addTo(emailField.first, 18)
         val passField = AuthUi.inputRow(c, AuthUi.LOCK, "Password", true)
         password = passField.second
         password.imeOptions = EditorInfo.IME_ACTION_NEXT
@@ -102,11 +109,6 @@ class LoginActivity : BaseActivity() {
         confirm.imeOptions = EditorInfo.IME_ACTION_DONE
         confirmRow = confirmField.first
         card.addTo(confirmRow, 12)
-
-        forgot = Ui.text(c, "Forgot password?", 13f, Ui.BLUE, Ui.BOLD)
-        forgot.gravity = Gravity.END
-        forgot.setPadding(0, Ui.dp(c, 10), Ui.dp(c, 4), Ui.dp(c, 2))
-        card.addTo(forgot, 2)
 
         loginBtn = Ui.pill(c, "Login")
         loginBtn.textSize = 17f
@@ -122,9 +124,18 @@ class LoginActivity : BaseActivity() {
         msg.gravity = Gravity.CENTER
         card.addTo(msg, 12)
 
-        orText = Ui.text(c, "or continue with", 13f, Ui.MUTED, Ui.REG)
+        orText = Ui.text(c, "or", 13f, Ui.MUTED, Ui.REG)
         orText.gravity = Gravity.CENTER
-        card.addTo(orText, 8)
+        orText.setPadding(Ui.dp(c, 14), 0, Ui.dp(c, 14), 0)
+        val orRow = LinearLayout(c)
+        orRow.orientation = LinearLayout.HORIZONTAL
+        orRow.gravity = Gravity.CENTER_VERTICAL
+        val lineL = View(c); lineL.setBackgroundColor(Ui.LINE)
+        val lineR = View(c); lineR.setBackgroundColor(Ui.LINE)
+        orRow.addView(lineL, LinearLayout.LayoutParams(0, Ui.dp(c, 1), 1f))
+        orRow.addView(orText)
+        orRow.addView(lineR, LinearLayout.LayoutParams(0, Ui.dp(c, 1), 1f))
+        card.addTo(orRow, 16)
         val g = LinearLayout(c)
         g.orientation = LinearLayout.HORIZONTAL
         g.gravity = Gravity.CENTER
@@ -136,9 +147,23 @@ class LoginActivity : BaseActivity() {
         val gLp = LinearLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22))
         gLp.rightMargin = Ui.dp(c, 12)
         g.addView(GoogleGView(c), gLp)
-        g.addView(Ui.text(c, "Continue with Google", 16f, Ui.TEXT, Ui.BOLD))
-        card.addTo(g, 12)
+        googleText = Ui.text(c, "Login with Google", 16f, Ui.TEXT, Ui.BOLD)
+        g.addView(googleText)
+        card.addTo(g, 16)
         wMsg = msg
+
+        forgotRow = LinearLayout(c)
+        forgotRow.orientation = LinearLayout.HORIZONTAL
+        forgotRow.gravity = Gravity.CENTER
+        forgotRow.addView(Ui.text(c, "Forgot your password? ", 14f, Ui.MUTED, Ui.REG))
+        forgotLink = Ui.text(c, "Reset it", 14f, Ui.BLUE, Ui.BOLD)
+        forgotRow.addView(forgotLink)
+        card.addTo(forgotRow, 14)
+
+        val privacy = Ui.text(c, "Privacy policy", 12f, Ui.MUTED, Ui.REG)
+        privacy.gravity = Gravity.CENTER
+        privacy.setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(PRIVACY_URL))) }
+        card.addTo(privacy, 14)
 
         applyMode()
 
@@ -150,7 +175,7 @@ class LoginActivity : BaseActivity() {
         Ui.padInsets(root, bottom = true, ime = true)
 
         loginBtn.setOnClickListener { doLogin() }
-        forgot.setOnClickListener {
+        forgotLink.setOnClickListener {
             startActivity(Intent(this, ForgotPasswordActivity::class.java).putExtra("email", email.text.toString().trim()))
         }
         password.setOnEditorActionListener { _, actionId, _ ->
@@ -183,8 +208,6 @@ class LoginActivity : BaseActivity() {
 
     private lateinit var wMsg: TextView
 
-    private var browserNext = false
-
     /** Google sign-in through the phone's browser (Supabase). Returns via AuthCallbackActivity. */
     private fun openGoogleInBrowser() {
         wMsg.text = ""
@@ -199,8 +222,7 @@ class LoginActivity : BaseActivity() {
     /** Shows Google's account picker on top of the app first. Falls back to the browser sign-in (no SHA-1 needed) if Google rejects the app. */
     private fun doGoogle() {
         if (googleBusy) return
-        if (browserNext || Api.GOOGLE_WEB_CLIENT_ID.isEmpty()) { browserNext = false; openGoogleInBrowser(); return }
-        googleBusy = true
+                googleBusy = true
         wMsg.text = ""
         val option = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
             .Builder(Api.GOOGLE_WEB_CLIENT_ID).build()
@@ -230,11 +252,14 @@ class LoginActivity : BaseActivity() {
                 }
                 override fun onError(e: androidx.credentials.exceptions.GetCredentialException) {
                     googleBusy = false
+                    // always stay in the app: the account picker shows again on the next tap
                     if (e is androidx.credentials.exceptions.GetCredentialCancellationException) {
-                        // Google also reports a rejected app setup as "cancelled", so offer the browser on the next tap.
-                        browserNext = true
                         wMsg.setTextColor(Ui.RED); wMsg.text = "Google sign-in was cancelled."
-                    } else openGoogleInBrowser()
+                    } else if (e is androidx.credentials.exceptions.NoCredentialException) {
+                        wMsg.setTextColor(Ui.RED); wMsg.text = "No Google account found on this phone. Add one in Settings and try again."
+                    } else {
+                        wMsg.setTextColor(Ui.RED); wMsg.text = "Google sign-in did not work. Please try again."
+                    }
                 }
             })
     }
@@ -295,11 +320,11 @@ class LoginActivity : BaseActivity() {
         btnLabel = if (signUpMode) "Create account" else "Login"
         nameRow.visibility = if (signUpMode) View.VISIBLE else View.GONE
         confirmRow.visibility = if (signUpMode) View.VISIBLE else View.GONE
-        orText.text = if (signUpMode) "or sign up faster with" else "or continue with"
+        googleText.text = if (signUpMode) "Sign up with Google" else "Login with Google"
         password.hint = "Password"
         password.imeOptions = if (signUpMode) EditorInfo.IME_ACTION_NEXT else EditorInfo.IME_ACTION_DONE
         loginBtn.text = btnLabel
-        forgot.visibility = if (signUpMode) View.GONE else View.VISIBLE
+        forgotRow.visibility = if (signUpMode) View.GONE else View.VISIBLE
         setMsg("", true)
     }
 
