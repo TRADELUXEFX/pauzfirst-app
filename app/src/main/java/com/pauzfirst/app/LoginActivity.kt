@@ -18,6 +18,14 @@ class LoginActivity : BaseActivity() {
     private lateinit var msg: TextView
     private lateinit var loginBtn: Button
     private lateinit var loginSpin: SpinnerRingView
+    private lateinit var welcome: TextView
+    private lateinit var welcomeSub: TextView
+    private lateinit var tabLogin: TextView
+    private lateinit var tabSignUp: TextView
+    private lateinit var googleBtn: Button
+    private lateinit var forgot: TextView
+    private var signUpMode = false
+    private var btnLabel = "Login"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,16 +63,32 @@ class LoginActivity : BaseActivity() {
         card.background = Ui.rounded(c, Ui.SURFACE, 28)
         card.elevation = Ui.dp(c, 6).toFloat()
         card.setPadding(Ui.dp(c, 22), Ui.dp(c, 24), Ui.dp(c, 22), Ui.dp(c, 20))
-        val welcome = Ui.text(c, "Welcome back", 24f, Ui.TEXT, Ui.BOLD)
+        // Login | Sign up switch
+        val tabs = LinearLayout(c)
+        tabs.orientation = LinearLayout.HORIZONTAL
+        tabs.background = Ui.rounded(c, Ui.FIELD, 22, Ui.LINE, 1)
+        tabs.setPadding(Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 4))
+        tabLogin = Ui.text(c, "Login", 15f, Ui.WHITE, Ui.BOLD)
+        tabSignUp = Ui.text(c, "Sign up", 15f, Ui.MUTED, Ui.BOLD)
+        for (t in listOf(tabLogin, tabSignUp)) {
+            t.gravity = Gravity.CENTER
+            t.setPadding(0, Ui.dp(c, 11), 0, Ui.dp(c, 11))
+            tabs.addView(t, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        tabLogin.setOnClickListener { signUpMode = false; applyMode() }
+        tabSignUp.setOnClickListener { signUpMode = true; applyMode() }
+        card.addTo(tabs)
+
+        welcome = Ui.text(c, "Welcome back", 24f, Ui.TEXT, Ui.BOLD)
         welcome.gravity = Gravity.CENTER
-        card.addTo(welcome)
-        val welcomeSub = Ui.text(c, "Login to start training", 14f, Ui.MUTED, Ui.REG)
+        card.addTo(welcome, 20)
+        welcomeSub = Ui.text(c, "Login to start training", 14f, Ui.MUTED, Ui.REG)
         welcomeSub.gravity = Gravity.CENTER
         card.addTo(welcomeSub, 4)
 
         val emailField = AuthUi.inputRow(c, AuthUi.MAIL, "Email address", false)
         email = emailField.second
-        card.addTo(emailField.first, 22)
+        card.addTo(emailField.first, 20)
         val passField = AuthUi.inputRow(c, AuthUi.LOCK, "Password", true)
         password = passField.second
         password.imeOptions = EditorInfo.IME_ACTION_DONE
@@ -83,21 +107,38 @@ class LoginActivity : BaseActivity() {
         msg = Ui.text(c, "", 12f, Ui.RED, Ui.MED)
         msg.gravity = Gravity.CENTER
         card.addTo(msg, 12)
-        val forgot = Ui.text(c, "Forgot password?", 14f, Ui.BLUE, Ui.BOLD)
+
+        // "or" divider, then Google (signs in, or creates the account the first time)
+        val orRow = LinearLayout(c)
+        orRow.orientation = LinearLayout.HORIZONTAL
+        orRow.gravity = Gravity.CENTER_VERTICAL
+        val lineL = android.view.View(c)
+        lineL.setBackgroundColor(Ui.LINE)
+        val lineR = android.view.View(c)
+        lineR.setBackgroundColor(Ui.LINE)
+        val orTxt = Ui.text(c, "or", 13f, Ui.MUTED, Ui.MED)
+        orTxt.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0)
+        orRow.addView(lineL, LinearLayout.LayoutParams(0, Ui.dp(c, 1), 1f))
+        orRow.addView(orTxt)
+        orRow.addView(lineR, LinearLayout.LayoutParams(0, Ui.dp(c, 1), 1f))
+        card.addTo(orRow, 14)
+
+        googleBtn = Ui.pill(c, "Login with Google", Ui.SURFACE, Ui.TEXT)
+        googleBtn.background = Ui.rounded(c, Ui.SURFACE, 28, Ui.LINE, 1)
+        googleBtn.elevation = 0f
+        googleBtn.setOnClickListener { doGoogle() }
+        card.addTo(googleBtn, 14)
+        forgot = Ui.text(c, "Forgot password?", 14f, Ui.BLUE, Ui.BOLD)
         forgot.gravity = Gravity.CENTER
         forgot.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 8))
         card.addTo(forgot, 4)
+
+        applyMode()
 
         val cardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         cardLp.setMargins(Ui.dp(c, 20), -Ui.dp(c, 36), Ui.dp(c, 20), 0)
         root.addView(card, cardLp)
 
-        val hint = Ui.text(c, "New here? Open the invite link in your email first to create your password, then login.", 12f, Ui.MUTED, Ui.REG)
-        hint.gravity = Gravity.CENTER
-        hint.setLineSpacing(0f, 1.25f)
-        val hintLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        hintLp.setMargins(Ui.dp(c, 36), Ui.dp(c, 24), Ui.dp(c, 36), Ui.dp(c, 24))
-        root.addView(hint, hintLp)
         // keep the content clear of the nav bar and the keyboard
         Ui.padInsets(root, bottom = true, ime = true)
 
@@ -125,12 +166,21 @@ class LoginActivity : BaseActivity() {
         frame.addView(scrim)
         setContentView(frame)
 
+        intent.getStringExtra("notice")?.let { if (it.isNotEmpty()) setMsg(it, false) }
+
         // gentle entrance
         card.alpha = 0f
         card.translationY = Ui.dp(c, 24).toFloat()
         card.animate().alpha(1f).translationY(0f).setDuration(380).setStartDelay(80).start()
-        hint.alpha = 0f
-        hint.animate().alpha(1f).setDuration(380).setStartDelay(220).start()
+    }
+
+    /** Opens Google sign-in in the phone's browser. The app comes back on its own when it is done. */
+    private fun doGoogle() {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Api.googleSignInUrl())))
+        } catch (e: Exception) {
+            setMsg("No web browser was found on this phone.", false)
+        }
     }
 
     private fun Color80(): Int = android.graphics.Color.parseColor("#CCE4FF")
@@ -150,7 +200,7 @@ class LoginActivity : BaseActivity() {
     /** Swaps the button label for the spinning ring (on) or brings the label back (off). */
     private fun showLoading(on: Boolean) {
         textFade?.cancel()
-        if (!on) loginBtn.text = "Login"
+        if (!on) loginBtn.text = btnLabel
         val from = if (on) 255 else 0
         val to = if (on) 0 else 255
         textFade = android.animation.ValueAnimator.ofInt(from, to).apply {
@@ -179,7 +229,66 @@ class LoginActivity : BaseActivity() {
         }
     }
 
+    /** Switches the card between the Login look and the Sign up look. */
+    private fun applyMode() {
+        val c = this
+        tabLogin.background = if (!signUpMode) Ui.rounded(c, Ui.BLUE, 18) else null
+        tabLogin.setTextColor(if (!signUpMode) Ui.WHITE else Ui.MUTED)
+        tabSignUp.background = if (signUpMode) Ui.rounded(c, Ui.BLUE, 18) else null
+        tabSignUp.setTextColor(if (signUpMode) Ui.WHITE else Ui.MUTED)
+        welcome.text = if (signUpMode) "Create your account" else "Welcome back"
+        welcomeSub.text = if (signUpMode) "Sign up to start training" else "Login to start training"
+        btnLabel = if (signUpMode) "Sign up" else "Login"
+        loginBtn.text = btnLabel
+        googleBtn.text = if (signUpMode) "Sign up with Google" else "Login with Google"
+        forgot.visibility = if (signUpMode) android.view.View.GONE else android.view.View.VISIBLE
+        password.hint = if (signUpMode) "Create a password" else "Password"
+        setMsg("", true)
+    }
+
+    private fun doSignUp() {
+        val e = email.text.toString().trim()
+        val p = password.text.toString()
+        if (e.isEmpty() || p.isEmpty()) {
+            setMsg("Please enter your email and a password.", false)
+            return
+        }
+        if (p.length < 6) {
+            setMsg("Your password needs at least 6 characters.", false)
+            return
+        }
+        loginBtn.isEnabled = false
+        setMsg("", true)
+        showLoading(true)
+        Thread {
+            val r = Api.signUp(e, p)
+            runOnUiThread {
+                loginBtn.isEnabled = true
+                showLoading(false)
+                if (r.ok && r.body.contains("access_token")) {
+                    goHome()
+                } else if (r.ok) {
+                    // the account is made, but the email must be confirmed first
+                    signUpMode = false
+                    applyMode()
+                    setMsg("Account created. Check your email to confirm it, then login.", true)
+                } else if (r.code == 0) {
+                    setMsg("No internet connection. Please try again.", false)
+                } else if (r.code == 429) {
+                    setMsg("Too many attempts. Please wait a few minutes and try again.", false)
+                } else if (r.code >= 500) {
+                    setMsg("The server had a problem. Please try again in a moment.", false)
+                } else if (r.body.contains("already")) {
+                    setMsg("This email already has an account. Tap Login instead.", false)
+                } else {
+                    setMsg("Could not sign up. Check your email and try again.", false)
+                }
+            }
+        }.start()
+    }
+
     private fun doLogin() {
+        if (signUpMode) { doSignUp(); return }
         val e = email.text.toString().trim()
         val p = password.text.toString()
         if (e.isEmpty() || p.isEmpty()) {

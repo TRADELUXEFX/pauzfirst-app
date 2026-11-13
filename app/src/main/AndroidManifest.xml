@@ -43,6 +43,20 @@
             </intent-filter>
         </activity>
 
+        <!-- Google sign-in comes back here (pauzfirst://auth-callback). It shows no screen. -->
+        <activity
+            android:name=".AuthCallbackActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/AppTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="pauzfirst" android:host="auth-callback" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".ForgotPasswordActivity"
             android:exported="false"

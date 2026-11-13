@@ -81,6 +81,37 @@ object Api {
         return r
     }
 
+    /** Creates an account with email and password. If the project asks for email confirmation, no login comes back yet. */
+    fun signUp(email: String, password: String): Result {
+        val body = JSONObject().put("email", email).put("password", password).toString()
+        val req = builder("/auth/v1/signup", KEY).post(body.toRequestBody(JSON_TYPE)).build()
+        val r = call(req)
+        if (r.ok && r.body.contains("access_token") && !saveTokens(r.body)) return Result(false, 500, "bad response")
+        return r
+    }
+
+    /** Address that opens Google sign-in in the phone's browser. Supabase sends the user back to pauzfirst://auth-callback. */
+    fun googleSignInUrl(): String =
+        URL + "/auth/v1/authorize?provider=google&redirect_to=" + enc("pauzfirst://auth-callback")
+
+    /** Saves a login that came back from Google. True when the account is ready to use. */
+    fun finishGoogleSignIn(access: String, refresh: String, expiresIn: Long): Boolean {
+        Session.access = access
+        Session.refresh = refresh
+        Session.expiresAt = System.currentTimeMillis() + expiresIn * 1000L
+        val r = call(builder("/auth/v1/user", access).build())
+        val uid = if (r.ok) {
+            try { JSONObject(r.body).getString("id") } catch (e: Exception) { "" }
+        } else ""
+        if (uid.isEmpty()) {
+            Session.clear()
+            return false
+        }
+        Session.userId = uid
+        Session.adoptAccount(uid)
+        return true
+    }
+
     fun sendReset(email: String): Result {
         val body = JSONObject().put("email", email).toString()
         val req = builder("/auth/v1/recover", KEY).post(body.toRequestBody(JSON_TYPE)).build()
