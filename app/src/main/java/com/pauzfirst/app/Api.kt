@@ -90,6 +90,21 @@ object Api {
         return r
     }
 
+    /**
+     * Web application OAuth client ID from Google Cloud Console (the same one entered in Supabase > Auth > Google).
+     * While this is empty the app falls back to the browser sign-in.
+     */
+    const val GOOGLE_WEB_CLIENT_ID = "344848547948-bqqjm6r9mom8fe9nbfojh2lpmpemf04h.apps.googleusercontent.com"
+
+    /** Signs in with the Google ID token from the in-app account picker. */
+    fun signInWithGoogleIdToken(idToken: String): Result {
+        val body = JSONObject().put("provider", "google").put("id_token", idToken).toString()
+        val req = builder("/auth/v1/token?grant_type=id_token", KEY).post(body.toRequestBody(JSON_TYPE)).build()
+        val r = call(req)
+        if (r.ok && !saveTokens(r.body)) return Result(false, 500, "bad response")
+        return r
+    }
+
     /** Address that opens Google sign-in in the phone's browser. Supabase sends the user back to pauzfirst://auth-callback. */
     fun googleSignInUrl(): String =
         URL + "/auth/v1/authorize?provider=google&redirect_to=" + enc("pauzfirst://auth-callback")

@@ -22,7 +22,9 @@ class LoginActivity : BaseActivity() {
     private lateinit var welcomeSub: TextView
     private lateinit var tabLogin: TextView
     private lateinit var tabSignUp: TextView
-    private lateinit var googleBtn: Button
+    private lateinit var welcomeView: LinearLayout
+    private lateinit var formView: FrameLayout
+    private var googleBusy = false
     private lateinit var forgot: TextView
     private var signUpMode = false
     private var btnLabel = "Login"
@@ -43,17 +45,17 @@ class LoginActivity : BaseActivity() {
         val hero = AuthUi.HeroLayout(c)
         hero.orientation = LinearLayout.VERTICAL
         hero.gravity = Gravity.CENTER
-        hero.setPadding(Ui.dp(c, 24), Ui.dp(c, 36), Ui.dp(c, 24), Ui.dp(c, 64))
+        hero.setPadding(Ui.dp(c, 24), Ui.dp(c, 28), Ui.dp(c, 24), Ui.dp(c, 52))
         Ui.padInsets(hero, top = true)
 
-        val logo = AuthUi.logo(c, 88)
-        val ls = Ui.dp(c, 88)
+        val logo = AuthUi.logo(c, 60)
+        val ls = Ui.dp(c, 60)
         hero.addView(logo, LinearLayout.LayoutParams(ls, ls))
-        val name = Ui.text(c, "PAUZFIRST", 30f, Ui.WHITE, Ui.BOLD)
+        val name = Ui.text(c, "PAUZFIRST", 22f, Ui.WHITE, Ui.BOLD)
         name.letterSpacing = 0.1f
         name.gravity = Gravity.CENTER
         hero.addTo(name, 18)
-        val tag = Ui.text(c, "Pause and think before you respond", 13f, Color80(), Ui.REG)
+        val tag = Ui.text(c, "Pause and think before you respond", 12f, Color80(), Ui.REG)
         tag.gravity = Gravity.CENTER
         hero.addTo(tag, 6)
         root.addView(hero, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -108,35 +110,20 @@ class LoginActivity : BaseActivity() {
         msg.gravity = Gravity.CENTER
         card.addTo(msg, 12)
 
-        // "or" divider, then Google (signs in, or creates the account the first time)
-        val orRow = LinearLayout(c)
-        orRow.orientation = LinearLayout.HORIZONTAL
-        orRow.gravity = Gravity.CENTER_VERTICAL
-        val lineL = android.view.View(c)
-        lineL.setBackgroundColor(Ui.LINE)
-        val lineR = android.view.View(c)
-        lineR.setBackgroundColor(Ui.LINE)
-        val orTxt = Ui.text(c, "or", 13f, Ui.MUTED, Ui.MED)
-        orTxt.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0)
-        orRow.addView(lineL, LinearLayout.LayoutParams(0, Ui.dp(c, 1), 1f))
-        orRow.addView(orTxt)
-        orRow.addView(lineR, LinearLayout.LayoutParams(0, Ui.dp(c, 1), 1f))
-        card.addTo(orRow, 14)
-
-        googleBtn = Ui.pill(c, "Login with Google", Ui.SURFACE, Ui.TEXT)
-        googleBtn.background = Ui.rounded(c, Ui.SURFACE, 28, Ui.LINE, 1)
-        googleBtn.elevation = 0f
-        googleBtn.setOnClickListener { doGoogle() }
-        card.addTo(googleBtn, 14)
         forgot = Ui.text(c, "Forgot password?", 14f, Ui.BLUE, Ui.BOLD)
         forgot.gravity = Gravity.CENTER
         forgot.setPadding(0, Ui.dp(c, 12), 0, Ui.dp(c, 8))
         card.addTo(forgot, 4)
+        val back = Ui.text(c, "Back", 14f, Ui.MUTED, Ui.MED)
+        back.gravity = Gravity.CENTER
+        back.setPadding(Ui.dp(c, 24), Ui.dp(c, 8), Ui.dp(c, 24), Ui.dp(c, 4))
+        back.setOnClickListener { showWelcome() }
+        card.addTo(back, 2)
 
         applyMode()
 
         val cardLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        cardLp.setMargins(Ui.dp(c, 20), -Ui.dp(c, 36), Ui.dp(c, 20), 0)
+        cardLp.setMargins(Ui.dp(c, 20), -Ui.dp(c, 30), Ui.dp(c, 20), Ui.dp(c, 24))
         root.addView(card, cardLp)
 
         // keep the content clear of the nav bar and the keyboard
@@ -161,25 +148,181 @@ class LoginActivity : BaseActivity() {
         scroll.setOnScrollChangeListener { _, _, y, _, _ ->
             scrim.alpha = Math.min(1f, y / Ui.dp(c, 60).toFloat())
         }
+        formView = FrameLayout(c)
+        formView.addView(scroll, FrameLayout.LayoutParams(-1, -1))
+        formView.addView(scrim)
+        formView.visibility = android.view.View.GONE
+
+        welcomeView = buildWelcome()
         val frame = FrameLayout(c)
-        frame.addView(scroll, FrameLayout.LayoutParams(-1, -1))
-        frame.addView(scrim)
+        frame.setBackgroundColor(Ui.BG)
+        frame.addView(formView, FrameLayout.LayoutParams(-1, -1))
+        frame.addView(welcomeView, FrameLayout.LayoutParams(-1, -1))
         setContentView(frame)
+
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (formView.visibility == android.view.View.VISIBLE) showWelcome() else finish()
+            }
+        })
 
         intent.getStringExtra("notice")?.let { if (it.isNotEmpty()) setMsg(it, false) }
 
-        // gentle entrance
-        card.alpha = 0f
-        card.translationY = Ui.dp(c, 24).toFloat()
-        card.animate().alpha(1f).translationY(0f).setDuration(380).setStartDelay(80).start()
+        // a notice (e.g. "Google sign-in was not completed") goes straight to the form
+        if (intent.getStringExtra("notice")?.isNotEmpty() == true) showForm(false)
     }
 
-    /** Opens Google sign-in in the phone's browser. The app comes back on its own when it is done. */
+    private fun showForm(signUp: Boolean) {
+        signUpMode = signUp
+        applyMode()
+        intent.getStringExtra("notice")?.let { if (it.isNotEmpty()) setMsg(it, false) }
+        intent.removeExtra("notice")
+        welcomeView.visibility = android.view.View.GONE
+        formView.visibility = android.view.View.VISIBLE
+        val card = (formView.getChildAt(0) as ScrollView).getChildAt(0) as LinearLayout
+        val target = card.getChildAt(1)
+        target.alpha = 0f
+        target.translationY = Ui.dp(this, 24).toFloat()
+        target.animate().alpha(1f).translationY(0f).setDuration(320).start()
+    }
+
+    private fun showWelcome() {
+        currentFocus?.let {
+            (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+                .hideSoftInputFromWindow(it.windowToken, 0)
+        }
+        formView.visibility = android.view.View.GONE
+        welcomeView.visibility = android.view.View.VISIBLE
+    }
+
+    /** First screen: big logo, then Login / Create account / Continue with Google. */
+    private fun buildWelcome(): LinearLayout {
+        val c = this
+        val col = LinearLayout(c)
+        col.orientation = LinearLayout.VERTICAL
+        col.setBackgroundColor(Ui.BG)
+
+        val hero = AuthUi.HeroLayout(c)
+        hero.orientation = LinearLayout.VERTICAL
+        hero.gravity = Gravity.CENTER
+        hero.setPadding(Ui.dp(c, 24), Ui.dp(c, 28), Ui.dp(c, 24), Ui.dp(c, 28))
+        Ui.padInsets(hero, top = true)
+        val ls = Ui.dp(c, 112)
+        hero.addView(AuthUi.logo(c, 112), LinearLayout.LayoutParams(ls, ls))
+        val name = Ui.text(c, "PAUZFIRST", 32f, Ui.WHITE, Ui.BOLD)
+        name.letterSpacing = 0.12f
+        name.gravity = Gravity.CENTER
+        hero.addTo(name, 28)
+        val tag = Ui.text(c, "Pause and think before you respond", 15f, Color80(), Ui.REG)
+        tag.gravity = Gravity.CENTER
+        hero.addTo(tag, 10)
+        col.addView(hero, LinearLayout.LayoutParams(-1, 0, 1f))
+
+        val btns = LinearLayout(c)
+        btns.orientation = LinearLayout.VERTICAL
+        btns.setPadding(Ui.dp(c, 24), Ui.dp(c, 28), Ui.dp(c, 24), Ui.dp(c, 20))
+
+        val login = Ui.pill(c, "Login")
+        login.textSize = 17f
+        login.elevation = Ui.dp(c, 3).toFloat()
+        login.setOnClickListener { showForm(false) }
+        btns.addView(login, LinearLayout.LayoutParams(-1, -2))
+
+        val create = Ui.pill(c, "Create account", Ui.BG, Ui.BLUE)
+        create.textSize = 17f
+        create.background = Ui.rounded(c, Ui.BG, 28, Ui.BLUE, 2)
+        create.setOnClickListener { showForm(true) }
+        val cLp = LinearLayout.LayoutParams(-1, -2)
+        cLp.topMargin = Ui.dp(c, 14)
+        btns.addView(create, cLp)
+
+        val fast = Ui.text(c, "Login or sign up faster with", 13f, Ui.MUTED, Ui.REG)
+        fast.gravity = Gravity.CENTER
+        btns.addTo(fast, 18)
+
+        val g = LinearLayout(c)
+        g.orientation = LinearLayout.HORIZONTAL
+        g.gravity = Gravity.CENTER
+        g.background = Ui.rounded(c, Ui.SURFACE, 28, Ui.LINE, 1)
+        g.minimumHeight = Ui.dp(c, 56)
+        g.setPadding(Ui.dp(c, 20), 0, Ui.dp(c, 20), 0)
+        g.isClickable = true
+        g.setOnClickListener { doGoogle() }
+        val gLp = LinearLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22))
+        gLp.rightMargin = Ui.dp(c, 12)
+        g.addView(GoogleGView(c), gLp)
+        g.addView(Ui.text(c, "Continue with Google", 16f, Ui.TEXT, Ui.BOLD))
+        btns.addTo(g, 12)
+
+        wMsg = Ui.text(c, "", 12f, Ui.RED, Ui.MED)
+        wMsg.gravity = Gravity.CENTER
+        btns.addTo(wMsg, 10)
+
+        col.addView(btns, LinearLayout.LayoutParams(-1, -2))
+        Ui.padInsets(btns, bottom = true)
+        return col
+    }
+    private lateinit var wMsg: TextView
+
+    /** Shows Google's account picker on top of the app (no browser). Falls back to the browser only if the app isn't set up for it. */
     private fun doGoogle() {
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(Api.googleSignInUrl())))
-        } catch (e: Exception) {
-            setMsg("No web browser was found on this phone.", false)
+        if (googleBusy) return
+        if (Api.GOOGLE_WEB_CLIENT_ID.isEmpty()) { showSetupHelp("The Google Web Client ID is not set in the app yet."); return }
+        googleBusy = true
+        wMsg.text = ""
+        val option = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+            .Builder(Api.GOOGLE_WEB_CLIENT_ID).build()
+        val request = androidx.credentials.GetCredentialRequest.Builder().addCredentialOption(option).build()
+        androidx.credentials.CredentialManager.create(this).getCredentialAsync(
+            this, request, null, androidx.core.content.ContextCompat.getMainExecutor(this),
+            object : androidx.credentials.CredentialManagerCallback<androidx.credentials.GetCredentialResponse, androidx.credentials.exceptions.GetCredentialException> {
+                override fun onResult(result: androidx.credentials.GetCredentialResponse) {
+                    val cred = result.credential
+                    if (cred is androidx.credentials.CustomCredential &&
+                        cred.type == com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                        val idToken = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+                            .createFrom(cred.data).idToken
+                        Thread {
+                            val r = Api.signInWithGoogleIdToken(idToken)
+                            runOnUiThread {
+                                googleBusy = false
+                                if (r.ok) goHome()
+                                else wMsg.text = if (r.code == 0) "No internet connection. Please try again."
+                                    else "Could not finish Google sign-in. Please try again."
+                            }
+                        }.start()
+                    } else {
+                        googleBusy = false
+                        wMsg.text = "Google sign-in did not work. Please try again."
+                    }
+                }
+                override fun onError(e: androidx.credentials.exceptions.GetCredentialException) {
+                    googleBusy = false
+                    if (e is androidx.credentials.exceptions.GetCredentialCancellationException) return
+                    showSetupHelp("Google popup could not open (" + e.javaClass.simpleName + "). Add this app in Google Cloud as an Android client with the values below.")
+                }
+            })
+    }
+
+    /** The signing fingerprint of this installed app. Google needs it once to allow the in-app account popup. */
+    private fun signingSha1(): String = try {
+        val pm = packageManager
+        val sigs = if (android.os.Build.VERSION.SDK_INT >= 28)
+            pm.getPackageInfo(packageName, android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES).signingInfo?.apkContentsSigners
+        else @Suppress("DEPRECATION") pm.getPackageInfo(packageName, android.content.pm.PackageManager.GET_SIGNATURES).signatures
+        java.security.MessageDigest.getInstance("SHA-1").digest(sigs!![0].toByteArray())
+            .joinToString(":") { "%02X".format(it) }
+    } catch (e: Exception) { "unknown" }
+
+    /** Shows what is missing, with the fingerprint. Tapping the text copies the fingerprint. */
+    private fun showSetupHelp(reason: String) {
+        val sha = signingSha1()
+        wMsg.setTextColor(Ui.RED)
+        wMsg.text = reason + "\n\nPackage: " + packageName + "\nSHA-1: " + sha + "\n\nTap here to copy the SHA-1"
+        wMsg.setOnClickListener {
+            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("SHA-1", sha))
+            android.widget.Toast.makeText(this, "SHA-1 copied", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -240,7 +383,6 @@ class LoginActivity : BaseActivity() {
         welcomeSub.text = if (signUpMode) "Sign up to start training" else "Login to start training"
         btnLabel = if (signUpMode) "Sign up" else "Login"
         loginBtn.text = btnLabel
-        googleBtn.text = if (signUpMode) "Sign up with Google" else "Login with Google"
         forgot.visibility = if (signUpMode) android.view.View.GONE else android.view.View.VISIBLE
         password.hint = if (signUpMode) "Create a password" else "Password"
         setMsg("", true)
