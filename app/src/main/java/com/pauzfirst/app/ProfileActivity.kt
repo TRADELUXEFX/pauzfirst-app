@@ -21,6 +21,7 @@ class ProfileActivity : BaseActivity() {
     private lateinit var emailView: TextView
     private lateinit var methodView: TextView
     private lateinit var passRow: TextView
+    private lateinit var avatarView: android.widget.ImageView
     private var isEmailLogin = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,6 +59,8 @@ class ProfileActivity : BaseActivity() {
         avBg.setColor(Ui.WHITE)
         av.background = avBg
         av.addView(FsIconView(c, AuthUi.USER, Ui.BLUE), FrameLayout.LayoutParams(Ui.dp(c, 46), Ui.dp(c, 46), Gravity.CENTER))
+        avatarView = Avatar.view(c)
+        av.addView(avatarView, FrameLayout.LayoutParams(-1, -1))
         val al = LinearLayout.LayoutParams(Ui.dp(c, 88), Ui.dp(c, 88))
         al.gravity = Gravity.CENTER_HORIZONTAL
         al.topMargin = Ui.dp(c, 4)
@@ -101,12 +104,13 @@ class ProfileActivity : BaseActivity() {
         Ui.padInsets(root, bottom = true)
         setContentView(root)
 
+        Avatar.show(c, avatarView, Session.prefs.getString("u_avatar", "") ?: "")
         // show what the phone already knows, then refresh from the server
         show(Session.prefs.getString("u_name", "") ?: "", Session.prefs.getString("u_email", "") ?: "",
             Session.prefs.getString("u_provider", "email") ?: "email")
         Thread {
             val p = Api.fetchProfile()
-            runOnUiThread { if (p != null && !isFinishing && !isDestroyed) show(p.first, p.second, p.third) }
+            runOnUiThread { if (p != null && !isFinishing && !isDestroyed) { show(p.first, p.second, p.third); Avatar.show(this, avatarView, Session.prefs.getString("u_avatar", "") ?: "") } }
         }.start()
     }
 

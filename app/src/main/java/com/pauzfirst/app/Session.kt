@@ -7,8 +7,10 @@ import org.json.JSONArray
 /** Login tokens + the user's local settings, in SharedPreferences. */
 object Session {
     lateinit var prefs: SharedPreferences
+    private var filesDir: java.io.File? = null
 
     fun init(ctx: Context) {
+        filesDir = ctx.filesDir
         prefs = ctx.getSharedPreferences("pauzfirst", Context.MODE_PRIVATE)
     }
 
@@ -31,7 +33,8 @@ object Session {
     fun loggedIn(): Boolean = refresh.isNotEmpty() && userId.isNotEmpty()
 
     fun clear() {
-        prefs.edit().remove("access").remove("refresh").remove("uid").remove("expires_at").remove("u_name").remove("u_email").remove("u_provider").apply()
+        prefs.edit().remove("access").remove("refresh").remove("uid").remove("expires_at").remove("u_name").remove("u_email").remove("u_provider").remove("u_avatar").remove("u_avatar_src").apply()
+        try { java.io.File(filesDir, "avatar.png").delete() } catch (e: Exception) { }
     }
 
     /** Training settings belong to one account. The display choice (dark mode) stays with the phone. */

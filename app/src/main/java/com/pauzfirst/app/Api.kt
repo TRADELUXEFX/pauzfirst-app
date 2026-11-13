@@ -146,6 +146,8 @@ object Api {
             val meta = o.optJSONObject("user_metadata")
             var name = meta?.optString("name", "") ?: ""
             if (name.isEmpty()) name = meta?.optString("full_name", "") ?: ""
+            val pic = (meta?.optString("avatar_url", "") ?: "").ifEmpty { meta?.optString("picture", "") ?: "" }
+            if (pic.isNotEmpty()) Session.prefs.edit().putString("u_avatar", pic).apply()
             val email = o.optString("email", "")
             val provider = o.optJSONObject("app_metadata")?.optString("provider", "email") ?: "email"
             Session.prefs.edit().putString("u_name", name).putString("u_email", email).putString("u_provider", provider).apply()
