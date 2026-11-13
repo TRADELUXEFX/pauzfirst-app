@@ -62,6 +62,10 @@
         </activity>
 
         <activity
+            android:name=".PrivacyActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ForgotPasswordActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />

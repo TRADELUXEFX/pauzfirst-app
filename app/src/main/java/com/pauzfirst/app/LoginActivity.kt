@@ -33,10 +33,6 @@ class LoginActivity : BaseActivity() {
     private var signUpMode = false
     private var btnLabel = "Login"
 
-    companion object {
-        // Set this to your live privacy policy page before release.
-        const val PRIVACY_URL = "https://YOUR-SITE/privacy.html"
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -162,7 +158,7 @@ class LoginActivity : BaseActivity() {
 
         val privacy = Ui.text(c, "Privacy policy", 12f, Ui.MUTED, Ui.REG)
         privacy.gravity = Gravity.CENTER
-        privacy.setOnClickListener { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(PRIVACY_URL))) }
+        privacy.setOnClickListener { startActivity(Intent(this, PrivacyActivity::class.java)) }
         card.addTo(privacy, 14)
 
         applyMode()
