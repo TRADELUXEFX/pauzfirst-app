@@ -1,0 +1,896 @@
+/*
+ * PauzFirst website: the Android app's design (Ui.kt), applied on top of the existing page.
+ * Only active when app-shell.js has added the "pf-app" class to <body>; without it the old look stays.
+ * Colours, sizes and corner radii are copied from the app's design kit (Ui.kt, Nav.kt, AuthUi.kt).
+ */
+
+/* ---------- the app's own font files (res/font), same as in the Android app ---------- */
+@font-face { font-family: 'Poppins'; font-weight: 400; font-style: normal; font-display: swap; src: url('fonts/poppins_regular.ttf') format('truetype'); }
+@font-face { font-family: 'Poppins'; font-weight: 500; font-style: normal; font-display: swap; src: url('fonts/poppins_medium.ttf') format('truetype'); }
+@font-face { font-family: 'Poppins'; font-weight: 600 900; font-style: normal; font-display: swap; src: url('fonts/poppins_bold.ttf') format('truetype'); }
+
+body.pf-app {
+    --blue: #1E90FF;
+    --blue-dark: #0B5ED7;
+    --blue-soft: #E6F1FF;
+    --bg: #F4F7FB;
+    --surface: #FFFFFF;
+    --field: #F8FAFC;
+    --text: #0F172A;
+    --muted: #64748B;
+    --line: #E2E8F0;
+    --soft: #E8EEF6;
+    --check-line: #CBD5E1;
+    --red: #EF4444;
+    --green: #16A34A;
+    --card-tint: #D6E8FF;
+    --muted-tint: #475569;
+    --hero: linear-gradient(135deg, #1E90FF, #0B5ED7);
+    --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 2px 6px rgba(15, 23, 42, .08);
+    --nav-h: 64px;
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+
+/* Poppins everywhere except the icon font */
+body.pf-app, body.pf-app h1, body.pf-app h2, body.pf-app h3, body.pf-app h4, body.pf-app p, body.pf-app span,
+body.pf-app div, body.pf-app a, body.pf-app button, body.pf-app input, body.pf-app select, body.pf-app textarea,
+body.pf-app label, body.pf-app li {
+    font-family: 'Poppins', 'Segoe UI', system-ui, sans-serif !important;
+}
+body.pf-app .fa, body.pf-app .fas, body.pf-app .far, body.pf-app .fab, body.pf-app i[class*="fa-"] {
+    font-family: 'Font Awesome 6 Free' !important;
+}
+body.pf-app .fab { font-family: 'Font Awesome 6 Brands' !important; }
+
+body.pf-app .pf-ic { width: 22px; height: 22px; display: block; flex: none; }
+
+/* ======================================================================= shared pieces */
+
+/* blue header with centred title and curved bottom corners (Ui.header) */
+body.pf-app .pf-header {
+    display: flex !important; align-items: center !important; justify-content: space-between !important;
+    background: var(--hero) !important;
+    border: 0 !important; box-shadow: none !important;
+    border-radius: 0 0 24px 24px !important;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 18px !important;
+    margin: 0 !important;
+    color: #fff !important;
+    position: relative; z-index: 5;
+}
+body.pf-app .pf-header h2 {
+    flex: 1; margin: 0 !important; text-align: center !important;
+    color: #fff !important; font-size: 20px !important; font-weight: 700 !important;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: none !important; -webkit-text-fill-color: #fff !important;
+}
+body.pf-app .pf-side { width: 40px; height: 40px; display: flex; align-items: center; flex: none; }
+body.pf-app .pf-side.pf-right { justify-content: flex-end; }
+body.pf-app .pf-hicon {
+    width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+    background: rgba(255, 255, 255, .2) !important; color: #fff !important;
+    display: flex; align-items: center; justify-content: center;
+}
+body.pf-app .pf-hicon .pf-ic { width: 22px; height: 22px; }
+body.pf-app .pf-hicon:active { transform: scale(.94); }
+
+/* card (Ui.card): white, 22 radius, soft shadow */
+body.pf-app .pf-card {
+    display: block; width: 100%; text-align: left;
+    background: var(--surface); border: 0; border-radius: 22px;
+    box-shadow: var(--shadow); padding: 16px 18px; color: var(--text);
+}
+
+/* section title (Ui.sectionTitle): 11sp bold, uppercase, muted, letter-spaced */
+body.pf-app .pf-st, body.pf-app .config-title, body.pf-app .pf-group-label {
+    font-size: 11px !important; font-weight: 700 !important; color: var(--muted) !important;
+    text-transform: uppercase; letter-spacing: 1.3px !important;
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 0 !important; padding: 0 !important; margin: 0 !important;
+}
+body.pf-app .pf-st-ic { width: 15px; height: 15px; }
+body.pf-app .pf-note { color: var(--muted); font-size: 14px; font-weight: 500; text-align: center; line-height: 1.4; padding: 26px 24px; margin: 0; }
+
+/* ======================================================================= hide old website chrome */
+body.pf-app #sharedTopBar { display: none !important; }
+body.pf-app .app-container { padding: 0 0 calc(var(--nav-h) + 24px + env(safe-area-inset-bottom, 0px)) !important; min-height: 100vh; }
+body.pf-app .app-container > .header { display: none !important; }      /* tagline banner: not in the app */
+
+/* page switching */
+body.pf-app:not(.pf-page-home) #pfHome { display: none !important; }
+body.pf-app:not(.pf-page-training) #pfTrainHeader,
+body.pf-app:not(.pf-page-training) #configPanel,
+body.pf-app:not(.pf-page-training) #pfStartBar { display: none !important; }
+body.pf-app .app-container:not(.training-active) .main-content,
+body.pf-app .app-container:not(.training-active) #progressContainer { display: none !important; }
+body.pf-app.pf-page-training .app-container { padding-bottom: calc(var(--nav-h) + 96px + env(safe-area-inset-bottom, 0px)) !important; }
+
+/* while a training runs: only the training screen, like the app's separate training screen */
+body.pf-app .training-active #pfHome,
+body.pf-app .training-active #pfTrainHeader,
+body.pf-app .training-active #pfStartBar { display: none !important; }
+body.pf-app.pf-running #pfNav { display: none !important; }
+body.pf-app.pf-running .app-container { padding: calc(16px + env(safe-area-inset-top, 0px)) 20px 20px !important; }
+
+/* signed out: no app chrome */
+body.pf-app:not(.pf-authed) #pfNav { display: none !important; }
+
+/* ======================================================================= bottom bar (Nav.kt) */
+body.pf-app .pf-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 2200;
+    max-width: 480px; margin: 0 auto;
+    display: flex; background: var(--hero);
+    border-radius: 22px 22px 0 0;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -2px 12px rgba(11, 94, 215, .18);
+}
+body.pf-app .pf-tab {
+    flex: 1; border: 0; background: none; cursor: pointer; padding: 4px 0;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    color: rgba(255, 255, 255, .67) !important; font-size: 11px !important; font-weight: 500 !important;
+    -webkit-tap-highlight-color: transparent;
+}
+body.pf-app .pf-tab span { color: inherit !important; font-size: 11px !important; font-weight: inherit !important; }
+body.pf-app .pf-tab.on { color: #fff !important; font-weight: 700 !important; }
+body.pf-app .pf-tab:focus-visible { outline: 2px solid #fff; outline-offset: -4px; border-radius: 12px; }
+
+/* ======================================================================= Home (HomeActivity) */
+body.pf-app .pf-hero {
+    background: var(--hero); color: #fff;
+    border-radius: 0 0 32px 32px;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 24px;
+}
+body.pf-app .pf-hero-top { display: flex; align-items: center; gap: 10px; }
+body.pf-app .pf-brand { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+body.pf-app .pf-brand img { width: 34px; height: 30px; object-fit: contain; }
+body.pf-app .pf-brand span { color: #fff !important; font-size: 18px !important; font-weight: 700 !important; letter-spacing: .9px; }
+body.pf-app .pf-hero-top .pf-hicon { width: 34px; height: 34px; }
+body.pf-app .pf-hero-top .pf-hicon .pf-ic { width: 19px; height: 19px; }
+body.pf-app .pf-hicon.pf-logout { background: var(--red) !important; }
+body.pf-app .pf-tiles { display: flex; gap: 10px; margin-top: 20px; }
+body.pf-app .pf-tile {
+    flex: 1; min-width: 0; text-align: center;
+    background: rgba(255, 255, 255, .15); border-radius: 16px; padding: 12px 8px;
+}
+body.pf-app .pf-tile b { display: block; color: #fff !important; font-size: 22px !important; font-weight: 700 !important; line-height: 1.2; }
+body.pf-app .pf-tile span { display: block; color: #CCE4FF !important; font-size: 11px !important; font-weight: 500 !important; margin-top: 4px; white-space: nowrap; }
+body.pf-app .pf-hero-extra { color: #CCE4FF !important; font-size: 12px !important; font-weight: 500 !important; text-align: center; margin-top: 12px; min-height: 1em; }
+body.pf-app .pf-chip {
+    display: block; margin: 12px auto 0; border: 0; cursor: pointer;
+    background: rgba(255, 255, 255, .2); color: #fff !important;
+    font-size: 13px !important; font-weight: 700 !important;
+    padding: 10px 16px; border-radius: 20px;
+}
+body.pf-app .pf-first { margin: 12px 16px 0; width: auto; }
+body.pf-app .pf-first b { display: block; font-size: 16px; font-weight: 700; color: var(--text); }
+body.pf-app .pf-first p { margin: 6px 0 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
+body.pf-app .pf-first[hidden] { display: none; }
+body.pf-app .pf-goal-slot { margin: 12px 16px 0; }
+body.pf-app .pf-recent-head { display: flex; align-items: center; justify-content: space-between; margin: 20px 16px 0 20px; }
+body.pf-app .pf-mini-pill {
+    border: 0; cursor: pointer; background: var(--blue-soft); color: var(--blue) !important;
+    font-size: 13px !important; font-weight: 700 !important; padding: 6px 12px; border-radius: 14px;
+}
+body.pf-app .pf-recent { margin: 8px 16px 24px; display: flex; flex-direction: column; gap: 10px; }
+body.pf-app button.pf-preset {
+    cursor: pointer; display: flex !important; flex-direction: column !important; align-items: stretch !important;
+    justify-content: flex-start !important; text-align: left !important; gap: 0 !important; height: auto !important;
+}
+body.pf-app .pf-preset-top { display: flex; align-items: center; gap: 8px; }
+body.pf-app .pf-preset-top b { flex: 1; font-size: 15px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.pf-app .pf-preset-top i { font-style: normal; color: var(--blue); font-size: 22px; font-weight: 700; line-height: 1; }
+body.pf-app .pf-preset-meta { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+body.pf-app .pf-preset:active { transform: scale(.99); }
+
+/* daily goal card */
+body.pf-app .goal-card {
+    margin: 0 !important; background: var(--surface) !important; border: 0 !important;
+    border-radius: 22px !important; box-shadow: var(--shadow) !important;
+    padding: 16px 18px !important; gap: 14px !important;
+}
+body.pf-app .goal-card .goal-ring { width: 56px !important; height: 56px !important; flex: none; }
+body.pf-app .goal-card b, body.pf-app .goal-card strong, body.pf-app .goal-card .goal-title { font-size: 15px !important; font-weight: 700 !important; color: var(--text) !important; }
+
+/* ======================================================================= Training page */
+body.pf-app #configPanel {
+    background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important;
+    padding: 14px 16px 0 !important; margin: 0 !important; gap: 12px !important;
+}
+body.pf-app #configPanel > .config-group {
+    background: var(--surface); border-radius: 22px; box-shadow: var(--shadow);
+    padding: 16px 18px; gap: 12px !important; border: 0 !important;
+}
+body.pf-app #configPanel > .config-group.pf-hidden-group { display: none !important; }
+body.pf-app #configPanel > .pf-group-label { margin: 8px 0 -6px 4px !important; }
+
+/* headings inside cards */
+body.pf-app .config-title { margin-bottom: 2px !important; }
+body.pf-app .config-group > div:first-child { border-bottom: 0 !important; }
+
+/* chips: modes and question sources (soft grey, blue when chosen, 14 radius) */
+body.pf-app .training-mode-grid { gap: 8px !important; }
+body.pf-app .training-mode-card,
+body.pf-app .source-card {
+    background: var(--soft) !important; border: 0 !important; box-shadow: none !important;
+    border-radius: 14px !important; padding: 12px 4px !important; min-height: 0 !important;
+    transform: none !important;
+}
+body.pf-app .training-mode-card .training-mode-icon,
+body.pf-app .training-mode-card .training-mode-level,
+body.pf-app .source-card .source-card-icon { display: none !important; }
+body.pf-app .training-mode-name, body.pf-app .source-card-name {
+    color: var(--muted) !important; font-size: 13px !important; font-weight: 700 !important; margin: 0 !important;
+}
+body.pf-app .training-mode-card.selected, body.pf-app .source-card.selected { background: var(--blue) !important; }
+body.pf-app .training-mode-card.selected .training-mode-name,
+body.pf-app .source-card.selected .source-card-name { color: #fff !important; }
+body.pf-app .training-mode-card.selected::before, body.pf-app .training-mode-card.selected::after,
+body.pf-app .source-card.selected::before, body.pf-app .source-card.selected::after { display: none !important; }
+body.pf-app .source-cards-grid { gap: 8px !important; }
+body.pf-app .pf-mode-group > div:first-child span { color: var(--text) !important; font-size: 13px !important; font-weight: 700 !important; }
+body.pf-app .training-mode-desc {
+    background: none !important; border: 0 !important; padding: 0 4px !important;
+    color: var(--muted) !important; font-size: 12px !important; font-weight: 400 !important; text-align: center; line-height: 1.4;
+}
+
+/* "Presets" pill in the Questions from card (Ui.pill with SOFT colours) */
+body.pf-app .pf-presets-btn {
+    width: 100% !important; max-width: none !important; min-height: 48px;
+    background: var(--soft) !important; color: var(--text) !important; border: 0 !important; box-shadow: none !important;
+    border-radius: 28px !important; font-size: 14px !important; font-weight: 700 !important; padding: 8px 20px !important;
+}
+body.pf-app .settings-action-row { display: none !important; }   /* Save lives in the header, Presets above */
+
+/* steppers: "Questions    (−) 5 (+)" */
+body.pf-app .pf-timing { gap: 12px !important; }
+body.pf-app .pf-times-group { display: block !important; padding: 0 !important; margin: 0 !important; background: none !important; box-shadow: none !important; }
+body.pf-app .pf-times-group > *:not(.pf-times) { display: none !important; }
+body.pf-app .pf-times { display: flex; flex-direction: column; gap: 12px; }
+body.pf-app .pf-stepper { display: flex; align-items: center; }
+body.pf-app .pf-step-name { flex: 1; font-size: 14px !important; font-weight: 500 !important; color: var(--text) !important; }
+body.pf-app .pf-step-btn {
+    width: 38px; height: 38px; border-radius: 50%; border: 0; cursor: pointer; padding: 0;
+    background: var(--blue-soft) !important; color: var(--blue) !important;
+    font-size: 20px !important; font-weight: 700 !important; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+}
+body.pf-app .pf-step-btn:active { transform: scale(.92); }
+body.pf-app .pf-step-val { width: 52px; display: flex; align-items: baseline; justify-content: center; }
+body.pf-app input.pf-step-input {
+    width: 2ch; field-sizing: content; min-width: 1ch !important; max-width: 3ch; height: auto !important;
+    border: 0 !important; background: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important;
+    text-align: right !important; color: var(--text) !important; font-size: 16px !important; font-weight: 700 !important;
+    -moz-appearance: textfield; appearance: textfield;
+}
+body.pf-app input.pf-step-input::-webkit-outer-spin-button,
+body.pf-app input.pf-step-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+body.pf-app .pf-unit { color: var(--text); font-size: 16px; font-weight: 700; }
+
+/* switch rows (Ui.switchRow + styleSwitch: blue knob on light-blue track) */
+body.pf-app .tts-option {
+    background: none !important; border: 0 !important; box-shadow: none !important; padding: 4px 0 !important;
+    color: var(--text) !important; font-size: 14px !important; font-weight: 500 !important;
+}
+body.pf-app .tts-option span, body.pf-app .tts-option label { color: var(--text) !important; font-size: 14px !important; font-weight: 500 !important; }
+body.pf-app .toggle { width: 40px !important; height: 16px !important; background: #D5DEEA !important; border-radius: 8px !important; overflow: visible !important; }
+body.pf-app .toggle .toggle-slider {
+    width: 22px !important; height: 22px !important; top: -3px !important; left: -2px !important;
+    background: #94A3B8 !important; box-shadow: 0 1px 3px rgba(0, 0, 0, .25) !important;
+}
+body.pf-app .toggle.active { background: #B3D7FF !important; }
+body.pf-app .toggle.active .toggle-slider { left: 20px !important; background: var(--blue) !important; }
+
+/* training time card (BLUE_SOFT, 22 radius) */
+body.pf-app .training-time-estimate {
+    background: var(--blue-soft) !important; border: 0 !important; border-radius: 22px !important;
+    padding: 14px 18px !important; margin: 4px 0 0 !important; box-shadow: none !important;
+}
+body.pf-app .training-time-estimate .label { color: var(--muted) !important; font-size: 12px !important; font-weight: 500 !important; margin: 0 0 2px !important; }
+body.pf-app .training-time-estimate .time { color: var(--blue) !important; font-size: 22px !important; font-weight: 700 !important; -webkit-text-fill-color: var(--blue) !important; background: none !important; }
+
+/* inputs and text areas inside settings */
+body.pf-app #configPanel input[type="text"], body.pf-app #configPanel textarea, body.pf-app #configPanel input[type="number"]:not(.pf-step-input),
+body.pf-app .list-name-input, body.pf-app #importCodeInput::placeholder { text-transform: none; letter-spacing: 0; }
+body.pf-app #importCodeInput { font-size: 15px !important; }
+body.pf-app #listSearchInput {
+    background: var(--field) !important; border: 1px solid var(--line) !important; border-radius: 16px !important;
+    color: var(--text) !important; font-size: 15px !important; box-shadow: none !important;
+}
+body.pf-app #configPanel input:focus, body.pf-app #configPanel textarea:focus, body.pf-app .list-name-input:focus {
+    border: 2px solid var(--blue) !important; background: var(--surface) !important; outline: none;
+}
+body.pf-app .action-btn {
+    border-radius: 28px !important; min-height: 48px; font-size: 14px !important; font-weight: 700 !important; box-shadow: none !important;
+}
+body.pf-app .action-btn.ai-generate-btn, body.pf-app .action-btn.save-btn { background: var(--blue) !important; color: #fff !important; border: 0 !important; }
+
+/* sticky Start training bar: white rounded bar right above the bottom bar (Nav.lift) */
+body.pf-app .pf-startbar {
+    position: fixed; z-index: 2100; left: 0; right: 0; max-width: 480px; margin: 0 auto;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 8px);
+    padding: 0 16px;
+}
+body.pf-app .pf-startbar::before {
+    content: ''; position: absolute; inset: 0 16px; background: var(--surface); border-radius: 24px;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, .12); z-index: -1;
+}
+body.pf-app .pf-startbar #startBtn {
+    margin: 12px 0 !important; width: calc(100% - 32px) !important; margin-left: 16px !important; margin-right: 16px !important;
+    min-height: 56px; border-radius: 28px !important; border: 0 !important;
+    background: var(--blue) !important; color: #fff !important; box-shadow: none !important;
+    font-size: 17px !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+body.pf-app .pf-startbar #startBtn::before, body.pf-app .pf-startbar #startBtn::after { display: none !important; }
+body.pf-app .pf-startbar #startBtn:disabled { opacity: .6; }
+
+/* ======================================================================= running training (TrainingActivity) */
+body.pf-app .training-active .progress-container { margin: 0 0 14px !important; background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+body.pf-app .training-active .progress-text { color: var(--text) !important; font-size: 14px !important; font-weight: 700 !important; text-align: left !important; }
+body.pf-app .training-active .progress-bar { height: 6px !important; border-radius: 3px !important; background: var(--soft) !important; border: 0 !important; }
+body.pf-app .training-active .progress-bar .progress { background: var(--blue) !important; border-radius: 3px !important; }
+body.pf-app .training-active .question-container {
+    background: var(--surface) !important; border: 0 !important; border-radius: 22px !important; box-shadow: var(--shadow) !important;
+    padding: 18px 20px !important; min-height: 72px;
+}
+body.pf-app .training-active #question { color: var(--text) !important; font-size: 18px !important; font-weight: 500 !important; -webkit-text-fill-color: var(--text) !important; }
+body.pf-app .training-active .timer-container, body.pf-app .training-active .instructions-container {
+    background: var(--surface) !important; border: 0 !important; border-radius: 22px !important; box-shadow: var(--shadow) !important;
+}
+body.pf-app .training-active .timer-label {
+    background: var(--blue) !important; color: #fff !important; border: 0 !important;
+    border-radius: 16px !important; padding: 8px 18px !important; font-size: 12px !important; font-weight: 700 !important;
+}
+body.pf-app #nextBtn { background: var(--green) !important; color: #fff !important; border: 0 !important; border-radius: 28px !important; min-height: 56px; font-size: 16px !important; font-weight: 700 !important; box-shadow: none !important; }
+body.pf-app #stopBtn {
+    background: rgba(239, 68, 68, .1) !important; color: var(--red) !important; border: 0 !important; box-shadow: none !important;
+    border-radius: 28px !important; min-height: 48px; font-size: 14px !important; font-weight: 700 !important; letter-spacing: 0 !important;
+}
+body.pf-app .instructions { color: var(--muted) !important; font-size: 13px !important; font-weight: 500 !important; }
+
+/* ======================================================================= List page (ListsActivity) */
+body.pf-app #listsFullscreenModal {
+    background: var(--bg) !important;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)) !important; height: auto !important;
+}
+body.pf-app #editListModal { z-index: 2500 !important; background: var(--bg) !important; }
+body.pf-app #listsFullscreenModal .lists-fullscreen-content, body.pf-app #editListModal .lists-fullscreen-content { background: var(--bg); }
+body.pf-app #listsFullscreenModal .lists-fullscreen-content > div:not(.pf-header):not(#listsFullscreenDisplay):not(.pf-blue-top):not(.pf-toggle):not(.pf-qtab):not(.pf-ptab),
+body.pf-app #pfQuestionTab > div { background: transparent !important; border: 0 !important; }
+body.pf-app #listsFullscreenModal div:has(> #closeListsModal) { display: none !important; }
+body.pf-app #editListModal .lists-fullscreen-header { background: var(--hero) !important; border-radius: 0 0 24px 24px; border: 0 !important; }
+body.pf-app #editListModal .lists-fullscreen-title { color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 20px !important; font-weight: 700 !important; }
+body.pf-app .create-list-row {
+    background: var(--surface) !important; border: 0 !important; border-radius: 22px !important;
+    box-shadow: var(--shadow) !important; padding: 14px 18px !important;
+}
+body.pf-app .create-list-label { color: var(--text) !important; font-size: 14px !important; font-weight: 700 !important; }
+body.pf-app #shareAllListsRow .create-list-label { color: var(--blue) !important; }
+body.pf-app .create-list-plus-btn { background: var(--blue-soft) !important; color: var(--blue) !important; box-shadow: none !important; }
+body.pf-app .list-card {
+    background: var(--surface) !important; border: 0 !important; border-radius: 22px !important;
+    box-shadow: var(--shadow) !important; padding: 16px 18px !important;
+}
+body.pf-app .list-card.pinned-card { box-shadow: inset 0 0 0 2px var(--blue), var(--shadow) !important; }
+body.pf-app .list-name { color: var(--text) !important; font-size: 15px !important; font-weight: 700 !important; text-transform: none; }
+body.pf-app .list-count { color: var(--muted) !important; font-size: 12px !important; font-weight: 500 !important; }
+body.pf-app .list-action-btn { border-radius: 14px !important; background: var(--soft) !important; border: 0 !important; color: var(--text) !important; font-size: 12px !important; font-weight: 700 !important; min-height: 38px; }
+body.pf-app .list-action-btn.use-btn { background: var(--blue) !important; color: #fff !important; }
+body.pf-app .list-action-btn.delete-btn { color: var(--red) !important; }
+body.pf-app #sortRecentBtn, body.pf-app #sortAlphaBtn {
+    border: 0 !important; border-radius: 14px !important; background: var(--soft) !important; color: var(--muted) !important;
+    font-size: 12px !important; font-weight: 700 !important;
+}
+body.pf-app #sortRecentBtn.pf-on, body.pf-app #sortAlphaBtn.pf-on { background: var(--blue) !important; color: #fff !important; }
+body.pf-app #sortRecentBtn, body.pf-app #sortAlphaBtn { padding: 10px 8px !important; white-space: nowrap; min-width: 0; }
+body.pf-app #importCodeInput::placeholder { text-transform: none; letter-spacing: 0; }
+body.pf-app #importCodeInput { font-size: 15px !important; }
+body.pf-app #listSearchInput { width: 0 !important; min-width: 0 !important; padding: 10px 14px !important; font-size: 14px !important; border-radius: 14px !important; }
+
+/* ======================================================================= History page (HistoryActivity) */
+body.pf-app #progressModal {
+    background: var(--bg) !important; padding: 0 !important; align-items: stretch !important;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)) !important; height: auto !important;
+}
+body.pf-app #progressModal .progress-modal-content {
+    max-width: 480px !important; max-height: none !important; height: 100%; margin: 0 auto;
+    background: var(--bg) !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+    padding: 0 0 24px !important; overflow-y: auto;
+}
+body.pf-app #progressModal .progress-modal-header { margin: 0 0 8px !important; position: sticky; top: 0; }
+body.pf-app #progressModal .progress-modal-header > div { width: 40px; overflow: hidden; visibility: hidden; }   /* old close and logout buttons: Logout is on Home */
+body.pf-app #progressModal .progress-modal-header + div {
+    margin: 8px 16px 12px !important; background: var(--card-tint) !important; border-radius: 14px !important; padding: 4px !important;
+}
+body.pf-app #tabStatsBtn, body.pf-app #tabHistoryBtn {
+    background: transparent !important; color: #3F5F8F !important; box-shadow: none !important;
+    border-radius: 11px !important; font-size: 13px !important; font-weight: 700 !important; padding: 10px 8px !important;
+}
+body.pf-app #tabStatsBtn.pf-on, body.pf-app #tabHistoryBtn.pf-on { background: var(--blue) !important; color: #fff !important; }
+body.pf-app #tabStatsContent, body.pf-app #tabHistoryContent { padding: 0 16px; }
+body.pf-app .stat-card {
+    background: var(--surface) !important; border: 0 !important; border-radius: 22px !important; box-shadow: var(--shadow) !important;
+}
+body.pf-app .stat-card .stat-card { box-shadow: none !important; background: var(--field) !important; border-radius: 16px !important; }
+body.pf-app .stat-value { color: var(--text) !important; font-weight: 700 !important; -webkit-text-fill-color: var(--text) !important; background: none !important; }
+body.pf-app .stat-label { color: var(--muted) !important; font-weight: 500 !important; }
+body.pf-app .stat-icon-sm { color: var(--blue) !important; }
+body.pf-app .week-card, body.pf-app .streak-info, body.pf-app .first-box {
+    background: var(--surface) !important; border: 0 !important; border-radius: 22px !important; box-shadow: var(--shadow) !important;
+}
+body.pf-app .history-card {
+    background: var(--card-tint) !important; border: 0 !important; border-radius: 22px !important; box-shadow: none !important;
+}
+body.pf-app .history-date, body.pf-app .history-stat-value { color: var(--text) !important; font-weight: 700 !important; }
+body.pf-app .history-mode, body.pf-app .history-stat-label { color: var(--muted-tint) !important; }
+
+/* ======================================================================= Login (LoginActivity + AuthUi) */
+body.pf-app #authOverlay { background: var(--bg) !important; padding-top: 0 !important; justify-content: flex-start !important; }
+body.pf-app .pf-auth-hero {
+    position: relative; overflow: hidden; width: 100%; flex: none;
+    background: var(--hero); border-radius: 0 0 36px 36px;
+    padding: calc(28px + env(safe-area-inset-top, 0px)) 24px 52px; text-align: center; color: #fff;
+}
+body.pf-app .pf-auth-hero::before, body.pf-app .pf-auth-hero::after {
+    content: ''; position: absolute; border-radius: 50%; background: #fff; pointer-events: none;
+}
+body.pf-app .pf-auth-hero::before { width: 68%; padding-top: 68%; right: -26%; top: -40%; opacity: .1; }
+body.pf-app .pf-auth-hero::after { width: 52%; padding-top: 52%; left: -22%; bottom: -45%; opacity: .063; }
+body.pf-app .pf-auth-hero img { width: 60px; height: 60px; border-radius: 16px; box-shadow: 0 6px 16px rgba(0, 0, 0, .2); position: relative; }
+body.pf-app .pf-auth-brand { color: #fff !important; font-size: 22px !important; font-weight: 700 !important; letter-spacing: 2.2px; margin-top: 18px; position: relative; }
+body.pf-app .pf-auth-tag { color: rgba(255, 255, 255, .8) !important; font-size: 12px !important; margin-top: 6px; position: relative; }
+body.pf-app .auth-form-center.pf-auth-card {
+    flex: none !important; justify-content: flex-start !important;
+    width: calc(100% - 40px) !important; max-width: 440px; margin: -30px auto 24px !important;
+    background: var(--surface); border-radius: 28px; padding: 24px 22px 20px !important;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, .12); position: relative; z-index: 1;
+}
+body.pf-app .auth-form-center.pf-auth-card > div { max-width: none !important; padding: 0 !important; }
+body.pf-app .auth-form-title { color: var(--text) !important; font-size: 18px !important; font-weight: 700 !important; }
+body.pf-app .auth-form-sub { color: var(--muted) !important; font-size: 13px !important; font-weight: 400 !important; margin-bottom: 18px !important; }
+body.pf-app .auth-input {
+    background-color: var(--field) !important; border: 1px solid var(--line) !important; border-radius: 18px !important;
+    padding: 17px 16px 17px 50px !important; font-size: 15px !important; font-weight: 400 !important; color: var(--text) !important;
+    background-repeat: no-repeat !important; background-position: 16px center !important; background-size: 22px 22px !important;
+    box-shadow: none !important;
+}
+body.pf-app .auth-input:focus { border: 2px solid var(--blue) !important; background-color: var(--surface) !important; padding: 16px 15px 16px 49px !important; background-position: 15px center !important; }
+body.pf-app .auth-input[type="email"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h16v12H4z M4 7l8 6 8-6'/%3E%3C/svg%3E") !important;
+}
+body.pf-app .auth-input[type="password"], body.pf-app .auth-input[autocomplete$="password"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 11h12v9H6z M8 11V8a4 4 0 0 1 8 0v3'/%3E%3C/svg%3E") !important;
+}
+body.pf-app .auth-btn {
+    min-height: 56px; border-radius: 28px !important; background: var(--blue) !important; color: #fff !important;
+    font-size: 17px !important; font-weight: 700 !important; box-shadow: 0 3px 8px rgba(30, 144, 255, .3) !important; margin-top: 2px !important;
+}
+body.pf-app .auth-footer-text, body.pf-app .auth-footer-text span { color: var(--muted) !important; font-size: 14px !important; }
+body.pf-app .auth-link { color: var(--blue) !important; font-weight: 700 !important; }
+body.pf-app .auth-msg { font-size: 12px !important; font-weight: 500 !important; }
+body.pf-app #authStatus .auth-msg { color: var(--muted) !important; font-size: 14px !important; padding: 8px 0; }
+body.pf-app .pf-legal { text-align: center; margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+body.pf-app .pf-legal a { color: var(--muted) !important; font-size: 12px !important; font-weight: 400 !important; text-decoration: none; }
+
+/* loading screen in the app's colours */
+body.pf-app #loadingOverlay { background: var(--bg) !important; }
+
+/* ======================================================================= dialogs (AppDialog) */
+body.pf-app .pf-dialog-back {
+    position: fixed; inset: 0; z-index: 100000; background: rgba(15, 23, 42, .45);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+body.pf-app .pf-dialog { background: var(--surface); border-radius: 24px; padding: 22px 20px 18px; width: 100%; max-width: 360px; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
+body.pf-app .pf-dialog h3 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
+body.pf-app .pf-dialog p { margin: 8px 0 18px; font-size: 14px; color: var(--muted); line-height: 1.45; }
+body.pf-app .pf-dialog-btns { display: flex; gap: 10px; }
+body.pf-app .pf-dialog-btns button { flex: 1; min-height: 48px; border: 0; border-radius: 24px; font-size: 15px; font-weight: 700; cursor: pointer; }
+body.pf-app .pf-btn-soft { background: var(--soft); color: var(--text); }
+body.pf-app .pf-btn-danger { background: var(--red); color: #fff; }
+body.pf-app .custom-alert-box, body.pf-app .settings-modal, body.pf-app .goal-dlg { border-radius: 24px !important; }
+body.pf-app .custom-alert-btn { border-radius: 24px !important; min-height: 44px; }
+
+/* install banner sits above the bottom bar */
+body.pf-app #installPrompt { bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom, 0px)) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+    body.pf-app * { transition: none !important; }
+}
+
+/* small phones: keep chip labels on one line, as the app shrinks them (Ui.fit) */
+body.pf-app .training-mode-name, body.pf-app .source-card-name { white-space: nowrap; }
+@media (max-width: 360px) {
+    body.pf-app .training-mode-name, body.pf-app .source-card-name { font-size: 12px !important; }
+    body.pf-app .pf-tile span { font-size: 10px !important; }
+}
+body.pf-app #importListForm button {
+    min-height: 48px; border-radius: 28px !important; background: var(--blue) !important; font-size: 14px !important; border: 0 !important;
+}
+
+/* ======================================================================= app features (app-features.js) */
+body.pf-app .pf-ic-sm { width: 14px; height: 14px; display: inline-block; vertical-align: -2px; }
+body.pf-app .pf-mt { margin-top: 14px !important; }
+body.pf-app .pf-sub { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+body.pf-app .pf-dot { margin: 0 6px; color: var(--muted); }
+body.pf-app .pf-preset-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
+body.pf-app .pf-preset-meta .pf-ic-sm + span { margin-left: 4px; }
+
+/* toast */
+body.pf-app .pf-toast {
+    position: fixed; left: 50%; bottom: calc(var(--nav-h) + 90px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px);
+    max-width: min(90vw, 420px); background: #0F172A; color: #fff; padding: 11px 18px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 100002; text-align: center;
+}
+body.pf-app .pf-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* dialogs: fields, primary button, sheet list */
+body.pf-app .pf-btn-primary { background: var(--blue); color: #fff; }
+body.pf-app .pf-dialog-btns { flex-wrap: wrap; }
+body.pf-app .pf-dialog-btns button:disabled { opacity: .5; }
+body.pf-app .pf-field {
+    width: 100%; box-sizing: border-box; display: block; margin: 10px 0 0; padding: 14px 16px;
+    background: var(--field); border: 1px solid var(--line); border-radius: 16px; color: var(--text); font-size: 15px; outline: none;
+}
+body.pf-app .pf-field:focus { border: 2px solid var(--blue); padding: 13px 15px; background: var(--surface); }
+body.pf-app .pf-area { min-height: 220px; resize: vertical; line-height: 1.5; font-size: 14px !important; }
+body.pf-app .pf-dialog .pf-field { margin: 4px 0 16px; }
+body.pf-app .pf-dialog-msg { font-size: 13px; font-weight: 500; min-height: 18px; margin: -8px 0 12px; color: var(--muted); }
+body.pf-app .pf-dialog-msg.pf-ok { color: var(--green); }
+body.pf-app .pf-dialog-msg.pf-err { color: var(--red); }
+body.pf-app .pf-dialog.pf-sheet { max-height: 80vh; display: flex; flex-direction: column; }
+body.pf-app .pf-pick-list { overflow-y: auto; margin: 6px -4px 14px; display: flex; flex-direction: column; gap: 8px; padding: 0 4px; }
+body.pf-app .pf-pick { text-align: left; border: 1px solid var(--line); background: var(--field); border-radius: 16px; padding: 12px 14px; cursor: pointer; color: var(--text); }
+body.pf-app .pf-pick b { display: block; font-size: 15px; }
+body.pf-app .pf-pick.on { border: 2px solid var(--blue); }
+body.pf-app .pf-help p { margin: 0 0 12px; font-size: 14px; color: var(--muted); line-height: 1.45; }
+body.pf-app .pf-help b { color: var(--text); }
+body.pf-app .pf-code-box { text-align: center; margin: 4px 0 16px; }
+body.pf-app .pf-code { font-size: 32px; font-weight: 700; letter-spacing: 6px; color: var(--blue); background: var(--blue-soft); border-radius: 16px; padding: 14px; }
+body.pf-app .pf-code-box small { display: block; color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+/* pills (Ui.pill) */
+body.pf-app .pf-pill {
+    display: flex; align-items: center; justify-content: center; width: 100%; min-height: 56px; border: 0; border-radius: 28px; cursor: pointer;
+    background: var(--blue); color: #fff !important; font-size: 16px; font-weight: 700; text-decoration: none; box-sizing: border-box; padding: 8px 20px;
+}
+body.pf-app .pf-pill:disabled { opacity: .5; cursor: default; }
+body.pf-app .pf-pill-soft { background: var(--blue-soft); color: var(--blue) !important; }
+body.pf-app .pf-pill-red { background: var(--red); }
+body.pf-app .pf-status { font-size: 13px; color: var(--muted); margin-top: 10px; min-height: 18px; display: flex; align-items: center; gap: 8px; }
+body.pf-app .pf-status.pf-err { color: var(--red); }
+body.pf-app .pf-spin, body.pf-app .pf-loading span { width: 16px; height: 16px; border: 2.5px solid var(--blue-soft); border-top-color: var(--blue); border-radius: 50%; display: inline-block; animation: pfspin .8s linear infinite; flex: none; }
+body.pf-app .pf-loading { display: flex; justify-content: center; padding: 80px 0; }
+body.pf-app .pf-loading span { width: 40px; height: 40px; border-width: 4px; }
+@keyframes pfspin { to { transform: rotate(360deg); } }
+
+/* sub-pages (Bank, AI, Profile, Summary, Detail): full screen, no bottom bar, like the app */
+body.pf-app .pf-subpage {
+    position: fixed; inset: 0; z-index: 2400; background: var(--bg); display: flex; flex-direction: column;
+    max-width: 480px; margin: 0 auto;
+}
+body.pf-app.pf-sub-open #pfNav { display: none !important; }
+body.pf-app .pf-sub-top { background: var(--hero); border-radius: 0 0 24px 24px; flex: none; }
+body.pf-app .pf-sub-top .pf-header { background: none !important; border-radius: 0 !important; }
+body.pf-app .pf-sub-body { flex: 1; overflow-y: auto; padding: 16px 16px 32px; -webkit-overflow-scrolling: touch; }
+body.pf-app .pf-intro { margin: 0 4px 14px; color: var(--muted); font-size: 14px; }
+
+/* two-way toggles (Preset list | Question list, Login | Sign up) */
+body.pf-app .pf-toggle { display: flex; background: var(--card-tint); border-radius: 14px; padding: 4px; margin: 12px 16px 4px; }
+body.pf-app .pf-toggle button {
+    flex: 1; border: 0; background: none; cursor: pointer; border-radius: 11px; padding: 10px 8px;
+    color: #3F5F8F !important; font-size: 13px !important; font-weight: 700 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body.pf-app .pf-toggle button.on { background: var(--blue); color: #fff !important; }
+/* inside the blue header (Question bank: Left | Used) */
+body.pf-app .pf-toggle-onblue { background: rgba(255,255,255,.2); margin: 0 16px 18px; }
+body.pf-app .pf-toggle-onblue button { color: #E6F1FF !important; }
+body.pf-app .pf-toggle-onblue button.on { background: #fff; color: var(--blue-dark) !important; }
+
+/* List page: blue top with search inside */
+body.pf-app .pf-blue-top { background: var(--hero); border-radius: 0 0 24px 24px; flex: none; }
+body.pf-app .pf-blue-top .pf-header { background: none !important; border-radius: 0 !important; }
+body.pf-app .pf-search {
+    display: flex; align-items: center; gap: 10px; margin: 0 16px 16px; height: 46px; padding: 0 16px; box-sizing: border-box;
+    background: rgba(255,255,255,.2); border-radius: 16px; color: #fff;
+}
+body.pf-app .pf-search .pf-ic { width: 18px; height: 18px; }
+body.pf-app .pf-search input {
+    flex: 1; min-width: 0; border: 0 !important; background: none !important; outline: none; box-shadow: none !important;
+    color: #fff !important; font-size: 15px !important; font-weight: 500 !important; padding: 0 !important; -webkit-appearance: none;
+}
+body.pf-app .pf-search input::placeholder { color: rgba(255,255,255,.8); }
+body.pf-app .pf-search:focus-within { background: rgba(255,255,255,.3); }
+body.pf-app #listsFullscreenModal .lists-fullscreen-content { overflow: hidden; }
+body.pf-app .pf-qtab, body.pf-app .pf-ptab { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 24px; -webkit-overflow-scrolling: touch; }
+body.pf-app .pf-qtab[hidden], body.pf-app .pf-ptab[hidden] { display: none !important; }
+body.pf-app .pf-qtab #listsFullscreenDisplay { overflow: visible !important; flex: none !important; height: auto !important; max-height: none !important; }
+body.pf-app .pf-ptab { padding: 8px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+body.pf-app #importListToggle, body.pf-app #createListToggleModal, body.pf-app #importListForm,
+body.pf-app #pfQuestionTab #listSearchInput { display: none !important; }
+body.pf-app .pf-list-cards { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 8px; }
+body.pf-app .pf-link-card { display: flex !important; align-items: center; gap: 12px; cursor: pointer; text-decoration: none; }
+body.pf-app .pf-link-card span { flex: 1; display: flex; flex-direction: column; text-align: left; }
+body.pf-app .pf-link-card b { font-size: 15px; font-weight: 700; color: var(--text); }
+body.pf-app .pf-link-card small { font-size: 12px; color: var(--muted); margin-top: 3px; }
+body.pf-app .pf-link-card i { font-style: normal; color: var(--blue); font-size: 22px; font-weight: 700; }
+body.pf-app .pf-select-row { display: flex; align-items: center; gap: 8px; padding: 10px 0 4px 4px; }
+body.pf-app .pf-select-row[hidden] { display: none; }
+body.pf-app .pf-select-row .pf-st { flex: 1; }
+body.pf-app .pf-chip-sm {
+    border: 0; cursor: pointer; border-radius: 20px; padding: 8px 14px; background: var(--blue-soft); color: var(--blue) !important;
+    font-size: 13px !important; font-weight: 700 !important;
+}
+body.pf-app .pf-chip-sm[hidden] { display: none; }
+body.pf-app .pf-chip-sm.pf-grey { background: var(--soft); color: var(--muted) !important; }
+body.pf-app .pf-chip-sm.pf-red { background: var(--red); color: #fff !important; }
+body.pf-app .pf-chip-sm:disabled { opacity: .45; }
+body.pf-app.pf-selecting #listsFullscreenDisplay .list-card { cursor: pointer; }
+body.pf-app.pf-selecting #listsFullscreenDisplay .list-card .list-actions,
+body.pf-app.pf-selecting #listsFullscreenDisplay .list-card .list-card-header ~ * { display: none !important; }
+body.pf-app .list-card.pf-ticked { box-shadow: inset 0 0 0 2px var(--blue), var(--shadow) !important; }
+body.pf-app.pf-selecting .list-card .list-name::before {
+    content: ''; display: inline-block; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--check-line);
+    margin-right: 10px; vertical-align: -6px; box-sizing: border-box; background: var(--surface);
+}
+body.pf-app.pf-selecting .list-card.pf-ticked .list-name::before {
+    border-color: var(--blue); background: var(--blue) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E") center/14px no-repeat;
+}
+body.pf-app .pf-inuse { display: inline-block; margin-left: 8px; background: var(--blue); color: #fff !important; font-size: 11px !important; font-weight: 700; padding: 3px 8px; border-radius: 10px; vertical-align: 2px; text-transform: none; letter-spacing: 0; }
+body.pf-app .pf-preset-card { padding: 14px 16px; }
+body.pf-app .pf-pc-top { display: flex; align-items: center; gap: 6px; }
+body.pf-app .pf-pc-name { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 0; cursor: pointer; color: var(--text) !important; font-size: 15px !important; font-weight: 700 !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.pf-app .pf-pc-info { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 0; margin-top: 3px; cursor: pointer; color: var(--muted); font-size: 12px; }
+body.pf-app .pf-round { width: 36px; height: 36px; flex: none; border-radius: 50%; border: 0; cursor: pointer; background: var(--blue-soft); color: var(--blue); display: flex; align-items: center; justify-content: center; padding: 0; }
+body.pf-app .pf-round .pf-ic { width: 18px; height: 18px; }
+
+/* Question bank */
+body.pf-app .pf-bank .pf-sub-body { padding-bottom: 120px; }
+body.pf-app .pf-bank-row { display: flex; align-items: center; gap: 12px; padding: 14px 18px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(15,23,42,.06); font-size: 14px; font-weight: 500; line-height: 1.45; }
+body.pf-app .pf-bank-row span { flex: 1; }
+body.pf-app .pf-bank-row.pf-used span { color: var(--muted); }
+body.pf-app .pf-tick { width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; flex: none; }
+body.pf-app .pf-tick .pf-ic { width: 13px; height: 13px; stroke-width: 3; }
+body.pf-app .pf-bank-search {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--hero); border-radius: 24px 24px 0 0;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+}
+body.pf-app .pf-bank-search::before { content: ''; position: absolute; left: 0; right: 0; top: -44px; height: 44px; background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none; }
+body.pf-app .pf-search-pill { display: flex; align-items: center; gap: 12px; height: 56px; background: #fff; border-radius: 28px; padding: 0 8px 0 20px; color: #64748B; }
+body.pf-app .pf-search-pill input { flex: 1; min-width: 0; border: 0 !important; outline: none; background: none !important; color: #0F172A !important; font-size: 15px !important; font-weight: 500 !important; padding: 0 !important; box-shadow: none !important; -webkit-appearance: none; }
+body.pf-app .pf-search-pill input::placeholder { color: #64748B; }
+body.pf-app .pf-clear { width: 44px; height: 44px; border: 0; background: none; color: #64748B; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+body.pf-app .pf-clear[hidden] { display: none; }
+body.pf-app .pf-empty { text-align: center; padding: 56px 32px 0; }
+body.pf-app .pf-empty > span { width: 72px; height: 72px; border-radius: 50%; background: var(--blue-soft); color: var(--blue); display: inline-flex; align-items: center; justify-content: center; }
+body.pf-app .pf-empty > span .pf-ic { width: 32px; height: 32px; }
+body.pf-app .pf-empty b { display: block; font-size: 17px; margin-top: 16px; color: var(--text); }
+body.pf-app .pf-empty p { color: var(--muted); font-size: 14px; font-weight: 500; margin: 6px 0 0; line-height: 1.4; }
+
+/* AI page */
+body.pf-app .pf-type-row { display: flex; gap: 8px; margin-top: 10px; }
+body.pf-app [hidden] { display: none !important; }
+body.pf-app .pf-type { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--field); color: var(--muted) !important; border-radius: 20px; padding: 10px 4px; cursor: pointer; font-size: 12px !important; font-weight: 700 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.pf-app .pf-type.on { background: var(--blue); border-color: var(--blue); color: #fff !important; }
+body.pf-app .pf-step-val b { font-size: 16px; font-weight: 700; color: var(--text); }
+
+/* summary after training */
+body.pf-app .pf-finish { text-align: center; position: relative; padding: 18px 18px 20px; }
+body.pf-app .pf-finish-brand { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--blue); font-size: 14px; }
+body.pf-app .pf-finish-brand b { color: var(--blue); letter-spacing: 1px; }
+body.pf-app .pf-mode-chip { display: inline-block; margin-top: 8px; background: var(--blue-soft); color: var(--blue); border-radius: 14px; padding: 4px 12px; font-size: 12px; font-weight: 500; }
+body.pf-app .pf-ring { width: 150px; height: 150px; display: block; margin: 14px auto 0; transform: rotate(-90deg); }
+body.pf-app .pf-ring-bg { fill: none; stroke: var(--soft); stroke-width: 10; }
+body.pf-app .pf-ring-fg { fill: none; stroke: var(--blue); stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset .8s ease; }
+body.pf-app .pf-ring-mid { margin-top: -102px; height: 102px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 6px; box-sizing: border-box; }
+body.pf-app .pf-ring-mid b { font-size: 26px; color: var(--text); }
+body.pf-app .pf-ring-mid small { color: var(--muted); font-size: 12px; }
+body.pf-app .pf-finish h3 { margin: 6px 0 0; font-size: 20px; color: var(--text); }
+body.pf-app .pf-when { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+body.pf-app .pf-milestone { margin-top: 12px; background: #FEF3C7; color: #92400E; border-radius: 14px; padding: 10px; font-size: 13px; font-weight: 700; }
+body.pf-app .pf-trio { display: flex; margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+body.pf-app .pf-trio div { flex: 1; display: flex; flex-direction: column; align-items: center; }
+body.pf-app .pf-trio b { font-size: 20px; color: var(--text); }
+body.pf-app .pf-trio small { color: var(--muted); font-size: 12px; margin-top: 2px; }
+body.pf-app .pf-rate { text-align: center; background: var(--card-tint) !important; box-shadow: none !important; }
+body.pf-app .pf-rate h4 { margin: 0; font-size: 17px; color: var(--text); }
+body.pf-app .pf-faces { display: flex; gap: 10px; margin-top: 12px; }
+body.pf-app .pf-face { flex: 1; border: 0; border-radius: 18px; background: var(--surface); padding: 12px 6px; cursor: pointer; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
+body.pf-app .pf-face .pf-ic { width: 34px; height: 34px; stroke-width: 1.8; }
+body.pf-app .pf-face.on { background: var(--blue); color: #fff; }
+body.pf-app .pf-face.dim { opacity: .55; }
+body.pf-app .pf-rate-cap { margin: 10px 0 0; color: var(--muted-tint); font-size: 13px; font-weight: 500; }
+body.pf-app .pf-sum-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+body.pf-app .pf-summary video, body.pf-app .pf-summary audio { width: 100%; margin-top: 10px; border-radius: 14px; }
+body.pf-app .pf-felt { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 11px; font-weight: 700; color: var(--blue); }
+body.pf-app .history-card { cursor: pointer; }
+body.pf-app .pf-detail-mode { font-size: 18px; font-weight: 700; color: var(--text); }
+body.pf-app .pf-export .pf-type-row { flex-wrap: wrap; }
+body.pf-app .pf-export-slot { position: absolute; right: 16px; top: calc(12px + env(safe-area-inset-top, 0px)); }
+body.pf-app #progressModal .progress-modal-header { position: sticky; }
+
+/* profile */
+body.pf-app .pf-profile-hero { display: flex; flex-direction: column; align-items: center; padding: 0 20px 22px; color: #fff; text-align: center; }
+body.pf-app .pf-avatar { width: 84px; height: 84px; border-radius: 50%; background: rgba(255,255,255,.22); color: #fff; font-size: 34px; font-weight: 700; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 3px solid rgba(255,255,255,.5); }
+body.pf-app .pf-avatar img { width: 100%; height: 100%; object-fit: cover; }
+body.pf-app .pf-pname { font-size: 24px; margin-top: 10px; color: #fff; }
+body.pf-app .pf-pmail { font-size: 14px; color: #CCE4FF; margin-top: 2px; word-break: break-all; }
+body.pf-app .pf-profile-hero small { font-size: 12px; color: #CCE4FF; margin-top: 2px; }
+body.pf-app .pf-profile-hero .pf-chip { margin-top: 12px; }
+
+/* login: Login | Sign up, Google */
+body.pf-app .pf-auth-tabs { margin: 0 0 18px; background: var(--field); border: 1px solid var(--line); border-radius: 22px; }
+body.pf-app .pf-auth-tabs button { border-radius: 18px; padding: 11px 0; font-size: 15px !important; color: var(--muted) !important; }
+body.pf-app .pf-auth-tabs button.on { background: var(--blue); color: #fff !important; }
+body.pf-app .pf-name-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M4 21c0-4 4-6 8-6s8 2 8 6'/%3E%3C/svg%3E") !important;
+}
+body.pf-app .pf-or { display: flex; align-items: center; gap: 14px; margin: 16px 0; color: var(--muted); font-size: 13px; }
+body.pf-app .pf-or::before, body.pf-app .pf-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+body.pf-app .pf-google {
+    width: 100%; min-height: 56px; display: flex; align-items: center; justify-content: center; gap: 12px; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 28px; color: var(--text) !important; font-size: 16px !important; font-weight: 700 !important;
+}
+
+/* Training: 4 mode chips in a 2x2 grid, cues, recording */
+body.pf-app .training-mode-grid.pf-mode-grid4 { display: grid !important; grid-template-columns: 1fr 1fr !important; }
+body.pf-app #mirrorEyesRow, body.pf-app #mirrorModeGroup > .tts-option:first-child { display: none !important; }
+body.pf-app:not(.pf-camera-mode) #mirrorModeGroup { display: none !important; }
+body.pf-app .pf-cues-head { display: flex; align-items: center; font-size: 16px; font-weight: 500; color: var(--text); }
+body.pf-app .pf-cue-row { display: flex; }
+body.pf-app .pf-cue { flex: 1; border: 0; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; }
+body.pf-app .pf-cue-dot { width: 56px; height: 56px; border-radius: 50%; border: 2px solid var(--blue); color: var(--blue); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+body.pf-app .pf-cue-dot .pf-ic { width: 26px; height: 26px; }
+body.pf-app .pf-cue.on .pf-cue-dot { background: var(--blue); color: #fff; }
+body.pf-app .pf-cue-name { font-size: 13px; color: var(--text); }
+body.pf-app:not(.pf-camera-mode) .pf-cue-mirror, body.pf-app.deep-pause-active .pf-cue-mirror { display: none; }
+body.pf-app .pf-tts-group > .tts-option:first-of-type, body.pf-app .pf-tts-group > .config-title { display: none !important; }
+body.pf-app .pf-tts-group:not(:has(#deepPauseTipSettings[style*="block"])) { display: none !important; }
+body.pf-app .pf-sw-col { display: flex; flex-direction: column; }
+body.pf-app .pf-sw-col small { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+body.pf-app .pf-rec-chips { display: flex; gap: 8px; }
+body.pf-app .pf-rec-chips button { flex: 1; border: 0; cursor: pointer; border-radius: 14px; padding: 12px 6px; background: var(--soft); color: var(--muted); font-size: 13px; font-weight: 700; }
+body.pf-app .pf-rec-chips button.on { background: var(--blue); color: #fff; }
+
+/* ======================================================================= dark mode (Ui.kt dark colours) */
+body.pf-app.pf-dark {
+    --blue-soft: #1B3558; --bg: #0B1220; --surface: #162032; --field: #0F1A2B; --text: #F1F5F9; --muted: #94A3B8;
+    --line: #2A3A52; --soft: #223049; --check-line: #475569; --card-tint: #1B3558; --muted-tint: #94A3B8;
+    --shadow: 0 0 0 1px #24324a; color-scheme: dark;
+}
+body.pf-app.pf-dark .pf-toggle button { color: #94A3B8 !important; }
+body.pf-app.pf-dark .pf-toggle button.on { color: #fff !important; }
+body.pf-app.pf-dark .pf-toggle-onblue button.on { color: var(--blue-dark) !important; }
+body.pf-app.pf-dark .pf-milestone { background: #3A2F10; color: #FCD34D; }
+body.pf-app.pf-dark .toggle { background: #3A4A63 !important; }
+body.pf-app.pf-dark .toggle.active { background: #2F5F9E !important; }
+body.pf-app.pf-dark .pf-nav { box-shadow: none; }
+body.pf-app.pf-dark .custom-alert-box, body.pf-app.pf-dark .settings-modal, body.pf-app.pf-dark .goal-dlg,
+body.pf-app.pf-dark .question-selection-content, body.pf-app.pf-dark #shareCodeModal > div {
+    background: var(--surface) !important; color: var(--text) !important;
+}
+body.pf-app.pf-dark .custom-alert-title, body.pf-app.pf-dark .goal-dlg h3, body.pf-app.pf-dark .settings-modal-header,
+body.pf-app.pf-dark .goal-card *, body.pf-app.pf-dark .stat-value, body.pf-app.pf-dark .list-name { color: var(--text) !important; -webkit-text-fill-color: var(--text) !important; }
+body.pf-app.pf-dark .goal-dlg p, body.pf-app.pf-dark .custom-alert-message { color: var(--muted) !important; }
+body.pf-app.pf-dark .goal-opt, body.pf-app.pf-dark #goalOpts > * { background: var(--field) !important; color: var(--text) !important; border-color: var(--line) !important; }
+body.pf-app.pf-dark .goal-card .goal-ring circle:first-child { stroke: var(--soft); }
+body.pf-app.pf-dark .list-card *, body.pf-app.pf-dark .stat-card *, body.pf-app.pf-dark .week-card *, body.pf-app.pf-dark .history-card * { border-color: var(--line) !important; }
+body.pf-app.pf-dark .list-card div[style*="background"] { background: var(--field) !important; }
+body.pf-app.pf-dark .list-card span[style*="color:#64748b"], body.pf-app.pf-dark .list-card .list-count { color: var(--muted) !important; }
+body.pf-app.pf-dark #createListFormModal textarea, body.pf-app.pf-dark #editListModal textarea, body.pf-app.pf-dark #editListModal input,
+body.pf-app.pf-dark .question-selection-modal input, body.pf-app.pf-dark #configPanel textarea {
+    background: var(--field) !important; color: var(--text) !important; border-color: var(--line) !important;
+}
+body.pf-app.pf-dark .selected-preview, body.pf-app.pf-dark .saved-section, body.pf-app.pf-dark .saved-questions, body.pf-app.pf-dark .custom-questions { background: transparent !important; color: var(--text) !important; }
+body.pf-app.pf-dark .selected-preview *, body.pf-app.pf-dark .saved-label, body.pf-app.pf-dark .ai-count-row, body.pf-app.pf-dark label { color: var(--text) !important; }
+body.pf-app.pf-dark .question-container, body.pf-app.pf-dark .instructions-container { background: var(--surface) !important; }
+body.pf-app.pf-dark #question { color: var(--text) !important; -webkit-text-fill-color: var(--text) !important; }
+body.pf-app.pf-dark .timeline, body.pf-app.pf-dark .timer-container { background: var(--surface) !important; }
+body.pf-app.pf-dark #timer, body.pf-app.pf-dark .phase-label { color: var(--text) !important; }
+body.pf-app.pf-dark .pf-search-pill { background: #0F1A2B; color: #94A3B8; }
+body.pf-app.pf-dark .pf-search-pill input { color: #F1F5F9 !important; }
+body.pf-app.pf-dark .pf-google { background: var(--field); }
+body.pf-app button.pf-cue { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; background: none !important; box-shadow: none !important; border: 0 !important; padding: 4px 0 !important; margin: 0 !important; display: flex !important; }
+body.pf-app:not(.pf-camera-mode) button.pf-cue-mirror, body.pf-app.deep-pause-active button.pf-cue-mirror { display: none !important; }
+
+/* ======================================================================= History (HistoryActivity, TrainingDetailActivity) */
+body.pf-app .pf-hist-ready #tabStatsContent, body.pf-app .pf-hist-ready #tabHistoryContent { display: none !important; }
+body.pf-app .pf-hpane { padding: 0 16px 8px; display: flex; flex-direction: column; gap: 10px; }
+body.pf-app .pf-hpane[hidden] { display: none !important; }
+body.pf-app .pf-ic-xs { width: 13px; height: 13px; display: inline-block; flex: none; }
+body.pf-app .pf-ic-face { width: 16px; height: 16px; display: inline-block; flex: none; }
+/* tiles: light-blue cards, value 20 bold, label 11 medium */
+body.pf-app .pf-tiles-row { display: flex; gap: 10px; }
+body.pf-app .pf-tile-t { flex: 1 1 0; min-width: 0; background: var(--card-tint); border-radius: 22px; padding: 16px 10px; display: flex; align-items: center; justify-content: center; }
+body.pf-app .pf-metric { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+body.pf-app .pf-metric b { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.25; white-space: nowrap; }
+body.pf-app .pf-metric span { font-size: 11px; font-weight: 500; color: var(--muted-tint); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+body.pf-app .pf-fb-t { display: block; font-size: 16px; font-weight: 700; color: var(--text); }
+body.pf-app .pf-fb-p { margin: 6px 0 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
+body.pf-app .pf-note-tight { padding: 12px 24px 4px; }
+/* Your practice: Week | Month */
+body.pf-app .pf-practice { background: var(--card-tint); border-radius: 22px; padding: 16px 18px; }
+body.pf-app .pf-pr-head { display: flex; align-items: center; }
+body.pf-app .pf-pr-title { flex: 1; font-size: 12px; font-weight: 700; color: var(--muted-tint); letter-spacing: 1.2px; }
+body.pf-app .pf-seg { display: flex; background: #C4DCFB; border-radius: 12px; padding: 3px; }
+body.pf-app .pf-seg button { border: 0; background: none; cursor: pointer; border-radius: 10px; padding: 7px 14px; font-size: 13px !important; font-weight: 700 !important; color: #3F5F8F !important; }
+body.pf-app .pf-seg button.on { background: var(--blue); color: #fff !important; }
+body.pf-app .pf-seg-wide { border-radius: 14px; }
+body.pf-app .pf-seg-wide button { flex: 1; border-radius: 11px; padding: 9px 8px; }
+body.pf-app .pf-pr-sub { margin: 10px 0 0; font-size: 13px; font-weight: 500; color: var(--muted-tint); }
+body.pf-app .pf-bars { display: flex; margin-top: 8px; height: 136px; }
+body.pf-app .pf-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+body.pf-app .pf-bar-col small { font-size: 10px; font-weight: 500; color: var(--muted-tint); min-height: 14px; }
+body.pf-app .pf-bar-col i { display: block; width: 18px; border-radius: 6px; margin-top: 4px; background: #B7D5FA; }
+body.pf-app .pf-bar-col i.has { background: rgba(30, 144, 255, .59); }
+body.pf-app .pf-bar-col i.today { background: var(--blue); }
+body.pf-app .pf-bar-col > span { font-size: 11px; font-weight: 500; color: var(--muted-tint); margin-top: 6px; }
+body.pf-app .pf-bar-col > span.today { color: var(--text); font-weight: 700; }
+body.pf-app .pf-mnav { display: flex; align-items: center; margin-top: 10px; }
+body.pf-app .pf-mnav b { flex: 1; text-align: center; font-size: 16px; color: var(--text); }
+body.pf-app .pf-mnav button { border: 0; background: none; cursor: pointer; font-size: 26px; font-weight: 700; color: var(--muted-tint); padding: 0 12px; line-height: 1; }
+body.pf-app .pf-mnav button:disabled { color: #B7D5FA; cursor: default; }
+body.pf-app .pf-cal { display: grid; grid-template-columns: repeat(7, 1fr); }
+body.pf-app .pf-cal-head { margin-top: 12px; }
+body.pf-app .pf-cal-head span { text-align: center; font-size: 12px; font-weight: 500; color: var(--muted-tint); }
+body.pf-app .pf-cal:not(.pf-cal-head) { margin-top: 4px; }
+body.pf-app .pf-cal:not(.pf-cal-head) > span { height: 44px; display: flex; align-items: center; justify-content: center; }
+body.pf-app .pf-cal i { font-style: normal; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: var(--muted-tint); box-sizing: border-box; }
+body.pf-app .pf-cal i.fut { color: #94A3B8; }
+body.pf-app .pf-cal i.s1 { background: #B7D5FA; color: #0B3B7A; font-weight: 700; }
+body.pf-app .pf-cal i.s2 { background: #7DB8FF; color: #fff; font-weight: 700; }
+body.pf-app .pf-cal i.s3 { background: var(--blue); color: #fff; font-weight: 700; }
+body.pf-app .pf-cal i.today { border: 2px solid #0B5FD1; font-weight: 700; }
+body.pf-app .pf-pr-count { text-align: center; margin: 10px 0 0; font-size: 13px; font-weight: 500; color: var(--muted-tint); }
+/* Training History: mode chips, range switch, cards */
+body.pf-app .pf-chips { display: flex; gap: 8px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+/* centred when they fit, scrollable from the first chip when they don't (plain centring would cut "All" off) */
+body.pf-app .pf-chips > :first-child { margin-left: auto; }
+body.pf-app .pf-chips > :last-child { margin-right: auto; }
+body.pf-app .pf-chips::-webkit-scrollbar { display: none; }
+body.pf-app .pf-fchip { flex: none; border: 0; cursor: pointer; border-radius: 20px; padding: 10px 16px; background: var(--soft); color: var(--muted) !important; font-size: 13px !important; font-weight: 700 !important; white-space: nowrap; }
+body.pf-app .pf-fchip.on { background: var(--blue); color: #fff !important; }
+body.pf-app .pf-hcard {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+    background: var(--card-tint); border: 0; border-radius: 22px; padding: 16px 18px; color: var(--text);
+}
+body.pf-app .pf-hc-left { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+body.pf-app .pf-hc-left > b { font-size: 14px; font-weight: 500; color: var(--text); }
+body.pf-app .pf-hc-sub { display: flex; align-items: center; margin-top: 3px; font-size: 12px; color: var(--muted-tint); flex-wrap: wrap; row-gap: 2px; }
+body.pf-app .pf-hc-sub .pf-sep { margin: 0 6px; }
+body.pf-app .pf-hc-sub .pf-tm { margin-left: 4px; }
+body.pf-app .pf-3y { margin-left: 6px; background: var(--blue); color: #fff; font-size: 10px; font-weight: 700; border-radius: 9px; padding: 1px 7px; line-height: 16px; }
+body.pf-app .pf-mtag { flex: none; background: #B7D5FA; color: #0B4FB3; border-radius: 20px; padding: 6px 12px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+body.pf-app .pf-hcard:focus-visible, body.pf-app .pf-fchip:focus-visible, body.pf-app .pf-seg button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+/* training detail */
+body.pf-app .pf-hicon-static { cursor: default; }
+body.pf-app .pf-hicon-static .pf-ic { width: 22px; height: 22px; }
+body.pf-app .pf-dt-when { text-align: center; color: var(--muted); font-size: 13px; margin: 0; }
+body.pf-app .pf-dt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+body.pf-app .pf-cell { padding: 12px 14px; }
+body.pf-app .pf-cell-full { grid-column: 1 / -1; }
+body.pf-app .pf-cell > span { display: block; font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+body.pf-app .pf-cell > b { display: block; font-size: 15px; font-weight: 700; color: var(--text); margin-top: 3px; line-height: 1.5; }
+body.pf-app .pf-mt8 { margin-top: 8px; }
+body.pf-app .pf-felt-card { margin-top: 8px; padding: 12px 14px; }
+body.pf-app .pf-felt-card > span { display: block; text-align: center; font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+body.pf-app .pf-felt-row { display: flex; gap: 6px; margin-top: 10px; }
+body.pf-app .pf-felt-pill { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; cursor: pointer; border-radius: 19px; padding: 9px 6px; background: var(--soft); color: var(--text); }
+body.pf-app .pf-felt-pill b { font-size: 12px; font-weight: 700; }
+body.pf-app .pf-felt-pill.on { background: var(--blue); color: #fff; }
+body.pf-app .pf-again { margin-top: 22px; }
+/* dark mode for History */
+body.pf-app.pf-dark .pf-seg { background: #26426B; }
+body.pf-app.pf-dark .pf-seg button { color: #94A3B8 !important; }
+body.pf-app.pf-dark .pf-seg button.on { color: #fff !important; }
+body.pf-app.pf-dark .pf-bar-col i { background: #2F5F9E; }
+body.pf-app.pf-dark .pf-bar-col i.has { background: rgba(30,144,255,.59); }
+body.pf-app.pf-dark .pf-bar-col i.today { background: var(--blue); }
+body.pf-app.pf-dark .pf-cal i.s1 { background: #2F5F9E; color: #F1F5F9; }
+body.pf-app.pf-dark .pf-cal i.s2 { background: #3F7FD0; }
+body.pf-app.pf-dark .pf-cal i.today { border-color: #8FC1FF; }
+body.pf-app.pf-dark .pf-cal i.fut { color: #64748B; }
+body.pf-app.pf-dark .pf-mtag { background: #2F5F9E; color: #fff; }
+body.pf-app.pf-dark .pf-mnav button:disabled { color: #2F5F9E; }
+/* the website's pop-ups used emoji icons; the app's dialogs have none */
+body.pf-app .custom-alert-icon { display: none !important; }
+body.pf-app .goal-opt .mk svg { display: block; }

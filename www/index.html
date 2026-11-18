@@ -12,13 +12,22 @@
     <meta name="apple-mobile-web-app-title" content="PAUZFIRST">
     <link rel="apple-touch-icon" href="icon-192.png">
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <!-- frame-ancestors, X-Frame-Options and nosniff only work as real server headers: see www/_headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: data:; connect-src 'self' https: wss:; base-uri 'self'; form-action 'self';">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0" crossorigin="anonymous"></script>
+    <script>
+        // App layout: lets pages opened on top (question bank, AI, profile...) handle the phone's back button
+        // before the website's own handler, so going back closes only the page on top.
+        window.__pfBack = [];
+        window.addEventListener('popstate', function (e) {
+            for (var i = 0; i < window.__pfBack.length; i++) {
+                if (window.__pfBack[i](e)) { e.stopImmediatePropagation(); return; }
+            }
+        });
+    </script>
     <style>
         /* AUTH OVERLAY */
         #authOverlay {
@@ -2515,11 +2524,12 @@
             <div class="auth-form-title">Create Password</div>
             <p id="createPasswordHeading" class="auth-form-sub">Welcome! Create your password to get started.</p>
             <div style="position:relative;margin-bottom:12px;">
-                <input id="newPassword" class="auth-input" type="password" placeholder="Create a password (min 6 chars)" autocomplete="new-password" style="margin-bottom:0;padding-right:48px;" onkeydown="if(event.key==='Enter')setPassword()" />
+                <input id="newPassword" class="auth-input" type="password" placeholder="Create a password" autocomplete="new-password" style="margin-bottom:0;padding-right:48px;" onkeydown="if(event.key==='Enter')setPassword()" />
                 <span onclick="togglePw('newPassword',this)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;display:flex;align-items:center;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </span>
             </div>
+            <div style="font-size:11px;color:#64748b;margin:-6px 4px 12px;text-align:left;">At least 8 characters, with a capital letter and a number.</div>
             <div style="position:relative;margin-bottom:12px;">
                 <input id="confirmPassword" class="auth-input" type="password" placeholder="Confirm your password" autocomplete="new-password" style="margin-bottom:0;padding-right:48px;" onkeydown="if(event.key==='Enter')setPassword()" />
                 <span onclick="togglePw('confirmPassword',this)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;display:flex;align-items:center;">
@@ -3084,7 +3094,7 @@
                     </button>
                 </div>
                 <div id="importListForm" style="display:none;padding:10px 0 4px;">
-                    <input type="text" id="importCodeInput" class="list-name-input" placeholder="Enter share code e.g. PF-X7K2M" style="text-transform:uppercase;letter-spacing:1px;">
+                    <input type="text" id="importCodeInput" class="list-name-input" placeholder="Enter share code e.g. PF-X7K2M or AB3K9Z" style="text-transform:uppercase;letter-spacing:1px;">
                     <div id="importCodeMsg" style="font-size:11px;font-weight:600;text-align:center;margin:4px 0;min-height:16px;"></div>
                     <button onclick="importListByCode()" style="width:100%;padding:11px;font-size:11px;font-weight:700;background:linear-gradient(135deg,#1E90FF,#0066cc);color:white;border:none;border-radius:9px;cursor:pointer;font-family:'Inter',sans-serif;">
                         <i class="fas fa-download"></i> Import List
@@ -3692,7 +3702,7 @@
                 item.innerHTML = `
                     <div class="settings-profile-icon"><i class="fas fa-sliders-h"></i></div>
                     <div class="settings-profile-info">
-                        <div class="settings-profile-name">${p.name}</div>
+                        <div class="settings-profile-name">${escapeHtml(String(p.name))}</div>
                         <div class="settings-profile-meta">${profileMeta(p.settings)}</div>
                     </div>
                     <button class="settings-profile-eye" title="View details"><i class="fas fa-eye"></i></button>
@@ -3728,7 +3738,7 @@
                     applySettingsProfile(p.settings);
                     closeSettingsModal();
                     const msg = document.getElementById('defaultSavedMsg');
-                    msg.innerHTML = `<i class="fas fa-check-circle"></i> "${p.name}" loaded!`;
+                    msg.innerHTML = `<i class="fas fa-check-circle"></i> "${escapeHtml(String(p.name))}" loaded!`;
                     msg.style.display = 'flex';
                     setTimeout(() => { msg.style.display = 'none'; }, 2500);
                 });
@@ -3751,7 +3761,7 @@
             const msg = document.getElementById('defaultSavedMsg');
             btn.classList.add('saved');
             btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
-            msg.innerHTML = `<i class="fas fa-check-circle"></i> "${name.trim()}" saved!`;
+            msg.innerHTML = `<i class="fas fa-check-circle"></i> "${escapeHtml(name.trim())}" saved!`;
             msg.style.display = 'flex';
             setTimeout(() => {
                 btn.classList.remove('saved');
@@ -4076,7 +4086,7 @@
         function copyShareCode() {
             const code = document.getElementById('shareCodeDisplay').textContent;
             navigator.clipboard.writeText(code).then(() => {
-                document.getElementById('shareCodeCopyMsg').textContent = '✅ Copied to clipboard!';
+                document.getElementById('shareCodeCopyMsg').textContent = 'Copied to clipboard';
             }).catch(() => {
                 document.getElementById('shareCodeCopyMsg').textContent = 'Code: ' + code;
             });
@@ -4092,12 +4102,17 @@
         }
 
         async function importListByCode() {
-            const rawCode = document.getElementById('importCodeInput').value.trim().toUpperCase();
+            // Spaces are dropped so a code pasted from a chat message still works
+            const rawCode = document.getElementById('importCodeInput').value.replace(/\s+/g, '').toUpperCase();
             const msgEl = document.getElementById('importCodeMsg');
             msgEl.style.color = '#e74c3c';
 
             if (!rawCode) { msgEl.textContent = 'Please enter a share code.'; return; }
-            if (!/^PF-[A-Z0-9]{5}$/.test(rawCode)) { msgEl.textContent = 'Invalid code format. Should be like PF-X7K2M.'; return; }
+            // Website codes look like PF-X7K2M; codes made in the Android app are 6 letters/numbers like AB3K9Z
+            if (!/^PF-[A-Z0-9]{5}$/.test(rawCode) && !/^[A-Z0-9]{6}$/.test(rawCode)) {
+                msgEl.textContent = 'That doesn\'t look like a share code. It should look like PF-X7K2M or AB3K9Z.';
+                return;
+            }
 
             msgEl.style.color = '#64748b';
             msgEl.textContent = 'Looking up code…';
@@ -4119,7 +4134,7 @@
 
             if (error || !data) {
                 msgEl.style.color = '#e74c3c';
-                msgEl.textContent = 'Code not found.';
+                msgEl.textContent = 'Code not found. Check the code and try again.';
                 return;
             }
 
@@ -4141,7 +4156,7 @@
                     }
                     displaySavedLists();
                     msgEl.style.color = '#16a34a';
-                    msgEl.textContent = `✅ ${imported} list${imported !== 1 ? 's' : ''} imported!`;
+                    msgEl.textContent = `${imported} list${imported !== 1 ? 's' : ''} imported`;
                     document.getElementById('importCodeInput').value = '';
                     setTimeout(() => {
                         document.getElementById('importListForm').style.display = 'none';
@@ -4170,7 +4185,7 @@
             displaySavedLists();
 
             msgEl.style.color = '#16a34a';
-            msgEl.textContent = '✅ "' + importName + '" imported!';
+            msgEl.textContent = '"' + importName + '" imported';
             document.getElementById('importCodeInput').value = '';
             setTimeout(() => {
                 document.getElementById('importListForm').style.display = 'none';
@@ -4223,7 +4238,7 @@
                 card.dataset.list = encodeURIComponent(listName);
 
                 const completeBadge = isComplete
-                    ? '<span class="list-complete-badge">✓ Complete</span>'
+                    ? '<span class="list-complete-badge">Complete</span>'
                     : '';
 
                 const pinBadge = isPinned ? '<svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" style="color:#1E90FF;margin-left:4px;vertical-align:middle;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>' : '';
@@ -4285,7 +4300,7 @@
 
                 card.innerHTML = `
                     <div class="list-card-header">
-                        <div class="list-name">${escapeHtml(listName).toUpperCase()}${pinBadge}${completeBadge}</div>
+                        <div class="list-name">${escapeHtml(listName.toUpperCase())}${pinBadge}${completeBadge}</div>
                         <div class="list-count">${total} questions</div>
                     </div>
                     ${expandedDetail}
@@ -4420,11 +4435,11 @@ Generate exactly ${count} items now.`;
 
                 resultEl.style.display = 'block';
                 statusEl.className = 'ai-status success';
-                statusEl.textContent = '✓ ' + questions.length + ' questions generated!';
+                statusEl.textContent = questions.length + ' questions generated';
 
             } catch(e) {
                 statusEl.className = 'ai-status error';
-                statusEl.textContent = '✗ ' + (e.message || 'Generation failed.');
+                statusEl.textContent = (e.message || 'Generation failed.');
             } finally {
                 btn.disabled = false;
                 _aiCustomGenerating = false;
@@ -4732,12 +4747,12 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 displaySavedLists();
 
                 statusEl.className = 'ai-status success';
-                statusEl.textContent = '✓ ' + allLines.length + ' items saved as "' + listName + '"!';
+                statusEl.textContent = allLines.length + ' items saved as "' + listName + '"';
                 document.getElementById('aiListName').value = '';
 
             } catch (e) {
                 statusEl.className = 'ai-status error';
-                statusEl.textContent = '✗ ' + (e.message || 'Generation failed.');
+                statusEl.textContent = (e.message || 'Generation failed.');
             } finally {
                 btn.disabled = false;
                 _aiGenerating = false;
@@ -4770,7 +4785,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 if (isDone) {
                     const badge = document.createElement('div');
                     badge.className = 'done-badge';
-                    badge.textContent = '✓ Done';
+                    badge.textContent = 'Done';
                     item.appendChild(badge);
                 }
                 questionsListContainer.appendChild(item);
@@ -5238,10 +5253,10 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
             'animated-eyes': 'Animated Eyes'
         };
         const MODE_ICONS = {
-            'eyes-closed': '😌',
-            'eyes-open':   '👁️',
-            'mirror':      '🪞',
-            'animated-eyes': '👀'
+            'eyes-closed': '',
+            'eyes-open':   '',
+            'mirror':      '',
+            'animated-eyes': ''
         };
 
         const HISTORY_MAX = 200;   // same limit as the Android app, so the two never trim each other's history
@@ -5422,14 +5437,14 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
             arc.setAttribute('stroke-dashoffset', String(125.66 * (1 - p)));
             arc.setAttribute('stroke', done ? '#16A34A' : '#1E90FF');
             pct.setAttribute('fill', done ? '#16A34A' : '#1a1a2e');
-            pct.textContent = done ? '✓' : Math.floor(p * 100) + '%';
+            pct.textContent = done ? 'Done' : Math.floor(p * 100) + '%';
             sub.textContent = done ? ('Goal reached  •  ' + formatDuration(secs) + ' today') : (formatDuration(secs) + ' of ' + goal + ' min today');
         }
 
         async function openGoalPicker() {
             const goal = await getGoalMinutes();
             document.getElementById('goalOpts').innerHTML = GOAL_OPTIONS.map(v =>
-                '<button class="goal-opt' + (v === goal ? ' on' : '') + '" onclick="chooseGoal(' + v + ')"><span class="mk">' + (v === goal ? '✓' : '') + '</span>' +
+                '<button class="goal-opt' + (v === goal ? ' on' : '') + '" onclick="chooseGoal(' + v + ')"><span class="mk">' + (v === goal ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>' : '') + '</span>' +
                 (v === 0 ? 'No daily goal' : v === 1 ? '1 minute a day' : v + ' minutes a day') + '</button>').join('');
             document.getElementById('goalOverlay').style.display = 'flex';
         }
@@ -5495,7 +5510,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 card.innerHTML = `
                     <div class="history-card-left">
                         <div class="history-date">${formatHistoryDate(entry.date)}</div>
-                        <div class="history-mode">${MODE_ICONS[entry.mode] || '🎯'} ${MODE_LABELS[entry.mode] || entry.mode}${deepTag}</div>
+                        <div class="history-mode">${MODE_ICONS[entry.mode] || ''}${MODE_LABELS[entry.mode] || escapeHtml(String(entry.mode || ''))}${deepTag}</div>
                     </div>
                     <div class="history-card-right">
                         <div class="history-stat">
@@ -7442,7 +7457,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
     <!-- Share Code Modal -->
     <div id="shareCodeModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10001;align-items:center;justify-content:center;">
         <div style="background:white;border-radius:20px;padding:28px 24px;width:90%;max-width:340px;text-align:center;box-shadow:0 8px 40px rgba(30,144,255,0.2);">
-            <div style="font-size:28px;margin-bottom:8px;">🔗</div>
+            <div style="margin:0 auto 8px;width:48px;height:48px;border-radius:50%;background:#E6F1FF;color:#1E90FF;display:flex;align-items:center;justify-content:center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M8.6 13.5l6.8 4 M15.4 6.5l-6.8 4"/></svg></div>
             <div style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:4px;">Share Your List</div>
             <div id="shareCodeListName" style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:18px;"></div>
             <div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px;">Share this code with anyone:</div>
@@ -7464,6 +7479,13 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
 <script>
     // ── Supabase client (anon key is safe to expose client-side;
     //    all sensitive operations are protected by Supabase Row Level Security) ──
+    // If the sign-in library could not be downloaded (no internet on the very first visit, or a blocked CDN),
+    // say so instead of leaving the page stuck on "Checking authentication...".
+    if (!window.supabase || !window.supabase.createClient) {
+        document.getElementById('authStatus').querySelector('.auth-msg').textContent =
+            'Could not load PauzFirst. Check your internet connection and refresh the page.';
+        throw new Error('supabase-js failed to load');
+    }
     const sb = window.supabase.createClient(
         'https://xkjidzrtcedppfbdabqg.supabase.co',
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhramlkenJ0Y2VkcHBmYmRhYnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDkyMTgsImV4cCI6MjA4ODkyNTIxOH0.WHM2qRFWq03xyAuGQMzOt7ZEoe_dXLIAnOzRxzhgUdQ',
@@ -7565,7 +7587,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
 
         overlay.innerHTML = `
             <div style="background:#fff;border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.18);">
-                <div style="font-size:36px;margin-bottom:12px;">🎙️📷</div>
+                <div style="display:flex;gap:10px;justify-content:center;margin-bottom:12px;color:#1E90FF;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v3"/></svg><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 7l-7 5 7 5V7z M3 5h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg></div>
                 <div style="font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:10px;">Camera & Microphone</div>
                 <div style="font-size:14px;color:#555;line-height:1.6;margin-bottom:22px;">
                     PauzFirst uses your <strong>camera</strong> so you can see yourself while training, and your <strong>microphone</strong> to detect when you start speaking.<br><br>
@@ -7629,6 +7651,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
         document.getElementById('newPassword').value = '';
         document.getElementById('confirmPassword').value = '';
         document.getElementById('createPasswordMsg').textContent = '';
+        document.getElementById('createPasswordMsg').style.color = '';
     }
 
     function showLogin() {
@@ -7639,6 +7662,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
         document.getElementById('loginEmail').value = '';
         document.getElementById('loginPassword').value = '';
         document.getElementById('loginMsg').textContent = '';
+        document.getElementById('loginMsg').style.color = '';
     }
 
     function showReset() {
@@ -7668,8 +7692,33 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
         return null;
     }
 
+    // Only people who were INVITED by email and have not set a password yet must create one.
+    // Accounts made in the app (sign up or Google) never had the website's "registered" flag, and must not be asked.
+    function _needsPassword(user) {
+        if (!user) return false;
+        var meta = user.user_metadata || {};
+        if (meta.registered) return false;
+        var provider = (user.app_metadata && user.app_metadata.provider) || 'email';
+        if (provider !== 'email') return false;          // Google and other sign-ins have no password to set
+        return !!user.invited_at;                        // invited, never finished setting a password
+    }
+
     async function checkUser() {
         var urlParams = new URLSearchParams(window.location.search);
+
+        // An expired or already-used invite / reset link comes back with an error instead of a token.
+        // Before, this silently showed the normal login screen and people didn't know what went wrong.
+        var errHash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+        var linkError = urlParams.get('error_code') || urlParams.get('error') || errHash.get('error_code') || errHash.get('error');
+        if (linkError) {
+            history.replaceState(null, '', window.location.pathname);
+            var expired = /expired|otp|access_denied/i.test(linkError);
+            showError(expired
+                ? 'This link has expired or was already used. Please request a new one.'
+                : 'This link did not work. Please request a new one.');
+            return;
+        }
+
         var tokenParam = urlParams.get('token');
         var typeParam  = urlParams.get('type');
 
@@ -7702,7 +7751,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
 
                 if (activeSession) {
                     var isReset = (typeParam === 'recovery');
-                    var needsPw = !activeSession.user.user_metadata || !activeSession.user.user_metadata.registered;
+                    var needsPw = _needsPassword(activeSession.user);
                     if (isReset || needsPw) { showCreatePassword(isReset); } else { hideOverlay(); }
                 } else {
                     showError('Could not establish session. Please request a new invite link.');
@@ -7726,14 +7775,17 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
                 showError('Link expired or already used. Please request a new one.');
             }, 10000);
 
+            var hashDone = false;
             var unsubHash = sb.auth.onAuthStateChange(function(event, session) {
-                if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') && session) {
+                if (hashDone) return;
+                if ((event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || event === 'INITIAL_SESSION') && session) {
+                    hashDone = true;
                     clearTimeout(hashTimeout);
                     unsubHash.data.subscription.unsubscribe();
                     history.replaceState(null, '', window.location.pathname);
                     var isReset = (hashType === 'recovery' || event === 'PASSWORD_RECOVERY');
                     if (isReset) { showCreatePassword(true); } else {
-                        var needsPw = !session.user.user_metadata || !session.user.user_metadata.registered;
+                        var needsPw = _needsPassword(session.user);
                         if (needsPw) { showCreatePassword(false); } else { hideOverlay(); }
                     }
                 }
@@ -7743,7 +7795,7 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
 
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
-            var needsPassword = !session.user.user_metadata || !session.user.user_metadata.registered;
+            var needsPassword = _needsPassword(session.user);
             if (needsPassword) { showCreatePassword(); } else { hideOverlay(); }
         } else {
             showLogin();
@@ -7771,11 +7823,20 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
         btn.disabled = true;
         msgEl.textContent = 'Logging in…';
 
-        const { error } = await sb.auth.signInWithPassword({ email, password });
+        var error = null;
+        try {
+            var res = await sb.auth.signInWithPassword({ email, password });
+            error = res.error;
+        } catch (e) {
+            btn.disabled = false;
+            msgEl.textContent = 'Could not connect. Check your internet and try again.';
+            return;
+        }
         btn.disabled = false;
 
         if (error) {
             // Use generic message to prevent email enumeration
+            msgEl.style.color = '';
             msgEl.textContent = 'Invalid email or password. Please try again.';
         } else {
             _rl._reset('login');
@@ -7804,14 +7865,21 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
         msgEl.textContent = 'Sending reset link…';
 
         // Always show success to prevent email enumeration
-        await sb.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + window.location.pathname
-        });
+        try {
+            await sb.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + window.location.pathname
+            });
+        } catch (e) {
+            resetEmailSending = false;
+            btn.disabled = false;
+            msgEl.textContent = 'Could not connect. Check your internet and try again.';
+            return;
+        }
 
         resetEmailSending = false;
         btn.disabled = false;
         // Generic success message regardless of whether email exists
-        msgEl.textContent = '✅ If that email is registered, a reset link has been sent.';
+        msgEl.textContent = 'If that email is registered, a reset link has been sent.';
     }
 
     // ── SECURITY: Set password with stronger validation ──
@@ -7835,20 +7903,27 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
 
         btn.disabled = true;
         msgEl.textContent = 'Saving…';
-        const { error } = await sb.auth.updateUser({ password: password, data: { registered: true } });
+        var error = null;
+        try {
+            var res = await sb.auth.updateUser({ password: password, data: { registered: true } });
+            error = res.error;
+        } catch (e) {
+            error = e;
+        }
         btn.disabled = false;
 
         if (error) {
+            msgEl.style.color = '';
             msgEl.textContent = 'Could not save password. Please try again.';
         } else {
-            msgEl.textContent = '✅ Password saved! Logging you in…';
+            msgEl.textContent = 'Password saved. Logging you in…';
             msgEl.style.color = '#16a34a';
-            setTimeout(async function() {
-                await sb.auth.signOut();
-                showLogin();
-                document.getElementById('loginMsg').textContent = '✅ Password set! Please log in.';
-                document.getElementById('loginMsg').style.color = '#16a34a';
-            }, 1500);
+            // The link already signed them in, so take them straight into the app as the message says
+            // (before, they were signed out and had to type the new password again).
+            setTimeout(function() {
+                document.getElementById('authCreatePassword').style.display = 'none';
+                hideOverlay();
+            }, 1200);
         }
     }
 
@@ -8618,5 +8693,9 @@ OUTPUT FORMAT: Return ONLY a raw JSON array of strings. Example: ["Item one", "I
   </div>
 </div>
 
+<!-- App layout, design and features (same as the Android app). Remove these three lines to get the old website back. -->
+<link rel="stylesheet" href="app-skin.css">
+<script src="app-shell.js"></script>
+<script src="app-features.js"></script>
 </body>
 </html>

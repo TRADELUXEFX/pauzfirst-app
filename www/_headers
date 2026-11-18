@@ -1,0 +1,12 @@
+# Security headers for the website (read by Netlify and Cloudflare Pages, same as _redirects).
+# Browsers ignore these when they are written as <meta> tags inside the page, so they live here.
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=()
+
+# Always check for a new offline helper so fixes reach people quickly
+/sw.js
+  Cache-Control: no-cache

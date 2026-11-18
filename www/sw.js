@@ -1,11 +1,19 @@
-const CACHE_NAME = 'pauzfirst-v6';
+const CACHE_NAME = 'pauzfirst-v10';
 const ASSETS = [
   '.',
   'index.html',
   'manifest.json',
   'favicon.png',
   'icon-192.png',
-  'icon-512.png'
+  'icon-512.png',
+  'app-skin.css',
+  'app-shell.js',
+  'app-features.js',
+  'app-icon.png',
+  'logo-badge.png',
+  'fonts/poppins_regular.ttf',
+  'fonts/poppins_medium.ttf',
+  'fonts/poppins_bold.ttf'
 ];
 
 // Libraries, icons and fonts the page needs to start. They are version-pinned or static, so they are safe to keep
@@ -91,10 +99,13 @@ self.addEventListener('fetch', event => {
 
   // Everything else on this site: network first (so updates show up), saved copy when offline or too slow
   const isPage = request.mode === 'navigate';
+  // Invite and password-reset links carry a one-time token in the address (?token=...).
+  // Those pages must never be saved on the phone, or the token would sit in the offline storage.
+  const hasQuery = url.search.length > 1;
   event.respondWith(
     fetchWithTimeout(request, NETWORK_TIMEOUT_MS)
       .then(response => {
-        putIfGood(request, response);
+        if (!hasQuery) putIfGood(request, response);
         return response;
       })
       .catch(() =>
